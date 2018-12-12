@@ -82,11 +82,11 @@ module.exports = {
         console.log("Code: " + code);
         Presentation.create({
             title: req.body.title,
-            slides: [{
-                type: '',
+            slides: {
+                questionType: '',
                 question: '',
                 options: []
-            }],
+            },
             location: req.body.location,
             access_code: code.join("")
           }, (err, data) => {
@@ -96,6 +96,7 @@ module.exports = {
                   err
               })
             }
+            console.log(data)
             return res.status(200).json({
                 message: "Succeed to create presentation",
                 data

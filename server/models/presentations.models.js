@@ -5,13 +5,10 @@ const Question = require('./questions.models');
 const presentationSchema = new Schema({
   // id: String,
   title: String,
-  slides: [{
-    type: String,
-    question: String,
-    options: [{
-      option: String,
-      vote: Number
-    }]
+  slides: [{ 
+    questionType : String,
+    question : String,
+    options : Schema.Types.Mixed
   }],
   access_code: String,
   location: String
