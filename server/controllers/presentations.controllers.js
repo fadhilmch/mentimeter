@@ -54,6 +54,25 @@ module.exports = {
     })
   },
 
+
+
+  findByCode(req, res) {
+    Presentation.findOne({
+      access_code:req.params.access_code
+    })
+    .then(data => {
+      return res.status(200).json({
+          message: "Succeed get presentation by code",
+          data
+      })
+    })
+    .catch(err => {
+        return res.status(400).json({
+            message: "Failed to get presentation by code"
+        })
+    })
+  },
+
   create: (req, res) => {
 
     let number = '0123456789';
@@ -126,6 +145,57 @@ module.exports = {
                     message: "failed to update presentation"
                 })
             })
+    },
+
+    vote: (req, res) => {
+        let userId = req.body.userId;
+        let answers = req.body.answers.split('');
+
+        Presentation.findOne({
+            _id:req.params.id
+        })
+        .then(data => {
+            // console.log(data.slides)
+            data.slides.forEach((slide,index) => {
+                switch(slide.questionType){
+                    case 'multiple-choice':
+                        console.log('slide')
+                        console.log(answers)
+                        console.log('index '+index +" "+ answers[index])
+                        console.log(slide.options)
+                        slide.options[answers[index]].votes.push(userId);
+                        break;
+                }
+            })
+            data.markModified('slides')
+            data.save()
+                .then((data) => {
+                    console.log(data)
+                    return res.status(200).json({
+                        message: "Succeed to vote presentation",
+                        data
+                    })
+                })
+                .catch(err => {
+                    return res.status(400).json({
+                        message: "failed to vote presentation"
+                    })
+                })
+        })
+        .catch(err => {
+            return res.status(400).json({
+                message: "failed to find presentation",
+                err
+            })
+        })
+        // pake push array better rather than value
+        // Presentation.findByIdAndUpdate(
+        //         req.params.id,
+        //         req.body, {
+        //             new: true
+        //         }
+        //     )
+           
     },
     destroy: (req, res) => {
         // Presentation.findByIdAndRemove(
