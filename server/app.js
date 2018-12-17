@@ -14,7 +14,8 @@ var questions = require('./routes/questions');
 var answers = require('./routes/answers');
 var presentations = require('./routes/presentations');
 
-var dbUrl = 'mongodb://localhost/mentimeter';
+// var dbUrl = 'mongodb://localhost/mentimeter';
+var dbUrl = 'mongodb://ontelab:ontelab1234567890@ds137404.mlab.com:37404/presentation-feedback'
 var db = mongoose.connection;
 var app = express();
 
