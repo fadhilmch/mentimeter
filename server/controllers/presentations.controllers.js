@@ -1,20 +1,9 @@
 const Presentation = require('../models/presentations.models');
-const Question = require('../models/questions.models');
-const Answer = require('../models/answers.models');
-
-function random_generator() {
-
-}
 
 module.exports = {
   findAll(req, res) {
     if(req.query.location == null) {
         Presentation.find()
-        // .populate('questions')
-        .populate({path:'questions', 
-            populate:{path:'answers'}
-        })
-        // .populate('answers')
         .sort('-createdAt')
         .exec()
         .then(data => {
@@ -52,9 +41,6 @@ module.exports = {
     Presentation.findOne({
       _id:req.params.id
     })
-    .populate('questions')
-    .populate('answers')
-    .exec()
     .then(data => {
       return res.status(200).json({
           message: "Succeed get presentation by id",
@@ -64,6 +50,25 @@ module.exports = {
     .catch(err => {
         return res.status(400).json({
             message: "Failed to get presentation by Id"
+        })
+    })
+  },
+
+
+
+  findByCode(req, res) {
+    Presentation.findOne({
+      access_code:req.params.access_code
+    })
+    .then(data => {
+      return res.status(200).json({
+          message: "Succeed get presentation by code",
+          data
+      })
+    })
+    .catch(err => {
+        return res.status(400).json({
+            message: "Failed to get presentation by code"
         })
     })
   },
@@ -96,7 +101,11 @@ module.exports = {
         console.log("Code: " + code);
         Presentation.create({
             title: req.body.title,
-            questions: [],
+            slides: {
+                questionType: '',
+                question: '',
+                options: []
+            },
             location: req.body.location,
             access_code: code.join("")
           }, (err, data) => {
@@ -106,6 +115,7 @@ module.exports = {
                   err
               })
             }
+            console.log(data)
             return res.status(200).json({
                 message: "Succeed to create presentation",
                 data
@@ -114,66 +124,116 @@ module.exports = {
         // return code.join("");
     })
 
-  },
-
-  update: (req, res) => {
-    console.log(req.params.id);
-    Presentation.findByIdAndUpdate(
-            req.params.id,
-            req.body, {
-                new: true
-            }
-        )
-        .then((data) => {
-            console.log(data)
-            return res.status(200).json({
-                message: "Succeed to update presentation",
-                data
-            })
-        })
-        .catch(err => {
-            return res.status(400).json({
-                message: "failed to update presentation"
-            })
-        })
-},
-destroy: (req, res) => {
-    // Presentation.findByIdAndRemove(
-    //         req.params.id
-    //     )
-        // .then(data => {
-        //     console.log("data: "+data);
-        //     Question.find({
-        //         presentation_id: req.params.id
-        //     })
-        //     .remove()
-        Presentation.findOne({
-            _id: req.params.id
-        })
-            .then(data => {
-                data.remove()
-                .then(() => {
-                    return res.status(200).json({
-                        message: "Succeed to delete presentation",
-                        data
-
-                })
+    },
+    update: (req, res) => {
+        console.log(req.params.id);
+        Presentation.findByIdAndUpdate(
+                req.params.id,
+                req.body, {
+                    new: true
+                }
+            )
+            .then((data) => {
+                console.log(data)
+                return res.status(200).json({
+                    message: "Succeed to update presentation",
+                    data
                 })
             })
             .catch(err => {
                 return res.status(400).json({
-                    message: "Failed to delete presenation",
-                    err
+                    message: "failed to update presentation"
                 })
             })
-        // })
-        // .catch(err => {
-        //     return res.status(400).json({
-        //         message: "Failed to delete presentation",
-        //         err
-        //     })
-        // })
-}
+    },
+
+    vote: (req, res) => {
+        let userId = req.body.userId;
+        let answers = req.body.answers.split('');
+
+        Presentation.findOne({
+            _id:req.params.id
+        })
+        .then(data => {
+            // console.log(data.slides)
+            data.slides.forEach((slide,index) => {
+                switch(slide.questionType){
+                    case 'multiple-choice':
+                        console.log('slide')
+                        console.log(answers)
+                        console.log('index '+index +" "+ answers[index])
+                        console.log(slide.options)
+                        slide.options[answers[index]].votes.push(userId);
+                        break;
+                }
+            })
+            data.markModified('slides')
+            data.save()
+                .then((data) => {
+                    console.log(data)
+                    return res.status(200).json({
+                        message: "Succeed to vote presentation",
+                        data
+                    })
+                })
+                .catch(err => {
+                    return res.status(400).json({
+                        message: "failed to vote presentation"
+                    })
+                })
+        })
+        .catch(err => {
+            return res.status(400).json({
+                message: "failed to find presentation",
+                err
+            })
+        })
+        // pake push array better rather than value
+        // Presentation.findByIdAndUpdate(
+        //         req.params.id,
+        //         req.body, {
+        //             new: true
+        //         }
+        //     )
+           
+    },
+    destroy: (req, res) => {
+        // Presentation.findByIdAndRemove(
+        //         req.params.id
+        //     )
+            // .then(data => {
+            //     console.log("data: "+data);
+            //     Question.find({
+            //         presentation_id: req.params.id
+            //     })
+            //     .remove()
+            Presentation.findOne({
+                _id: req.params.id
+            })
+                .then(data => {
+                    data.remove()
+                    .then(() => {
+                        return res.status(200).json({
+                            message: "Succeed to delete presentation",
+                            data
+
+                    })
+                    })
+                })
+                .catch(err => {
+                    return res.status(400).json({
+                        message: "Failed to delete presenation",
+                        err
+                    })
+                })
+            // })
+            // .catch(err => {
+            //     return res.status(400).json({
+            //         message: "Failed to delete presentation",
+            //         err
+            //     })
+            // })
+    }
 
 
-}
+    }
