@@ -1,6 +1,6 @@
 const User = require('../models/users.models');
 const Admin = require('../models/admin.models');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt       = require('jsonwebtoken');
 const saltRound = 10
 
