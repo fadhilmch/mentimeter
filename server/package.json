@@ -1,22 +1,36 @@
 {
-  "name": "server",
-  "version": "0.0.0",
+  "name": "livepoll-server",
+  "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "description": "Real-time audience polling API: presentations, slides, votes and live results over Socket.IO.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "dev:memory": "node scripts/dev-memory.js"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "body-parser": "^1.18.3",
-    "cookie-parser": "~1.4.3",
-    "cors": "^2.8.5",
-    "debug": "~2.6.9",
-    "express": "~4.16.0",
-    "http-errors": "~1.6.2",
-    "jade": "~1.11.0",
-    "jsonwebtoken": "^8.4.0",
-    "mongoose": "^5.3.11",
-    "morgan": "~1.9.0",
-    "nodemon": "^1.18.6"
+    "ably": "^2.29.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "^3.1.10",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
   }
 }
