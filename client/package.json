@@ -1,0 +1,25 @@
+{
+  "name": "livepoll-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "ably": "^2.29.0",
+    "pinia": "^4.1.0",
+    "socket.io-client": "^4.8.4",
+    "vue": "^3.5.22",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vue-tsc": "^3.1.3"
+  }
+}
