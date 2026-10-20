@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/livepoll
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment or a .env file}
+      CLIENT_ORIGIN: http://localhost:3000
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:
