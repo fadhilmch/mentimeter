@@ -1,0 +1,23 @@
+name: tmp-branch-cleanup
+on:
+  push:
+    branches: [feat/rebuild]
+    paths: ['.github/workflows/tmp-cleanup.yml']
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/rebuild
+      - name: Remove dangling gitlink and tracked node_modules
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-files --error-unmatch client >/dev/null 2>&1; then git rm --cached client; fi
+          git ls-files -z | grep -z 'node_modules' | xargs -0 -r git rm --cached --quiet
+          git status --porcelain
+          git commit -m "chore: drop dangling client gitlink and tracked node_modules" || echo "nothing to commit"
+          git push origin feat/rebuild
