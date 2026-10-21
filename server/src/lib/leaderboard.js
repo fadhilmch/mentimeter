@@ -34,7 +34,7 @@ export function displayName(presentation, participantId) {
 export function computeLeaderboard(presentation) {
   const scores = new Map();
   for (const slide of presentation.slides ?? []) {
-    if (slide.questionType !== 'quiz' || !slide.correctOptionId) continue;
+    if (slide.questionType !== 'quiz' || !slide.correctOptionId || !slide.revealed) continue;
     const correct = (slide.options ?? []).find((option) => option.id && option.id === slide.correctOptionId);
     if (!correct) continue;
     for (const participantId of correct.votes ?? []) {
