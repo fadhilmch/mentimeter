@@ -112,7 +112,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         this.setSession(token, await this.createProfileReconciled(token, name), cred.user.uid);
       } catch (err) {
-        throw await this.undoOrKeep(fb, cred.user, token, err);
+        this.setSession(token, await this.reconcile(fb, cred.user, token, err), cred.user.uid);
       }
     },
     /** Moves an old username account onto an email login. Presentations keep the same owner. */
@@ -135,24 +135,34 @@ export const useAuthStore = defineStore('auth', {
         }
         this.setSession(token, user, cred.user.uid);
       } catch (err) {
-        throw await this.undoOrKeep(fb, cred.user, token, err);
+        this.setSession(token, await this.reconcile(fb, cred.user, token, err), cred.user.uid);
       }
     },
-    /** After a failed write: remove the new login only if the server clearly refused. If unsure, keep it and say so. */
-    async undoOrKeep(fb: Firebase, fbUser: FbUser, token: string, err: unknown): Promise<Error> {
-      if (definitive(err)) {
+    /**
+     * After a write failed, the Firebase login is removed only when the server confirms it has no profile for it
+     * AND had clearly refused the write. An error code alone never proves nothing was saved (a repeat can be
+     * refused because the first try worked). If a profile exists, that is the outcome. If unsure, keep the login.
+     */
+    async reconcile(fb: Firebase, fbUser: FbUser, token: string, err: unknown): Promise<PublicUser> {
+      let absent = false;
+      try {
+        return (await api.me(token)).user;
+      } catch (check) {
+        absent = needsProfile(check);
+      }
+      if (absent && definitive(err)) {
         try {
           await fb.deleteUser(fbUser);
         } catch {
-          return new Error('Your login was created but setup did not finish. Log in with that email to try again.');
+          throw new Error('Your login was created but setup did not finish. Log in with that email to try again.');
         }
-        return err as Error;
+        throw err;
       }
       this.token = token;
       this.uid = fbUser.uid;
       this.user = null;
       this.pendingProfile = true;
-      return new Error(UNSURE);
+      throw new Error(UNSURE);
     },
     /** Finishes an interrupted signup. */
     async finishProfile(name: string) {

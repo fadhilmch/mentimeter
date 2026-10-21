@@ -243,3 +243,36 @@ describe('Firebase accounts and the username index', () => {
     expect(idx.partialFilterExpression).toBeUndefined();
   });
 });
+
+describe('repeats and races', () => {
+  it('a legacy username that starts with fb- can be moved and the move can be repeated', async () => {
+    await User.create({ name: 'Old', username: 'fb-alice', passwordHash: await bcrypt.hash('password-1', 4) });
+    const t = bearer(tok('uidF', 'f@x.com'));
+    const first = await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'fb-alice', password: 'password-1' }).expect(200);
+    const again = await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'fb-alice', password: 'lost-answer-replay' }).expect(200);
+    expect(again.body.user.id).toBe(first.body.user.id);
+  });
+
+  it('a profile that is not a move is never treated as a repeat of one', async () => {
+    const made = await request(app).post('/api/users/profile').set(bearer(tok('uidP', 'p@x.com'))).send({ name: 'P' }).expect(201);
+    const stored = await User.findById(made.body.user.id);
+    await request(app).post('/api/users/claim-legacy').set(bearer(tok('uidP', 'p@x.com'))).send({ username: stored.username, password: 'x1x2x3x4' }).expect(409);
+  });
+
+  it('two tabs creating the same profile at once both get the same profile, and only one exists', async () => {
+    const t = bearer(tok('uidR', 'r@x.com'));
+    const [a, b] = await Promise.all([
+      request(app).post('/api/users/profile').set(t).send({ name: 'R' }),
+      request(app).post('/api/users/profile').set(t).send({ name: 'R' }),
+    ]);
+    expect([a.status, b.status].sort()).toEqual(expect.arrayContaining([expect.any(Number)]));
+    expect([a.status, b.status].every((s) => s === 200 || s === 201)).toBe(true);
+    expect(a.body.user.id).toBe(b.body.user.id);
+    expect(await User.countDocuments({ firebaseUid: 'uidR' })).toBe(1);
+  });
+
+  it('a different login holding the email is still a conflict', async () => {
+    await request(app).post('/api/users/profile').set(bearer(tok('u1', 'same@x.com'))).send({ name: 'One' }).expect(201);
+    await request(app).post('/api/users/profile').set(bearer(tok('u2', 'same@x.com'))).send({ name: 'Two' }).expect(409);
+  });
+});

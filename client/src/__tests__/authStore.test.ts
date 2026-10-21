@@ -149,23 +149,44 @@ describe('signup with an uncertain write', () => {
     expect(fb.state.deleted).toEqual([])
   })
   it('does not delete the login when the outcome stays unknown, and says so', async () => {
-    script[profile] = ['network']; script[me] = ['network']
+    script[profile] = ['network']; script[me] = ['network', 'network']
     const auth = await store()
     await expect(auth.signupWithEmail('Eve', 'eve@x.com', 'password-1')).rejects.toThrow(/could not confirm/)
     expect(fb.state.deleted).toEqual([])
     expect(auth.pendingProfile).toBe(true)
   })
   it('removes the new login only when the server clearly refused', async () => {
-    script[profile] = [{ status: 400, body: { message: 'Bad name' } }]
+    script[profile] = [{ status: 400, body: { message: 'Bad name' } }]; script[me] = [noProfile]
     const auth = await store()
     await expect(auth.signupWithEmail('', 'eve@x.com', 'password-1')).rejects.toThrow('Bad name')
     expect(fb.state.deleted).toEqual(['eve'])
   })
   it('reports it when the cleanup itself fails instead of hiding it', async () => {
-    script[profile] = [{ status: 400, body: { message: 'Bad name' } }]
+    script[profile] = [{ status: 400, body: { message: 'Bad name' } }]; script[me] = [noProfile]
     fb.state.deleteFails = true
     const auth = await store()
     await expect(auth.signupWithEmail('', 'eve@x.com', 'password-1')).rejects.toThrow(/login was created/)
+  })
+})
+
+describe('a refusal is not proof that nothing was saved', () => {
+  it('signup: a duplicate answer while this login already has a profile (two tabs) is a success, never a deletion', async () => {
+    script[profile] = [{ status: 409, body: { message: 'An account with this email already exists' } }]; script[me] = [ok('Eve', 'E')]
+    const auth = await store()
+    await auth.signupWithEmail('Eve', 'eve@x.com', 'password-1')
+    expect(auth.user?.id).toBe('E'); expect(fb.state.deleted).toEqual([])
+  })
+  it('move: first answer lost, the repeat is refused with 409, but the profile exists, so the login stays', async () => {
+    script[claim] = ['network', { status: 409, body: { code: 'ALREADY_LINKED' } }]; script[me] = [ok('Old', 'O')]
+    const auth = await store()
+    await auth.claimLegacyAccount('fb-alice', 'pw', 'alice@x.com', 'password-1')
+    expect(auth.user?.id).toBe('O'); expect(fb.state.deleted).toEqual([])
+  })
+  it('a refusal with an unreachable check keeps the login instead of guessing', async () => {
+    script[claim] = [{ status: 409, body: {} }]; script[me] = ['network']
+    const auth = await store()
+    await expect(auth.claimLegacyAccount('olduser', 'pw', 'old@x.com', 'password-1')).rejects.toThrow(/could not confirm/)
+    expect(fb.state.deleted).toEqual([])
   })
 })
 
@@ -178,13 +199,13 @@ describe('moving an old account with an uncertain write', () => {
     expect(fb.state.deleted).toEqual([])
   })
   it('keeps the login when still unsure', async () => {
-    script[claim] = ['network', { status: 503 }]
+    script[claim] = ['network', { status: 503 }]; script[me] = ['network']
     const auth = await store()
     await expect(auth.claimLegacyAccount('olduser', 'pw', 'old@x.com', 'password-1')).rejects.toThrow(/could not confirm/)
     expect(fb.state.deleted).toEqual([])
   })
   it('removes the new login when the old password is clearly wrong', async () => {
-    script[claim] = [{ status: 403, body: { message: 'Wrong username or password', code: 'LEGACY_CREDENTIALS' } }]
+    script[claim] = [{ status: 403, body: { message: 'Wrong username or password', code: 'LEGACY_CREDENTIALS' } }]; script[me] = [noProfile]
     const auth = await store()
     await expect(auth.claimLegacyAccount('olduser', 'bad', 'old@x.com', 'password-1')).rejects.toThrow('Wrong username or password')
     expect(fb.state.deleted).toEqual(['old'])

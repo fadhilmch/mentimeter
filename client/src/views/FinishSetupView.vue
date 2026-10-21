@@ -56,7 +56,7 @@ async function signOut() {
         <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Saving…' : 'Continue' }}</button>
       </form>
     </div>
-    <details class="account-delete">
+    <details class="account-delete" style="margin-top: 18px;">
       <summary>Delete this login instead</summary>
       <p class="muted">This removes the login and anything attached to it. It cannot be undone.</p>
       <form @submit.prevent="removeLogin">

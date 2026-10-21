@@ -77,7 +77,13 @@ authRouter.post('/profile', authLimiter, identifyFirebase({ checkRevoked: true }
       const user = await User.create({ name: req.body.name, email, firebaseUid: uid, username: syntheticUsername(uid) });
       return res.status(201).json({ user: user.toPublicJSON() });
     } catch (err) {
-      if (err?.code === 11000) return res.status(409).json({ message: 'An account with this email already exists' });
+      if (err?.code === 11000) {
+        // Two requests for the same login can race (two tabs, or a repeat after a lost answer). If this
+        // login's profile now exists, that is success; only a different login holding the email is a conflict.
+        const own = await User.findOne({ firebaseUid: uid });
+        if (own) return res.json({ user: own.toPublicJSON() });
+        return res.status(409).json({ message: 'An account with this email already exists' });
+      }
       throw err;
     }
   } catch (err) {
@@ -105,7 +111,7 @@ authRouter.post('/claim-legacy', authLimiter, identifyFirebase({ checkRevoked: t
     const mine = await User.findOne({ firebaseUid: uid });
     if (mine) {
       // A repeat of a move that already succeeded (for example, the first answer was lost) is fine.
-      if (mine.username === req.body.username && mine.passwordHash === undefined && !mine.username.startsWith('fb-')) {
+      if (mine.username === req.body.username && mine.username !== syntheticUsername(uid) && mine.passwordHash === undefined) {
         return res.json({ user: mine.toPublicJSON() });
       }
       return res.status(409).json({ message: 'This login already has an account', code: 'ALREADY_LINKED' });
