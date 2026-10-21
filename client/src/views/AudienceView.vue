@@ -9,6 +9,7 @@ import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import { useColorMode } from '../colorMode'
 import { aliasFor } from '../alias'
+import { setThenSave } from '../optimistic'
 import { participantId } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import type { RankingOption } from '../types'
@@ -108,14 +109,10 @@ async function restoreMyAnswers() {
 async function choose(optionIndex: number) {
   if (!state.value) return
   const slideIndex = state.value.currentSlide
-  const previous = myVotes[slideIndex]
-  myVotes[slideIndex] = optionIndex
   try {
-    await live.vote(slideIndex, optionIndex)
+    // A failed vote must not stay shown as locked in.
+    await setThenSave(myVotes, slideIndex, optionIndex, () => live.vote(slideIndex, optionIndex))
   } catch (err) {
-    // The answer was not saved, so do not keep showing it as locked in.
-    if (previous === undefined) delete myVotes[slideIndex]
-    else myVotes[slideIndex] = previous
     error.value = err instanceof Error ? err.message : 'Vote failed.'
   }
 }
@@ -157,9 +154,9 @@ async function submitWord() {
 
 async function rate(value: number) {
   if (!state.value) return
-  myRatings[state.value.currentSlide] = value
+  const slideIndex = state.value.currentSlide
   try {
-    await live.castRating(state.value.currentSlide, value)
+    await setThenSave(myRatings, slideIndex, value, () => live.castRating(slideIndex, value))
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Rating failed.'
   }

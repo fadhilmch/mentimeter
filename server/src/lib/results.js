@@ -31,12 +31,13 @@ export function tallySlide(slide) {
   }
   if (slide.questionType === 'word-cloud') {
     // Counts per normalized word; the stage sizes words by count.
-    const counts = {};
+    // A Map, not an object: words like "constructor" or "__proto__" are valid input.
+    const counts = new Map();
     for (const response of slide.responses ?? []) {
       const word = response.text.toLowerCase();
-      counts[word] = (counts[word] ?? 0) + 1;
+      counts.set(word, (counts.get(word) ?? 0) + 1);
     }
-    const words = Object.entries(counts)
+    const words = [...counts]
       .map(([text, count]) => ({ text, count }))
       .sort((a, b) => b.count - a.count || a.text.localeCompare(b.text));
     return { total: slide.responses?.length ?? 0, words };
