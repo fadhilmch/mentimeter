@@ -1,16 +1,39 @@
-export type SlideType = 'multiple-choice' | 'open-ended';
+export type SlideType = 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz';
+
+export interface SlideDesign {
+  accent?: string;
+  imageUrl?: string;
+  imageLayout?: 'beside' | 'behind';
+}
 
 export interface Tally {
   total: number;
-  counts: number[];
-  percentages: number[];
+  // multiple-choice + quiz
+  counts?: number[];
+  percentages?: number[];
+  // quiz
+  correctOptionIndex?: number;
+  correctCount?: number;
+  // word-cloud
+  words?: { text: string; count: number }[];
+  // rating
+  average?: number;
+  buckets?: number[];
+  // ranking
+  points?: number[];
+}
+
+export interface RankingOption {
+  id: string;
+  text: string;
 }
 
 export interface PublicSlide {
   questionType: SlideType;
   question: string;
-  options?: string[];
-  tally?: Tally;
+  options?: string[] | RankingOption[];
+  design?: SlideDesign;
+  tally?: Tally | null;
   responses?: { text: string; upvotes: number; createdAt: string }[];
 }
 
@@ -29,7 +52,10 @@ export type LiveAction =
   | { type: 'slide:change'; slideIndex: number }
   | { type: 'vote:cast'; slideIndex: number; optionIndex: number; participantId: string }
   | { type: 'response:add'; slideIndex: number; text: string; participantId: string }
-  | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string };
+  | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string }
+  | { type: 'word:submit'; slideIndex: number; text: string; participantId: string }
+  | { type: 'rating:cast'; slideIndex: number; value: number; participantId: string }
+  | { type: 'ranking:submit'; slideIndex: number; order: string[]; participantId: string };
 
 export interface LiveTransport {
   join(accessCode: string): Promise<PresentationState>;
