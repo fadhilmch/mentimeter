@@ -20,6 +20,8 @@ export interface PresentationState {
   accessCode: string;
   theme?: 'iris' | 'apricot' | 'plum' | 'cobalt';
   currentSlide: number;
+  votingOpen: boolean;
+  resultsVisible: boolean;
   slides: PublicSlide[];
 }
 
