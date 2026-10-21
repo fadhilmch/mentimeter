@@ -47,7 +47,7 @@ async function join() {
 
 <template>
   <div class="page page-narrow">
-    <p class="eyebrow">Live polling</p>
+    <p class="eyebrow">Interactive presentation</p>
     <h1>Join a presentation</h1>
     <p class="sub">Enter the 6-digit code shown on the presenter's screen. No account needed.</p>
     <div class="card join-card">

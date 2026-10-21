@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Real-time audience polling API: presentations, slides, votes and live results over Socket.IO.",
+  "description": "Real-time interactive presentation API: presentations, slides, responses and live results over Socket.IO.",
   "engines": {
     "node": ">=20"
   },

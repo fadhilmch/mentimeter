@@ -16,7 +16,7 @@ import NotFoundView from './views/NotFoundView.vue';
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: LandingView, meta: { title: 'CrowdFlow - real-time audience polling' } },
+    { path: '/', name: 'home', component: LandingView, meta: { title: 'CrowdFlow - interactive real-time presentations' } },
     { path: '/join', name: 'join', component: JoinView, meta: { title: 'Join a presentation' } },
     { path: '/login', name: 'login', component: LoginView, meta: { title: 'Log in' } },
     { path: '/signup', name: 'signup', component: SignupView, meta: { title: 'Sign up' } },
