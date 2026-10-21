@@ -7,6 +7,7 @@ import logoUrl from '../assets/logo.svg'
 const router = useRouter()
 const live = useLiveStore()
 const code = ref('')
+const nickname = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const error = ref('')
 const busy = ref(false)
 
@@ -20,6 +21,13 @@ async function join() {
   busy.value = true
   try {
     await live.join(accessCode)
+    if (nickname.value.trim()) {
+      try {
+        await live.identify(nickname.value)
+      } catch {
+        // A missed nickname never blocks joining; the alias is the fallback.
+      }
+    }
     router.push({ name: 'audience', params: { code: accessCode } })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not join. Check the code and try again.'
@@ -48,6 +56,15 @@ async function join() {
             inputmode="numeric"
             maxlength="6"
             placeholder="123456"
+            autocomplete="off"
+          />
+        </label>
+        <label class="field">
+          <span>Name for the quiz leaderboard <span class="muted">(optional)</span></span>
+          <input
+            v-model="nickname"
+            maxlength="24"
+            placeholder="e.g. Fika Fan"
             autocomplete="off"
           />
         </label>
