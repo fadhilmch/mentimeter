@@ -182,7 +182,7 @@ function end() {
         <div class="stage-slide-slot">
         <Transition :name="`slide-${direction}`">
         <div :key="state.currentSlide">
-        <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); font-weight:600; margin:0 0 8px;">
+        <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); font-weight:600; margin:0 0 var(--space-2);">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
         </p>
         <div
@@ -306,7 +306,7 @@ function end() {
   margin-top: 18px;
   background: color-mix(in srgb, var(--t-ink) 6%, transparent);
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: var(--space-4) 18px;
   text-align: left;
 }
 .lb-head {
@@ -316,7 +316,7 @@ function end() {
   margin-bottom: 10px;
 }
 .lb-count {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: color-mix(in srgb, var(--t-ink) 60%, transparent);
   font-variant-numeric: tabular-nums;
 }
@@ -326,22 +326,22 @@ function end() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .lb-rows li {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 1.05rem;
+  gap: var(--space-3);
+  font-size: var(--fs-md);
   background: color-mix(in srgb, var(--t-ink) 5%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 10px 14px;
 }
 .lb-rank {
   width: 40px;
   flex: none;
   font-weight: 800;
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--t-ink) 55%, transparent);
 }
@@ -372,7 +372,7 @@ function end() {
   border-radius: 18px;
   background-size: cover;
   background-position: center;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .stage-image {
   width: 140px;
@@ -384,7 +384,7 @@ function end() {
 .cloud-stage {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 22px;
+  gap: var(--space-2) 22px;
   align-items: baseline;
   justify-content: center;
   padding: 20px 0;
@@ -406,7 +406,7 @@ function end() {
 }
 .bucket-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: center;
   margin-top: 18px;
 }
@@ -419,7 +419,7 @@ function end() {
 .bucket-track {
   height: 110px;
   width: 26px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--t-track);
   display: flex;
   align-items: flex-end;
@@ -435,19 +435,19 @@ function end() {
   font-weight: 700;
 }
 .bucket-count {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 800;
   color: color-mix(in srgb, var(--t-ink) 90%, transparent);
   min-height: 1.1em;
 }
 .quiz-correct-tag {
-  margin-left: 8px;
-  font-size: 0.78rem;
+  margin-left: var(--space-2);
+  font-size: var(--fs-xs);
   font-weight: 800;
   color: var(--t-correct);
   border: 1px solid var(--t-correct);
-  border-radius: 999px;
-  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  padding: 1px var(--space-2);
 }
 @media (prefers-reduced-motion: reduce) {
   .bucket-fill { transition: none; }

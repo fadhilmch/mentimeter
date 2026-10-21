@@ -332,10 +332,10 @@ async function remove() {
       <div class="skel skel-card" style="height:120px;"></div>
     </div>
     <template v-else>
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:var(--space-4); flex-wrap:wrap;">
         <div>
-          <span v-if="accessCode" class="code-chip" style="font-weight:800; letter-spacing:0.18em; background:var(--accent-soft); color:var(--accent-strong); padding:5px 12px; border-radius:8px;">{{ accessCode }}</span>
-          <button v-if="accessCode" class="button ghost" style="margin-left:8px; padding:5px 12px; font-size:0.85rem;" @click="copyJoinLink">{{ copied ? 'Copied ✓' : 'Copy join link' }}</button>
+          <span v-if="accessCode" class="code-chip" style="font-weight:800; letter-spacing:0.18em; background:var(--accent-soft); color:var(--accent-strong); padding:5px var(--space-3); border-radius:var(--radius-sm);">{{ accessCode }}</span>
+          <button v-if="accessCode" class="button ghost" style="margin-left:var(--space-2); padding:5px var(--space-3); font-size:var(--fs-sm);" @click="copyJoinLink">{{ copied ? 'Copied ✓' : 'Copy join link' }}</button>
           <h1 style="margin-top:10px;">Edit presentation</h1>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -348,7 +348,7 @@ async function remove() {
 
       <p v-if="error" class="error-banner" role="alert">
         {{ error }}
-        <button v-if="conflicted" class="button ghost" style="margin-left:8px;" @click="reload">Reload</button>
+        <button v-if="conflicted" class="button ghost" style="margin-left:var(--space-2);" @click="reload">Reload</button>
       </p>
 
       <div class="card" style="margin-top:20px;">
@@ -361,7 +361,7 @@ async function remove() {
       </div>
 
       <div class="card" style="margin-top:20px;">
-        <h2 style="margin-bottom:4px;">Theme</h2>
+        <h2 style="margin-bottom:var(--space-1);">Theme</h2>
         <p class="muted" style="margin:0 0 10px;">Colors for this presentation's stage and audience screens. The rest of the app keeps the standard CrowdFlow look.</p>
         <div class="theme-picker" role="radiogroup" aria-label="Presentation theme">
           <button
@@ -473,21 +473,21 @@ async function remove() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--ink-2);
   flex-shrink: 0;
   cursor: pointer;
 }
 .design-panel {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   padding-top: 10px;
 }
 .design-panel summary {
   cursor: pointer;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-base);
 }
 .design-body {
   margin-top: 10px;
@@ -500,7 +500,7 @@ async function remove() {
 }
 .accent-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .accent-swatch {
   width: 30px;
@@ -522,7 +522,7 @@ async function remove() {
 }
 .slide-error {
   margin: 6px 0 0;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--danger-ink);
 }

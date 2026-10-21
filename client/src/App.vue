@@ -42,8 +42,8 @@ function signOut() {
 </template>
 
 <style scoped>
-.topnav .nav-cta { padding: 8px 16px; color: #fff; font-size: 0.9rem; }
-.topnav .nav-cta:hover { color: #fff; }
+.topnav .nav-cta { padding: var(--space-2) var(--space-4); color: var(--on-accent); font-size: var(--fs-base); }
+.topnav .nav-cta:hover { color: var(--on-accent); }
 .short { display: none; }
 @media (max-width: 520px) {
   .long { display: none; }

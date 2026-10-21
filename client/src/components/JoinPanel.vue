@@ -39,17 +39,17 @@ async function copy() {
 </template>
 
 <style scoped>
-.join-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); padding: 16px; }
+.join-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); padding: var(--space-4); }
 .join-sheet {
-  position: relative; width: min(380px, 100%); text-align: center; padding: 28px 24px 24px;
+  position: relative; width: min(380px, 100%); text-align: center; padding: 28px var(--space-5) var(--space-5);
   background: var(--t-stage2); color: var(--t-ink); border-radius: 20px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
 }
 .join-close { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: inherit; font-size: 1.8rem; line-height: 1; cursor: pointer; opacity: 0.7; }
 .join-eyebrow { margin: 0 0 14px; font-weight: 700; color: color-mix(in srgb, var(--t-ink) 65%, transparent); }
-.join-qr { width: 240px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #fff; line-height: 0; }
+.join-qr { width: 240px; margin: 0 auto; border-radius: var(--radius-lg); overflow: hidden; background: #fff; line-height: 0; }
 .join-qr :deep(svg) { width: 100%; height: auto; display: block; }
-.join-or { margin: 16px 0 2px; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font-size: 0.9rem; }
+.join-or { margin: var(--space-4) 0 2px; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font-size: var(--fs-base); }
 .join-code { margin: 0; font-size: 2.2rem; font-weight: 800; letter-spacing: 0.22em; color: var(--t-accink); padding-left: 0.22em; }
-.join-url { margin-top: 12px; border: 0; background: none; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font: inherit; font-size: 0.8rem; cursor: pointer; word-break: break-all; }
+.join-url { margin-top: var(--space-3); border: 0; background: none; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font: inherit; font-size: 0.8rem; cursor: pointer; word-break: break-all; }
 .join-url:hover { color: var(--t-ink); }
 </style>

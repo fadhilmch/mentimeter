@@ -25,7 +25,7 @@ const { mode, toggle } = useColorMode();
 <style scoped>
 .mode-toggle {
   display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0;
-  border-radius: 10px; border: 1px solid var(--line); background: transparent;
+  border-radius: var(--radius-md); border: 1px solid var(--line); background: transparent;
   color: var(--ink-2); cursor: pointer;
 }
 .mode-toggle:hover { color: var(--ink); background: var(--lead-soft); }
