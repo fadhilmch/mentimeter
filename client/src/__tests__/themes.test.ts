@@ -37,7 +37,7 @@ describe('readableOn', () => {
 
   it('picks dark text on pale apricot and white on iris', () => {
     expect(readableOn('#f0945a')).toBe('#111113');
-    expect(readableOn('#5b5bd6')).toBe('#ffffff');
+    expect(readableOn('#5757db')).toBe('#ffffff');
   });
 });
 

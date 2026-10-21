@@ -15,10 +15,10 @@
   --card: #ffffff;
   --line: #e0e1e6;       /* slate-6 */
   /* Candy brand palette: one palette shared by logo, controls and charts */
-  --lead: #5b5bd6;        /* iris - primary actions, selected states, focus */
+  --lead: #5757db;        /* iris - primary actions, selected states, focus */
   --lead-strong: #5151cd;
   --lead-soft: #f0f1fe;
-  --signal: #e93d82;      /* pink - live indicator, highlights */
+  --signal: #f12f83;      /* pink - live indicator, highlights */
   --warmth: #ffb224;      /* amber - celebrations, tips */
   --good: #30a46c;
   --danger: #e5484d;
@@ -37,7 +37,7 @@
   --t-sbg: #111113;
   --t-stage2: #1c1c1f;
   --t-track: rgba(255, 255, 255, 0.13);
-  --t-acc: #5b5bd6;
+  --t-acc: #5757db;
   --t-accink: #b8baf8;
   --t-onaccink: #111113;
   --t-ink: #edeef0;

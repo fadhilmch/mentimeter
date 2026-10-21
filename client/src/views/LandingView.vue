@@ -14,7 +14,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
   <div class="landing">
     <section class="hero-grid">
       <div class="copy">
-        <p class="eyebrow">Live polling for any room</p>
+        <p class="eyebrow">Interactive presentations for any room</p>
         <h1>Ask the room. <em>Watch the answers flow in.</em></h1>
         <p class="lead">
           Build a short presentation, share a 6-digit code, and your audience answers from their phones. No sign-up for
