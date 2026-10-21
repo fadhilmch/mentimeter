@@ -17,16 +17,32 @@ const optionInputSchema = z.union([
 
 const normalizeOption = (option) => (typeof option === 'string' ? { text: option } : option);
 
+const designInputSchema = z
+  .object({
+    accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    imageUrl: z.string().trim().url().max(500).optional(),
+    imageLayout: z.enum(['beside', 'behind']).optional(),
+  })
+  .optional();
+
 const slideSchema = z
   .object({
     id: z.string().min(1).max(64).optional(),
-    questionType: z.enum(['multiple-choice', 'open-ended']),
+    questionType: z.enum(['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz']),
     question: z.string().trim().min(1).max(300),
     options: z.array(optionInputSchema).max(12).default([]),
+    correctOptionId: z.string().min(1).max(64).optional(),
+    design: designInputSchema,
   })
   .superRefine((slide, ctx) => {
     if (slide.questionType === 'multiple-choice' && slide.options.length < 2) {
       ctx.addIssue({ code: 'custom', message: 'Multiple-choice slides need at least 2 options', path: ['options'] });
+    }
+    if ((slide.questionType === 'ranking' || slide.questionType === 'quiz') && slide.options.length < 2) {
+      ctx.addIssue({ code: 'custom', message: 'Ranking and quiz slides need at least 2 options', path: ['options'] });
+    }
+    if (slide.design?.imageLayout && !slide.design?.imageUrl) {
+      ctx.addIssue({ code: 'custom', message: 'Image layout only applies when an image is set', path: ['design'] });
     }
   });
 
@@ -72,6 +88,8 @@ presentationsRouter.post('/', authenticate, validate(createSchema), async (req, 
       ...slide,
       options: slide.options.map(normalizeOption).map((option) => ({ ...option, votes: [] })),
       responses: [],
+      ratings: [],
+      rankings: [],
     }));
     const data = await Presentation.create({ ...req.body, slides, accessCode, owner: req.auth.userId });
     ensureSlideIds(data);
