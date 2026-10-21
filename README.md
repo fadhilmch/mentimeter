@@ -2,7 +2,11 @@
 
 [![CI](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml)
 
-Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
+Open-source interactive real-time presentations - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
+
+## Brand colours
+
+The app's base colours are the logo's: indigo `#5757DB` (primary actions, selection, focus), pink `#F12F83` (live dot and result accents) and amber `#FFB224` (warm accents). They live in `client/src/assets/main.css` (`--lead`, `--signal`, `--warmth`) and the default "Candy" theme in `client/src/themes.ts`, and `client/src/__tests__/brandColors.test.ts` checks them against `logo-mark.svg`. Pink is kept to bars, dots and large accents, since white on pink is 3.8:1. Dark mode uses lighter indigo variants (`#7D7DE8`) so text stays readable. The other themes keep their own palettes.
 
 ## Features
 

@@ -25,8 +25,8 @@ export const STEPS: Step[] = [
 ]
 
 export const QUESTION_TYPES: QuestionType[] = [
-  { name: 'Poll', text: 'Multiple choice with live bars', glyph: '▮', color: '#5b5bd6' },
-  { name: 'Quiz', text: 'Correct answer and leaderboard', glyph: '?', color: '#e93d82' },
+  { name: 'Poll', text: 'Multiple choice with live bars', glyph: '▮', color: '#5757db' },
+  { name: 'Quiz', text: 'Correct answer and leaderboard', glyph: '?', color: '#f12f83' },
   { name: 'Word cloud', text: 'One word per person', glyph: 'Aa', color: '#ffb224' },
   { name: 'Rating', text: '1 to 10 with an average', glyph: '★', color: '#30a46c' },
   { name: 'Ranking', text: 'Tap options in order', glyph: '≡', color: '#7878e8' },
@@ -44,7 +44,7 @@ export const PREVIEW = {
   question: 'What should we focus on next quarter?',
   options: [
     { label: 'Product quality', votes: 12, color: '#7878e8' },
-    { label: 'New features', votes: 8, color: '#e93d82' },
+    { label: 'New features', votes: 8, color: '#f12f83' },
     { label: 'Performance', votes: 6, color: '#ffb224' },
   ],
 }
