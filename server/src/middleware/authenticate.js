@@ -44,7 +44,9 @@ export async function authenticate(req, res, next) {
       } catch {
         return invalid(res);
       }
-      if (!(await User.exists({ _id: req.auth.userId }))) return invalid(res);
+      // Once an account has moved to Firebase, the old 7-day token must stop working at once.
+      const legacy = await User.findById(req.auth.userId).select('firebaseUid');
+      if (!legacy || legacy.firebaseUid) return invalid(res);
       return next();
     }
     if (!firebaseEnabled()) return invalid(res);

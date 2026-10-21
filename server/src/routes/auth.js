@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import { User } from '../models/user.js';
+import { User, syntheticUsername } from '../models/user.js';
 import { Presentation } from '../models/presentation.js';
 import { authenticate, identifyFirebase, isLegacyToken, bearerToken } from '../middleware/authenticate.js';
 import { config } from '../config.js';
@@ -74,7 +74,7 @@ authRouter.post('/profile', authLimiter, identifyFirebase({ checkRevoked: true }
     const existing = await User.findOne({ firebaseUid: uid });
     if (existing) return res.json({ user: existing.toPublicJSON() });
     try {
-      const user = await User.create({ name: req.body.name, email, firebaseUid: uid });
+      const user = await User.create({ name: req.body.name, email, firebaseUid: uid, username: syntheticUsername(uid) });
       return res.status(201).json({ user: user.toPublicJSON() });
     } catch (err) {
       if (err?.code === 11000) return res.status(409).json({ message: 'An account with this email already exists' });
@@ -102,7 +102,12 @@ authRouter.post('/claim-legacy', authLimiter, identifyFirebase({ checkRevoked: t
   try {
     const { uid, email } = req.firebase;
     if (!email) return res.status(400).json({ message: 'This sign-in has no email address' });
-    if (await User.exists({ firebaseUid: uid })) {
+    const mine = await User.findOne({ firebaseUid: uid });
+    if (mine) {
+      // A repeat of a move that already succeeded (for example, the first answer was lost) is fine.
+      if (mine.username === req.body.username && mine.passwordHash === undefined && !mine.username.startsWith('fb-')) {
+        return res.json({ user: mine.toPublicJSON() });
+      }
       return res.status(409).json({ message: 'This login already has an account', code: 'ALREADY_LINKED' });
     }
     const legacy = await User.findOne({ username: req.body.username });

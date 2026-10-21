@@ -18,6 +18,7 @@ async function submit() {
   try {
     if (auth.usesFirebase) await auth.loginWithEmail(email.value.trim(), password.value)
     else await auth.login(username.value.trim().toLowerCase(), password.value)
+    if (auth.pendingProfile) return router.push({ name: 'finish-setup' })
     router.push(typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'dashboard' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Login failed.'

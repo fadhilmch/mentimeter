@@ -119,7 +119,11 @@ How it fits the existing app:
   request only if the sign-in is under five minutes old). It then removes the presentations, the profile and the
   Firebase user, in an order that is safe to repeat if a step fails.
 - Built-in signup and login return `410` while Firebase is on. Existing 7-day sessions from the old login keep
-  working until they expire.
+  working until they expire, except for an account that has moved to Firebase: its old token is refused at once.
+- Token revocation: ordinary requests accept a valid ID token (up to one hour old) without asking Google whether it
+  was revoked, and the profile, move and delete routes do check. After a password reset or account deletion an old
+  token can therefore still open ordinary routes for up to an hour, but a deleted account has no profile, so it
+  cannot.
 - ID tokens are short lived. The browser SDK refreshes them and the app sends the current one on each request.
 
 Try it locally without a Firebase project, using the [Auth emulator](https://firebase.google.com/docs/emulator-suite):
@@ -130,8 +134,9 @@ npx firebase-tools emulators:start --only auth --project demo-crowdflow
 # client: VITE_FIREBASE_API_KEY=fake VITE_FIREBASE_PROJECT_ID=demo-crowdflow VITE_FIREBASE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 npm run build
 ```
 
-Before pointing this at a database that already has accounts: `username` is now a sparse unique index. MongoDB
-will not change an existing index's options, so drop the old `username_1` index once and let the app recreate it.
+The existing `username` index is not changed. A Firebase account gets a generated placeholder username
+(`fb-` plus a hash of its uid) that is never shown and cannot be used to log in. New indexes are added
+for `email` and `firebaseUid` (unique, sparse), which is safe on an existing database.
 
 Known limits: Spark-plan password-reset emails are capped per day (see the
 [Firebase limits](https://firebase.google.com/docs/auth/limits)), and the default sender is a Google address that

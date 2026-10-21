@@ -174,3 +174,72 @@ describe('deleting a Firebase account', () => {
     await request(app).delete('/api/users/me').set(h).send({ password: 'password-1' }).expect(200);
   });
 });
+
+describe('old session tokens and token policy', () => {
+  it('stops accepting the old 7-day token as soon as the account moves to Firebase', async () => {
+    config.firebase.projectId = '';
+    const signup = await request(app).post('/api/users/signup').send({ username: 'olduser', password: 'password-1' }).expect(201);
+    config.firebase.projectId = 'demo-crowdflow';
+    const old = bearer(signup.body.token);
+    await request(app).get('/api/presentations').set(old).expect(200);
+    await request(app).post('/api/users/claim-legacy').set(bearer(tok('uid9', 'old@example.com'))).send({ username: 'olduser', password: 'password-1' }).expect(200);
+    await request(app).get('/api/presentations').set(old).expect(401);
+    await request(app).delete('/api/users/me').set(old).send({ password: 'password-1' }).expect(401);
+    await request(app).get('/api/presentations').set(bearer(tok('uid9', 'old@example.com'))).expect(200);
+  });
+
+  it('repeating a move that already succeeded is fine, a different username is not', async () => {
+    await User.create({ name: 'Old', username: 'olduser', passwordHash: await bcrypt.hash('password-1', 4) });
+    const t = bearer(tok('uid9', 'old@example.com'));
+    const first = await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'olduser', password: 'password-1' }).expect(200);
+    const again = await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'olduser', password: 'anything-at-all' }).expect(200);
+    expect(again.body.user.id).toBe(first.body.user.id);
+    await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'someoneelse', password: 'anything-at-all' }).expect(409);
+  });
+
+  it('only HS256 counts as an old token: wrong secret, other algorithms and unsigned tokens are refused', async () => {
+    config.firebase.projectId = '';
+    const user = await User.create({ name: 'Old', username: 'olduser', passwordHash: await bcrypt.hash('password-1', 4) });
+    const jwt = (await import('jsonwebtoken')).default;
+    const forged = [
+      jwt.sign({ sub: String(user._id) }, 'not-the-secret', { algorithm: 'HS256' }),
+      jwt.sign({ sub: String(user._id) }, config.jwtSecret, { algorithm: 'HS512' }),
+      `${Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: String(user._id) })).toString('base64url')}.`,
+    ];
+    for (const t of forged) {
+      await request(app).get('/api/presentations').set(bearer(t)).expect(401);
+      config.firebase.projectId = 'demo-crowdflow';
+      await request(app).get('/api/presentations').set(bearer(t)).expect(401);
+      config.firebase.projectId = '';
+    }
+  });
+
+  it('revocation is checked on profile, move and delete, not on every ordinary request (documented policy)', async () => {
+    await request(app).post('/api/users/profile').set(bearer(tok('uid1', 'ada@example.com'))).send({ name: 'Ada' }).expect(201);
+    revoked.add('uid1');
+    const t = bearer(tok('uid1', 'ada@example.com', 5));
+    await request(app).get('/api/presentations').set(t).expect(200);
+    await request(app).delete('/api/users/me').set(t).send({}).expect(401);
+    await request(app).post('/api/users/claim-legacy').set(t).send({ username: 'x1x', password: 'y' }).expect(401);
+  });
+});
+
+describe('Firebase accounts and the username index', () => {
+  it('gets a hidden placeholder username, and two Firebase accounts can coexist', async () => {
+    const a = await request(app).post('/api/users/profile').set(bearer(tok('uidA', 'a@x.com'))).send({ name: 'A' }).expect(201);
+    await request(app).post('/api/users/profile').set(bearer(tok('uidB', 'b@x.com'))).send({ name: 'B' }).expect(201);
+    expect(a.body.user.username).toBeNull();
+    const stored = await User.findOne({ firebaseUid: 'uidA' });
+    expect(stored.username).toMatch(/^fb-[0-9a-f]{24}$/);
+    // The placeholder cannot be used to claim or log in as a Firebase account.
+    await request(app).post('/api/users/claim-legacy').set(bearer(tok('uidC', 'c@x.com'))).send({ username: stored.username, password: 'whatever1' }).expect(403);
+  });
+
+  it('keeps the original username index (unique, not sparse) so an existing database needs no index change', async () => {
+    await User.init();
+    const idx = (await User.collection.indexes()).find((i) => i.name === 'username_1');
+    expect(idx.unique).toBe(true);
+    expect(idx.sparse).toBeUndefined();
+    expect(idx.partialFilterExpression).toBeUndefined();
+  });
+});

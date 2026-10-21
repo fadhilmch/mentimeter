@@ -4,6 +4,7 @@ import JoinView from './views/JoinView.vue';
 import LoginView from './views/LoginView.vue';
 import SignupView from './views/SignupView.vue';
 import ForgotPasswordView from './views/ForgotPasswordView.vue';
+import FinishSetupView from './views/FinishSetupView.vue';
 import MoveAccountView from './views/MoveAccountView.vue';
 import { useAuthStore } from './stores/auth';
 import DashboardView from './views/DashboardView.vue';
@@ -20,6 +21,7 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: LoginView, meta: { title: 'Log in' } },
     { path: '/signup', name: 'signup', component: SignupView, meta: { title: 'Sign up' } },
     { path: '/forgot-password', name: 'forgot-password', component: ForgotPasswordView, meta: { title: 'Reset your password' } },
+    { path: '/finish-setup', name: 'finish-setup', component: FinishSetupView, meta: { title: 'Finish setting up' } },
     { path: '/move-account', name: 'move-account', component: MoveAccountView, meta: { title: 'Move your account' } },
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { title: 'My presentations', requiresAuth: true } },
     { path: '/edit/:id', name: 'edit', component: EditView, meta: { title: 'Edit presentation', requiresAuth: true } },
@@ -41,6 +43,7 @@ router.beforeEach(async (to) => {
   // With Firebase the saved session is restored asynchronously, so wait for it first.
   const auth = useAuthStore();
   await auth.init();
+  if (auth.pendingProfile) return { name: 'finish-setup' };
   if (!auth.isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
