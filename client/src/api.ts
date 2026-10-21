@@ -7,7 +7,15 @@ export function setUnauthorizedHandler(handler: (() => void) | undefined) {
   onUnauthorized = handler;
 }
 
-async function call<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+// With Firebase sign-in the token is short-lived. This returns the current one (the SDK refreshes
+// it when it is about to expire), so a long-open tab does not send an old token.
+let tokenRefresher: (() => Promise<string | undefined>) | undefined;
+export function setTokenRefresher(fn: (() => Promise<string | undefined>) | undefined) {
+  tokenRefresher = fn;
+}
+
+async function call<T>(path: string, options: RequestInit = {}, givenToken?: string): Promise<T> {
+  const token = givenToken && tokenRefresher ? ((await tokenRefresher().catch(() => undefined)) ?? givenToken) : givenToken;
   const res = await fetch(`${base}${path}`, {
     ...options,
     headers: {
@@ -17,7 +25,7 @@ async function call<T>(path: string, options: RequestInit = {}, token?: string):
     },
   });
   const body = await res.json().catch(() => ({}));
-  if (res.status === 401 && token) onUnauthorized?.();
+  if (res.status === 401 && givenToken) onUnauthorized?.();
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
 }
@@ -32,7 +40,7 @@ export class ApiError extends Error {
   }
 }
 
-export interface PublicUser { id: string; name: string; username: string }
+export interface PublicUser { id: string; name: string; username: string | null; email?: string | null }
 export interface AuthResponse { token: string; user: PublicUser }
 
 export const api = {
@@ -40,8 +48,13 @@ export const api = {
     call<AuthResponse>('/api/users/signup', { method: 'POST', body: JSON.stringify({ name, username, password }) }),
   login: (username: string, password: string) =>
     call<AuthResponse>('/api/users/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  deleteAccount: (token: string, password: string) =>
-    call<{ ok: boolean; deletedPresentations: number }>('/api/users/me', { method: 'DELETE', body: JSON.stringify({ password }) }, token),
+  deleteAccount: (token: string, password?: string) =>
+    call<{ ok: boolean; deletedPresentations: number }>('/api/users/me', { method: 'DELETE', body: JSON.stringify(password ? { password } : {}) }, token),
+  createProfile: (token: string, name: string) =>
+    call<{ user: PublicUser }>('/api/users/profile', { method: 'POST', body: JSON.stringify({ name }) }, token),
+  me: (token: string) => call<{ user: PublicUser }>('/api/users/me', {}, token),
+  claimLegacy: (token: string, username: string, password: string) =>
+    call<{ user: PublicUser }>('/api/users/claim-legacy', { method: 'POST', body: JSON.stringify({ username, password }) }, token),
   myPresentations: (token: string) => call<{ data: unknown[] }>('/api/presentations', {}, token),
   createPresentation: (token: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>('/api/presentations', { method: 'POST', body: JSON.stringify(payload) }, token),

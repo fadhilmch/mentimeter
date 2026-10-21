@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { config } from './config.js';
+import { firebaseEnabled, firebaseConnectSources } from './lib/firebase.js';
 import { authRouter } from './routes/auth.js';
 import { presentationsRouter } from './routes/presentations.js';
 import { liveRouter } from './routes/live.js';
@@ -19,6 +20,8 @@ export function createApp() {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
           'img-src': ["'self'", 'data:', 'https:'],
+          // Firebase sign-in runs in the browser and talks to Google (or the local emulator).
+          ...(firebaseEnabled() ? { 'connect-src': firebaseConnectSources() } : {}),
         },
       },
     }),
