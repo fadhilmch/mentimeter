@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
 import type { RankingOption } from '../types'
-import logoMonoUrl from '../assets/logo-mono.svg'
+import logoMarkUrl from '../assets/logo-mark.svg'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 
 const route = useRoute()
@@ -142,7 +142,7 @@ function end() {
 <template>
   <div class="stage-page" :style="stageStyle">
     <header class="stage-topbar">
-      <span class="stage-brand"><img :src="logoMonoUrl" alt="CrowdFlow" />{{ state?.title ?? 'Presentation' }}</span>
+      <span class="stage-brand"><img :src="logoMarkUrl" alt="CrowdFlow" />{{ state?.title ?? 'Presentation' }}</span>
       <span class="code-chip">JOIN {{ code }}</span>
       <button class="button ghost" style="color:#edeef0;" @click="end">End</button>
     </header>
