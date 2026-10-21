@@ -1,0 +1,72 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const code = ref('')
+const error = ref('')
+
+function onInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  code.value = input.value.replace(/\D/g, '').slice(0, 6)
+  input.value = code.value
+  error.value = ''
+}
+
+/** Hands the code to the existing join page, which does the real join. */
+function submit() {
+  if (code.value.length !== 6) {
+    error.value = 'Enter the 6-digit code from your presenter.'
+    return
+  }
+  router.push({ name: 'join', query: { code: code.value } })
+}
+</script>
+
+<template>
+  <form class="join" novalidate @submit.prevent="submit">
+    <label class="sr-only" for="landing-code">Join code</label>
+    <input
+      id="landing-code"
+      class="code"
+      inputmode="numeric"
+      autocomplete="off"
+      maxlength="6"
+      placeholder="123456"
+      :value="code"
+      :aria-invalid="error ? 'true' : 'false'"
+      :aria-describedby="error ? 'landing-code-error' : undefined"
+      @input="onInput"
+    />
+    <button class="button secondary-outline" type="submit">Join with a code</button>
+  </form>
+  <p v-if="error" id="landing-code-error" class="error-text" role="alert">{{ error }}</p>
+  <p v-else class="note">Joining takes a code and a nickname, nothing else.</p>
+</template>
+
+<style scoped>
+.join {
+  display: flex; gap: 10px; padding: 8px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+}
+.code {
+  flex: 1; min-width: 0; border: 0; box-shadow: none; padding: 0 14px;
+  font-size: 1.15rem; font-weight: 800; letter-spacing: 0.35em; font-variant-numeric: tabular-nums;
+}
+.code::placeholder { color: #b4b7c0; }
+.code:focus { box-shadow: none; }
+.join:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(91 91 214 / 0.15); }
+.secondary-outline {
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); white-space: nowrap;
+}
+.secondary-outline:hover { background: var(--paper); }
+.note { margin: 10px 2px 0; font-size: 0.88rem; color: var(--ink-2); }
+.error-text { margin: 10px 2px 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .code { font-size: 1rem; letter-spacing: 0.25em; }
+  .secondary-outline { padding: 12px 14px; font-size: 0.92rem; }
+}
+</style>

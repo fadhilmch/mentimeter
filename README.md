@@ -8,6 +8,7 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 
 - **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
 - **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
+- **Landing page**: `/` introduces the product with a create-a-presentation call to action and a join-with-code field. The join form itself lives at `/join` (also reachable as `/join?code=123456`); audience links `/p/<code>` are unchanged.
 - **6-digit join codes**: audience joins from any browser, no signup.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
 - **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
