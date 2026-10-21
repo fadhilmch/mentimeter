@@ -56,32 +56,32 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
 <style scoped>
 .sp-stage {
   background: var(--t-sbg);
-  border-radius: 14px;
-  padding: 22px 24px;
-  color: #edeef0;
+  border-radius: var(--radius);
+  padding: 22px var(--space-5);
+  color: var(--t-ink);
 }
 .sp-question {
-  margin: 0 0 16px;
-  font-size: 1.15rem;
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-lg);
   font-weight: 800;
   letter-spacing: -0.01em;
   word-break: break-word;
 }
 .sp-row {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .sp-label {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 0.85rem;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
   font-weight: 600;
   margin-bottom: 5px;
 }
 .sp-opt {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   word-break: break-word;
 }
@@ -97,26 +97,26 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
 }
 .sp-track {
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--t-track);
 }
 .sp-foot {
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 .sp-head.has-image:not(.behind) {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 .sp-head.behind {
-  padding: 16px;
-  border-radius: 12px;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
   background-size: cover;
   background-position: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 .sp-head:not(.has-image) {
   margin-bottom: 0;
@@ -128,11 +128,11 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
   width: 72px;
   height: 72px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   flex-shrink: 0;
 }
 .sp-cloud {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   font-weight: 800;
   display: flex;
   gap: 10px;
@@ -140,7 +140,7 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
   flex-wrap: wrap;
 }
 .sp-big {
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   font-size: 3rem;
   font-weight: 900;
   letter-spacing: -0.03em;

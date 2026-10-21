@@ -49,7 +49,7 @@ async function createPresentation() {
 
 <template>
   <div class="page">
-    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:var(--space-4); flex-wrap:wrap;">
       <div>
         <h1>Your presentations</h1>
         <p class="sub" style="margin:0;">Build slides, then present with a live join code.</p>
@@ -81,7 +81,7 @@ async function createPresentation() {
       </div>
     </div>
 
-    <div v-else class="card empty-state" style="margin-top:24px;">
+    <div v-else class="card empty-state" style="margin-top:var(--space-5);">
       <img class="empty-mark" :src="logoUrl" alt="" aria-hidden="true" />
       <h2>No presentations yet</h2>
       <p>Create your first one - add slides, get a 6-digit code, present.</p>

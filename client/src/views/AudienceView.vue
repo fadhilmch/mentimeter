@@ -279,7 +279,7 @@ async function sendRanking() {
           </button>
           <button
             class="button block"
-            style="margin-top:12px;"
+            style="margin-top:var(--space-3);"
             :style="{ background: accent, color: onAccent }"
             :disabled="rankingDraft.length !== optionsOf().length || !votingOpen"
             @click="sendRanking"
@@ -355,13 +355,13 @@ async function sendRanking() {
 .rating-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: var(--space-2);
 }
 .rating-button {
   padding: 14px 0;
-  font-size: 1.05rem;
+  font-size: var(--fs-md);
   font-weight: 800;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 2px solid color-mix(in srgb, var(--t-ink) 18%, transparent);
   background: color-mix(in srgb, var(--t-ink) 5%, transparent);
   color: inherit;
@@ -381,7 +381,7 @@ async function sendRanking() {
   justify-content: space-between;
 }
 .lb-count {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: color-mix(in srgb, var(--t-ink) 60%, transparent);
   font-variant-numeric: tabular-nums;
 }
@@ -391,24 +391,24 @@ async function sendRanking() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .leaderboard-list li {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--t-ink) 5%, transparent);
 }
 .leaderboard-list li.me {
-  outline: 2px solid var(--accent, #8b7cf6);
+  outline: 2px solid var(--accent);
 }
 .lb-rank {
   width: 40px;
   flex: none;
   font-weight: 800;
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--t-ink) 55%, transparent);
 }
@@ -421,13 +421,13 @@ async function sendRanking() {
   white-space: nowrap;
 }
 .you-chip {
-  background: var(--accent, #8b7cf6);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: 99px;
   margin-left: 6px;
   vertical-align: 2px;
@@ -435,7 +435,7 @@ async function sendRanking() {
 .lb-score {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--accent, #8b7cf6);
+  color: var(--accent);
   white-space: nowrap;
 }
 .lb-score.zero {
@@ -449,7 +449,7 @@ async function sendRanking() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 800;
   flex-shrink: 0;
   margin-right: 10px;
@@ -457,10 +457,10 @@ async function sendRanking() {
 .quiz-mark {
   margin-left: auto;
   font-weight: 900;
-  color: #3dd68c;
+  color: var(--t-correct);
 }
 .quiz-correct {
-  border-color: #3dd68c !important;
+  border-color: var(--t-correct) !important;
 }
 .audience-slide.has-image.layout-beside {
   display: flex;
@@ -471,7 +471,7 @@ async function sendRanking() {
   width: 84px;
   height: 84px;
   object-fit: cover;
-  border-radius: 14px;
+  border-radius: var(--radius);
   flex-shrink: 0;
 }
 .slide-image.behind {

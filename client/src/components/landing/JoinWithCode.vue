@@ -46,14 +46,14 @@ function submit() {
 
 <style scoped>
 .join {
-  display: flex; gap: 10px; padding: 8px; background: var(--card);
-  border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  display: flex; gap: 10px; padding: var(--space-2); background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
 }
 .code {
   flex: 1; min-width: 0; border: 0; box-shadow: none; padding: 0 14px;
-  font-size: 1.15rem; font-weight: 800; letter-spacing: 0.35em; font-variant-numeric: tabular-nums;
+  font-size: var(--fs-lg); font-weight: 800; letter-spacing: 0.35em; font-variant-numeric: tabular-nums;
 }
-.code::placeholder { color: #b4b7c0; }
+.code::placeholder { color: var(--placeholder); }
 .code:focus { box-shadow: none; }
 .join:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(91 91 214 / 0.15); }
 .secondary-outline {
@@ -67,6 +67,6 @@ function submit() {
 }
 @media (max-width: 760px) {
   .code { font-size: 1rem; letter-spacing: 0.25em; }
-  .secondary-outline { padding: 12px 14px; font-size: 0.92rem; }
+  .secondary-outline { padding: var(--space-3) 14px; font-size: 0.92rem; }
 }
 </style>

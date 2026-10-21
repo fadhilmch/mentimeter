@@ -37,7 +37,9 @@ export function themeVars(theme: PresentationTheme, mode: ColorMode = 'dark'): R
       '--t-track': 'rgba(28,32,36,0.09)',
       '--t-acc': theme.pal[0],
       '--t-accink': '#3e3fa0',
+      '--t-onaccink': readableOn('#3e3fa0'),
       '--t-ink': '#1c2024',
+      '--t-correct': '#18794e',
     };
   }
   return {
@@ -46,7 +48,9 @@ export function themeVars(theme: PresentationTheme, mode: ColorMode = 'dark'): R
     '--t-track': theme.track,
     '--t-acc': theme.acc,
     '--t-accink': theme.accInk,
+    '--t-onaccink': readableOn(theme.accInk),
     '--t-ink': '#edeef0',
+    '--t-correct': '#3dd68c',
   };
 }
 
