@@ -30,6 +30,7 @@ const theme = computed(() => getTheme(state.value?.theme))
 const pageStyle = computed(() => themeVars(theme.value))
 const pal = computed(() => theme.value.pal)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
+const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 
 async function choose(optionIndex: number) {
   if (!state.value) return
@@ -104,7 +105,8 @@ async function upvote(responseIndex: number) {
               <button class="button block" type="submit" :disabled="!draft.trim() || !votingOpen">Send</button>
             </form>
           </div>
-          <div v-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
+          <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the results for now.</p>
+          <div v-else-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
             <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
               <span>{{ r.text }}</span>
               <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${i}`] }" :disabled="!votingOpen" @click="upvote(i)">
