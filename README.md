@@ -113,7 +113,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 77 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
+cd server && npm test          # 79 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
