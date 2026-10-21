@@ -56,6 +56,12 @@ export const useLiveStore = defineStore('live', {
     submitRanking(slideIndex: number, order: string[]) {
       return this.act({ type: 'ranking:submit', slideIndex, order, participantId: participantId() });
     },
+    identify(nickname: string) {
+      const cleaned = nickname.trim().slice(0, 24);
+      if (cleaned) localStorage.setItem('livepoll.nickname', cleaned);
+      else localStorage.removeItem('livepoll.nickname');
+      return this.act({ type: 'participant:identify', participantId: participantId(), nickname: cleaned });
+    },
     goToSlide(slideIndex: number) {
       return this.act({ type: 'slide:change', slideIndex });
     },
