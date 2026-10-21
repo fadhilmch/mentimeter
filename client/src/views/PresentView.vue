@@ -7,6 +7,7 @@ import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
 import type { RankingOption } from '../types'
 import logoMonoUrl from '../assets/logo-mono.svg'
+import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -255,6 +256,7 @@ function end() {
           <ol class="lb-rows">
             <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.name">
               <span class="lb-rank">#{{ entry.rank }}</span>
+              <ParticipantAvatar :name="entry.name" :size="36" />
               <span class="lb-name">{{ entry.name }}</span>
               <span class="lb-pts">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
             </li>
@@ -292,7 +294,7 @@ function end() {
 }
 .lb-rows li {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   font-size: 1.05rem;
 }
