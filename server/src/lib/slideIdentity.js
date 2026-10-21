@@ -67,13 +67,27 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
       text: option.text,
       votes: kept ? (previousOptionsById.get(option.id)?.votes ?? []) : [],
     }));
+    // The quiz answer key must point at a merged option id. Incoming ids that
+    // no stored option had are replaced above, so remap by the incoming
+    // option's position; a key that matches nothing is dropped, never kept
+    // dangling.
+    let correctOptionId;
+    if (incoming.correctOptionId) {
+      const keyIndex = incoming.options.findIndex((option) => option.id === incoming.correctOptionId);
+      if (keyIndex >= 0 && options[keyIndex]) correctOptionId = options[keyIndex].id;
+    }
     return {
       id: previous?.id ?? randomUUID(),
       questionType: incoming.questionType,
       question: incoming.question,
       options,
-      // Responses belong to a slide of a given type; a type change discards them.
+      // Audience answers belong to a slide of a given type; a type change discards them.
       responses: kept ? previous.responses : [],
+      ratings: kept ? previous.ratings : [],
+      rankings: kept ? previous.rankings : [],
+      // Quiz answer key and per-slide design follow the slide identity.
+      correctOptionId,
+      design: incoming.design,
     };
   });
 
@@ -86,10 +100,10 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
       for (const option of slide.options) {
         if (!typeKept || (option.id && !usedOptionIds.has(option.id))) removedVotes += option.votes.length;
       }
-      if (!typeKept) removedResponses += slide.responses.length;
+      if (!typeKept) removedResponses += slide.responses.length + (slide.ratings?.length ?? 0) + (slide.rankings?.length ?? 0);
     } else {
       removedVotes += slide.options.reduce((n, o) => n + o.votes.length, 0);
-      removedResponses += slide.responses.length;
+      removedResponses += slide.responses.length + (slide.ratings?.length ?? 0) + (slide.rankings?.length ?? 0);
     }
   }
 
