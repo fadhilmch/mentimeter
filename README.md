@@ -1,8 +1,8 @@
 # CrowdFlow
 
-Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
+[![CI](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml)
 
-> **Naming:** CrowdFlow was developed under the working title `LivePoll`. Some internal identifiers (browser storage keys, local database names) still use it; renaming those needs a migration plan and is tracked separately.
+Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
 
 ## Features
 
@@ -113,7 +113,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 57 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
+cd server && npm test          # 72 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
