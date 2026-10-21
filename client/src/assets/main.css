@@ -327,8 +327,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Join lockup */
-.join-lockup { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-.join-logo { height: 34px; width: auto; display: block; }
 .eyebrow {
   font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--lead); margin: 0 0 6px;
@@ -389,7 +387,6 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 640px) {
   .theme-picker { grid-template-columns: repeat(2, 1fr); }
   .cf-roles { grid-template-columns: 1fr; }
-  .join-lockup { justify-content: flex-start; }
   h1 { font-size: clamp(1.5rem, 6vw, 2rem); }
 }
 
@@ -445,3 +442,11 @@ input:focus, select:focus, textarea:focus {
   --danger-soft: rgb(229 72 77 / 0.16);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.35);
 }
+
+/* Links and controls in the header and in form footers: a comfortable tap size. */
+.brand { min-height: 44px; display: inline-flex; align-items: center; }
+.topnav a, .topnav .link-button { min-height: 36px; display: inline-flex; align-items: center; }
+.text-link { display: inline-block; padding: var(--space-2) 0; color: var(--accent); font-weight: 600; }
+.notice { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--lead-soft); color: var(--ink); font-size: var(--fs-sm); }
+.site-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-4); max-width: 1120px; margin: 0 auto; padding: var(--space-5) var(--space-5) var(--space-6); border-top: 1px solid var(--line); color: var(--ink-3); font-size: var(--fs-sm); }
+.site-footer a { color: var(--ink-2); display: inline-block; padding: var(--space-2) 0; }

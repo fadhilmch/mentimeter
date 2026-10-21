@@ -28,6 +28,7 @@ async function submit() {
 <template>
   <div class="page page-narrow">
     <h1>Welcome back</h1>
+    <p v-if="route.query.expired" class="notice" role="status">Your session ended. Log in again to continue.</p>
     <p class="sub">Log in to manage and present your presentations.</p>
     <div class="card">
       <form @submit.prevent="submit">
@@ -37,6 +38,6 @@ async function submit() {
         <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
       </form>
     </div>
-    <p class="muted" style="margin-top: 18px;">New here? <router-link to="/signup" style="color: var(--accent); font-weight: 600;">Create an account</router-link></p>
+    <p class="muted" style="margin-top: 18px;">New here? <router-link class="text-link" to="/signup">Sign up</router-link></p>
   </div>
 </template>

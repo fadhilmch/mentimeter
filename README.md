@@ -129,8 +129,12 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 - All inputs validated with Zod; audience-visible state strips voter identities.
 - Audience actions are keyed by join code: anyone with the code can vote. Presenter controls (edit, delete, change slide, open/close voting, hide results, reset votes) require the owner account.
 
+- Sessions last 7 days. When the server rejects a stored token, the app signs the user out and returns them to the log-in page, then back to where they were.
+
 ## Roadmap / open decisions
 
+- Account recovery: there is no password reset yet (accounts hold no email). Decision pending.
+- Footer contact details: the footer shows only the licence and a GitHub link until an owner contact is chosen.
 - Optional per-presentation audience authentication
 
 ## Project docs
