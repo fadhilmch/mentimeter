@@ -30,8 +30,7 @@ async function deleteAccount() {
   deleteError.value = ''
   deleting.value = true
   try {
-    await api.deleteAccount(auth.token, deletePassword.value)
-    auth.logout()
+    await auth.deleteAccount(deletePassword.value)
     router.push({ name: 'home' })
   } catch (err) {
     deleteError.value = err instanceof Error ? err.message : 'Could not delete the account.'

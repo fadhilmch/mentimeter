@@ -97,6 +97,46 @@ The `api/index.js` serverless entry reuses the same Express app with a cached Mo
 
 See [`server/.env.example`](server/.env.example) and [`client/.env.example`](client/.env.example). Nothing secret is committed; `JWT_SECRET` and `MONGODB_URI` are required in production and the server refuses to boot without them.
 
+## Sign-in with Firebase (optional)
+
+By default CrowdFlow uses its own username and password login. Setting the variables below turns on
+[Firebase Authentication](https://firebase.google.com/docs/auth) (email and password, with password-reset
+email sent by Firebase). Nothing changes until you set them, and nothing here creates a project for you.
+
+| Where | Variable | Purpose |
+| --- | --- | --- |
+| client (build time) | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID` | Identify the project to the browser (not secrets) |
+| server | `FIREBASE_PROJECT_ID` | Turns Firebase on and verifies ID tokens |
+| server | `FIREBASE_SERVICE_ACCOUNT` | Service-account JSON, needed only to delete the Firebase user when an account is deleted. A secret: never commit it |
+
+How it fits the existing app:
+
+- The server still owns profiles and presentations. `User` gains `email` and `firebaseUid`; `username` and
+  `passwordHash` become optional. Presentations keep pointing at the same `owner` id.
+- **Old accounts move, they are not copied.** `/move-account` asks for the old username and password once, then
+  attaches a Firebase login to the same user record. The old password hash is removed after the move.
+- **Deleting an account** asks for the password again (the browser re-authenticates, and the server accepts the
+  request only if the sign-in is under five minutes old). It then removes the presentations, the profile and the
+  Firebase user, in an order that is safe to repeat if a step fails.
+- Built-in signup and login return `410` while Firebase is on. Existing 7-day sessions from the old login keep
+  working until they expire.
+- ID tokens are short lived. The browser SDK refreshes them and the app sends the current one on each request.
+
+Try it locally without a Firebase project, using the [Auth emulator](https://firebase.google.com/docs/emulator-suite):
+
+```bash
+npx firebase-tools emulators:start --only auth --project demo-crowdflow
+# server: FIREBASE_PROJECT_ID=demo-crowdflow FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 npm run dev:memory
+# client: VITE_FIREBASE_API_KEY=fake VITE_FIREBASE_PROJECT_ID=demo-crowdflow VITE_FIREBASE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 npm run build
+```
+
+Before pointing this at a database that already has accounts: `username` is now a sparse unique index. MongoDB
+will not change an existing index's options, so drop the old `username_1` index once and let the app recreate it.
+
+Known limits: Spark-plan password-reset emails are capped per day (see the
+[Firebase limits](https://firebase.google.com/docs/auth/limits)), and the default sender is a Google address that
+can land in spam until a custom domain is set up.
+
 ## Architecture
 
 ```

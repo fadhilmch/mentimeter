@@ -32,3 +32,19 @@ describe('content security policy', () => {
     expect(csp['img-src']).not.toContain('http:');
   });
 });
+
+describe('content security policy with Firebase sign-in', () => {
+  it('lets the browser reach Google sign-in endpoints and nothing else new', async () => {
+    const { config } = await import('../src/config.js');
+    const { createApp } = await import('../src/app.js');
+    config.firebase.projectId = 'demo-crowdflow';
+    try {
+      const res = await request(createApp()).get('/api/health').expect(200);
+      const csp = directives(res.headers['content-security-policy']);
+      expect(csp['connect-src']).toEqual(["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com']);
+      expect(csp['script-src']).toEqual(["'self'"]);
+    } finally {
+      config.firebase.projectId = '';
+    }
+  });
+});
