@@ -5,6 +5,7 @@ import { useLiveStore } from '../stores/live'
 import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
+import type { RankingOption } from '../types'
 import logoMonoUrl from '../assets/logo-mono.svg'
 
 const route = useRoute()
@@ -34,6 +35,34 @@ const pal = computed(() => theme.value.pal)
 const isFirst = computed(() => (state.value?.currentSlide ?? 0) <= 0)
 const isLast = computed(() => !!state.value && state.value.currentSlide >= state.value.slides.length - 1)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
+const accent = computed(() => slide.value?.design?.accent ?? null)
+
+function optionsOf(): RankingOption[] {
+  const s = slide.value
+  if (!s?.options) return []
+  return (s.options as (string | RankingOption)[]).map((o, i) =>
+    typeof o === 'string' ? { id: String(i), text: o } : o,
+  )
+}
+
+const cloudWords = computed(() => {
+  const words = slide.value?.tally?.words ?? []
+  const max = Math.max(1, ...words.map((w) => w.count))
+  return words.map((w, i) => ({
+    ...w,
+    size: 1.1 + (w.count / max) * 2.6,
+    color: pal.value[i % pal.value.length],
+  }))
+})
+
+const rankingRows = computed(() => {
+  const points = slide.value?.tally?.points
+  if (!points) return []
+  const max = Math.max(1, ...points)
+  return optionsOf()
+    .map((o, i) => ({ text: o.text, points: points[i] ?? 0, pct: Math.round(((points[i] ?? 0) / max) * 100), color: pal.value[i % pal.value.length] }))
+    .sort((a, b) => b.points - a.points)
+})
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 
 const direction = ref<'next' | 'prev'>('next')
@@ -76,16 +105,17 @@ watch(
   () => slide.value?.tally,
   (tally) => {
     cancelAnimationFrame(raf)
-    if (!tally) { displayed.counts = []; displayed.total = 0; return }
-    if (reducedMotion.matches) { displayed.counts = [...tally.counts]; displayed.total = tally.total; return }
-    const fromCounts = tally.counts.map((_, i) => displayed.counts[i] ?? 0)
+    const counts = tally?.counts
+    if (!tally || !counts) { displayed.counts = []; displayed.total = 0; return }
+    if (reducedMotion.matches) { displayed.counts = [...counts]; displayed.total = tally.total; return }
+    const fromCounts = counts.map((_, i) => displayed.counts[i] ?? 0)
     const fromTotal = displayed.total
     const start = performance.now()
     const dur = 320
     const tick = (now: number) => {
       const t = Math.min((now - start) / dur, 1)
       const e = 1 - Math.pow(1 - t, 3)
-      displayed.counts = tally.counts.map((to, i) => Math.round((fromCounts[i] ?? 0) + (to - (fromCounts[i] ?? 0)) * e))
+      displayed.counts = counts.map((to, i) => Math.round((fromCounts[i] ?? 0) + (to - (fromCounts[i] ?? 0)) * e))
       displayed.total = Math.round(fromTotal + (tally.total - fromTotal) * e)
       if (t < 1) raf = requestAnimationFrame(tick)
     }
@@ -131,25 +161,78 @@ function end() {
         <p style="color:rgba(255,255,255,0.6); font-weight:600; margin:0 0 8px;">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
         </p>
-        <h1 class="stage-question">{{ slide.question }}</h1>
+        <div
+          class="stage-question-row"
+          :class="{ 'has-image': slide.design?.imageUrl, behind: (slide.design?.imageLayout ?? 'beside') === 'behind' }"
+          :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(8,8,10,0.62), rgba(8,8,10,0.62)), url(${slide.design.imageUrl})` } : {}"
+        >
+          <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="slide.design.imageUrl" alt="" class="stage-image" />
+          <h1 class="stage-question">{{ slide.question }}</h1>
+        </div>
 
         <div v-if="!resultsVisible" class="results-hidden">
           <p style="font-size:1.2rem; font-weight:700; margin:0 0 6px;">Results hidden</p>
           <p style="margin:0;">Reveal them when the room is ready.</p>
         </div>
 
-        <template v-else-if="slide.questionType === 'multiple-choice' && slide.tally">
+        <template v-else-if="(slide.questionType === 'multiple-choice' || slide.questionType === 'quiz') && slide.tally?.counts">
           <div aria-live="polite">
-          <div v-for="(option, i) in slide.options" :key="i" class="result-row">
+          <div v-for="(option, i) in optionsOf()" :key="i" class="result-row">
             <div class="result-label">
-              <span><span class="result-chip" :style="{ background: pal[i % pal.length] }"></span>{{ option }}</span>
-              <span>{{ displayed.counts[i] ?? 0 }} · {{ slide.tally.percentages[i] }}%</span>
+              <span>
+                <span class="result-chip" :style="{ background: pal[i % pal.length] }"></span>{{ option.text }}
+                <span v-if="slide.questionType === 'quiz' && slide.tally.correctOptionIndex === i" class="quiz-correct-tag">✓ correct</span>
+              </span>
+              <span>{{ displayed.counts[i] ?? 0 }} · {{ slide.tally.percentages?.[i] ?? 0 }}%</span>
             </div>
             <div class="result-track">
-              <div class="result-fill" :style="{ width: `${Math.max(slide.tally.percentages[i], 2)}%`, background: pal[i % pal.length], transitionDelay: `${i * 60}ms` }"></div>
+              <div class="result-fill" :style="{ width: `${Math.max(slide.tally.percentages?.[i] ?? 0, 2)}%`, background: pal[i % pal.length], transitionDelay: `${i * 60}ms` }"></div>
             </div>
           </div>
-          <p style="color:rgba(255,255,255,0.6);">{{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}</p>
+          <p style="color:rgba(255,255,255,0.6);">
+            {{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}<template v-if="slide.questionType === 'quiz'"> · {{ slide.tally.correctCount }} correct</template>
+
+
+          </p>
+          </div>
+        </template>
+
+        <template v-else-if="slide.questionType === 'word-cloud'">
+          <div v-if="cloudWords.length" class="cloud-stage" aria-live="polite">
+            <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
+          </div>
+          <p v-else style="color:rgba(255,255,255,0.6);">Waiting for words…</p>
+          <p style="color:rgba(255,255,255,0.6);">{{ slide.tally?.total ?? 0 }} word{{ (slide.tally?.total ?? 0) === 1 ? '' : 's' }}</p>
+        </template>
+
+        <template v-else-if="slide.questionType === 'rating' && slide.tally">
+          <div class="rating-stage" aria-live="polite">
+            <p class="rating-big">{{ slide.tally.average }}</p>
+            <p style="color:rgba(255,255,255,0.6); margin-top:0;">average of {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}</p>
+            <div v-if="slide.tally.buckets" class="bucket-row">
+              <div v-for="(count, i) in slide.tally.buckets" :key="i" class="bucket-col">
+                <span class="bucket-count" :style="{ visibility: count ? 'visible' : 'hidden' }">{{ count }}</span>
+                <div class="bucket-track">
+                  <div class="bucket-fill" :style="{ height: `${Math.max((count / Math.max(1, ...slide.tally.buckets)) * 100, count ? 6 : 0)}%`, background: accent ?? pal[0] }"></div>
+                </div>
+                <span class="bucket-num">{{ i + 1 }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="slide.questionType === 'ranking' && slide.tally?.points">
+          <div aria-live="polite">
+          <div v-for="row in rankingRows" :key="row.text" class="result-row">
+            <div class="result-label">
+              <span><span class="result-chip" :style="{ background: row.color }"></span>{{ row.text }}</span>
+              <span>{{ row.points }} pts</span>
+            </div>
+            <div class="result-track">
+              <div class="result-fill" :style="{ width: `${Math.max(row.pct, 2)}%`, background: row.color }"></div>
+            </div>
+          </div>
+          <p style="color:rgba(255,255,255,0.6);">{{ slide.tally.total }} ranking{{ slide.tally.total === 1 ? '' : 's' }}</p>
           </div>
         </template>
 
@@ -175,3 +258,96 @@ function end() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.stage-question-row.has-image:not(.behind) {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.stage-question-row.behind {
+  padding: 26px;
+  border-radius: 18px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 4px;
+}
+.stage-image {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+.cloud-stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  align-items: baseline;
+  justify-content: center;
+  padding: 20px 0;
+  min-height: 120px;
+}
+.cloud-word {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.rating-stage {
+  text-align: center;
+}
+.rating-big {
+  font-size: 4.6rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+.bucket-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.bucket-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.bucket-track {
+  height: 110px;
+  width: 26px;
+  border-radius: 8px;
+  background: var(--t-track);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.bucket-fill {
+  width: 100%;
+  transition: height 300ms ease;
+}
+.bucket-num {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
+}
+.bucket-count {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  min-height: 1.1em;
+}
+.quiz-correct-tag {
+  margin-left: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #3dd68c;
+  border: 1px solid #3dd68c;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bucket-fill { transition: none; }
+}
+</style>
