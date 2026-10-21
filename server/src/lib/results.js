@@ -50,3 +50,13 @@ export function toggleUpvote(slide, responseIndex, participantId) {
   else response.upvotes.splice(at, 1);
   return slide;
 }
+
+/** Presenter control: clears one slide's collected answers (votes for MC, responses for open-ended). */
+export function resetSlide(slide) {
+  if (slide.questionType === 'multiple-choice') {
+    for (const option of slide.options) option.votes = [];
+  } else {
+    slide.responses = [];
+  }
+  return slide;
+}
