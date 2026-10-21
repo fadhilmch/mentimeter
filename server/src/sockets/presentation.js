@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { applyLiveActionByCode, liveActionSchema, publicState, liveChannel } from '../lib/live.js';
 import { publishState } from '../ably.js';
+import { setBroadcaster } from '../lib/broadcast.js';
 
 const joinSchema = z.object({ accessCode: z.string().trim().min(1) });
 
@@ -18,6 +19,7 @@ async function broadcastState(io, accessCode) {
  * One room per access code; mutations persist first, then a fresh snapshot is broadcast.
  */
 export function registerPresentationSockets(io) {
+  setBroadcaster((accessCode) => broadcastState(io, accessCode));
   io.on('connection', (socket) => {
     let joinedCode = null;
 
