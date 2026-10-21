@@ -5,9 +5,6 @@ import { useLiveStore } from '../stores/live'
 import { participantId } from '../participant'
 import { aliasFor } from '../alias'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
-import logoLight from '../assets/logo-light.svg'
-import logoDark from '../assets/logo-dark.svg'
-import { useColorMode } from '../colorMode'
 
 const router = useRouter()
 const route = useRoute()
@@ -46,14 +43,10 @@ async function join() {
     busy.value = false
   }
 }
-const { mode } = useColorMode()
 </script>
 
 <template>
   <div class="page page-narrow">
-    <div class="join-lockup">
-      <img class="join-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
-    </div>
     <p class="eyebrow">Live polling</p>
     <h1>Join a presentation</h1>
     <p class="sub">Enter the 6-digit code shown on the presenter's screen. No account needed.</p>
@@ -89,8 +82,8 @@ const { mode } = useColorMode()
       </form>
     </div>
     <p class="muted" style="text-align:center; margin-top: 28px;">
-      Presenting? <router-link to="/login" style="color: var(--accent); font-weight: 600;">Log in</router-link>
-      or <router-link to="/signup" style="color: var(--accent); font-weight: 600;">create an account</router-link>
+      Presenting?&nbsp;<router-link class="text-link" to="/login">Log in</router-link>
+      &nbsp;or&nbsp;<router-link class="text-link" to="/signup">sign up</router-link>
     </p>
   </div>
 </template>

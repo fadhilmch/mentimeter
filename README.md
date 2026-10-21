@@ -8,6 +8,7 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 
 - **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
 - **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
+- **Presenter keyboard**: Left/Right arrows and Page Up/Down change slides (ignored while typing or when the join panel is open).
 - **Landing page**: `/` introduces the product with a create-a-presentation call to action and a join-with-code field. The join form itself lives at `/join` (also reachable as `/join?code=123456`); audience links `/p/<code>` are unchanged.
 - **6-digit join codes and QR**: audience joins from any browser, no signup. The presenter header's join chip opens a QR code (dark on white, readable in either color mode) that links to `/p/<code>` on the origin the presenter is using, plus the code and a copyable link.
 - **Light and dark mode**: a toggle in every header; the choice is saved per browser and defaults to the system setting. Presenter and audience screens keep the presentation's chosen palette in both modes.
@@ -129,8 +130,13 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 - All inputs validated with Zod; audience-visible state strips voter identities.
 - Audience actions are keyed by join code: anyone with the code can vote. Presenter controls (edit, delete, change slide, open/close voting, hide results, reset votes) require the owner account.
 
+- Account deletion: `DELETE /api/users/me` (password required) removes the account and all its presentations, including votes, answers and audience nicknames. A deleted account's token stops working immediately. There is no automatic expiry of presentations or votes.
+- Sessions last 7 days. When the server rejects a stored token, the app signs the user out and returns them to the log-in page, then back to where they were.
+
 ## Roadmap / open decisions
 
+- Account recovery: there is no password reset yet (accounts hold no email). Decision pending.
+- Footer contact details: the footer shows only the licence and a GitHub link until an owner contact is chosen.
 - Optional per-presentation audience authentication
 
 ## Project docs
@@ -144,5 +150,7 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
+
+The interface uses [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) (SIL Open Font License 1.1, copy in `client/public/fonts/OFL.txt`), served from this app rather than a font CDN. Only Latin characters are included.
 
 Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set. CrowdFlow is an independent project and is not affiliated with or endorsed by Mentimeter.

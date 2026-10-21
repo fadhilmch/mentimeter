@@ -1,5 +1,12 @@
 const base = import.meta.env.VITE_API_URL ?? '';
 
+// Called when the server rejects a stored token (expired, revoked or invalid),
+// so the app can end the session instead of leaving the user half signed in.
+let onUnauthorized: (() => void) | undefined;
+export function setUnauthorizedHandler(handler: (() => void) | undefined) {
+  onUnauthorized = handler;
+}
+
 async function call<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     ...options,
@@ -10,6 +17,7 @@ async function call<T>(path: string, options: RequestInit = {}, token?: string):
     },
   });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) onUnauthorized?.();
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
 }
@@ -32,6 +40,8 @@ export const api = {
     call<AuthResponse>('/api/users/signup', { method: 'POST', body: JSON.stringify({ name, username, password }) }),
   login: (username: string, password: string) =>
     call<AuthResponse>('/api/users/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  deleteAccount: (token: string, password: string) =>
+    call<{ ok: boolean; deletedPresentations: number }>('/api/users/me', { method: 'DELETE', body: JSON.stringify({ password }) }, token),
   myPresentations: (token: string) => call<{ data: unknown[] }>('/api/presentations', {}, token),
   createPresentation: (token: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>('/api/presentations', { method: 'POST', body: JSON.stringify(payload) }, token),

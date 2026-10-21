@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { User } from '../models/user.js';
+import { Presentation } from '../models/presentation.js';
+import { authenticate } from '../middleware/authenticate.js';
 import { signUserToken } from '../lib/tokens.js';
 import { validate } from '../middleware/validate.js';
 
@@ -44,6 +46,37 @@ authRouter.post('/login', authLimiter, validate(credentialsSchema), async (req, 
       return res.status(401).json({ message: 'Wrong username or password' });
     }
     return res.json({ token: signUserToken(user._id), user: user.toPublicJSON() });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+const deleteAccountSchema = z.object({ password: z.string().min(1).max(128) });
+
+// Permanently deletes the signed-in account and every presentation it owns,
+// including their votes, answers and audience nicknames. The password is
+// required again so a stolen session token alone cannot erase an account.
+authRouter.delete('/me', authLimiter, authenticate, validate(deleteAccountSchema), async (req, res, next) => {
+  try {
+    const user = await User.findById(req.auth.userId);
+    if (!user) return res.status(404).json({ message: 'Account not found' });
+    if (!(await bcrypt.compare(req.body.password, user.passwordHash))) {
+      return res.status(403).json({ message: 'Wrong password' });
+    }
+    // Two steps without a transaction (so no replica set is required). Presentations go first so
+    // none are left without an owner. If the second step fails, the presentations are already
+    // gone but the account remains, and repeating the request finishes the job.
+    const { deletedCount } = await Presentation.deleteMany({ owner: user._id });
+    try {
+      await User.deleteOne({ _id: user._id });
+    } catch (err) {
+      console.error('Account deletion: presentations removed, account removal failed', err);
+      return res.status(500).json({
+        message: 'Your presentations were deleted, but the account could not be removed yet. Please try again.',
+        code: 'ACCOUNT_DELETE_INCOMPLETE',
+      });
+    }
+    return res.json({ ok: true, deletedPresentations: deletedCount });
   } catch (err) {
     return next(err);
   }

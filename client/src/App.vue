@@ -27,7 +27,7 @@ function signOut() {
         <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
         <button v-if="auth.isLoggedIn" class="link-button" @click="signOut">Sign out</button>
         <template v-else>
-          <RouterLink to="/login">Sign in</RouterLink>
+          <RouterLink to="/login">Log in</RouterLink>
           <RouterLink v-if="route.name === 'home'" to="/signup" class="button nav-cta">
             <span class="long">Create a presentation</span><span class="short">Create</span>
           </RouterLink>
@@ -38,6 +38,10 @@ function signOut() {
     <main>
       <RouterView />
     </main>
+    <footer v-if="!route.meta.bare" class="site-footer">
+      <span>CrowdFlow is open source under the MIT licence.</span>
+      <a href="https://github.com/fadhilmch/crowdflow" rel="noopener">GitHub</a>
+    </footer>
   </div>
 </template>
 

@@ -22,6 +22,23 @@ const presentations = ref<PresentationSummary[]>([])
 const loading = ref(true)
 const error = ref('')
 const creating = ref(false)
+const deleting = ref(false)
+const deletePassword = ref('')
+const deleteError = ref('')
+
+async function deleteAccount() {
+  deleteError.value = ''
+  deleting.value = true
+  try {
+    await api.deleteAccount(auth.token, deletePassword.value)
+    auth.logout()
+    router.push({ name: 'home' })
+  } catch (err) {
+    deleteError.value = err instanceof Error ? err.message : 'Could not delete the account.'
+  } finally {
+    deleting.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -86,5 +103,29 @@ async function createPresentation() {
       <h2>No presentations yet</h2>
       <p>Create your first one - add slides, get a 6-digit code, present.</p>
     </div>
+
+    <details class="account-delete">
+      <summary>Delete account</summary>
+      <p class="muted">
+        This permanently deletes your account and all {{ presentations.length }} of your presentations,
+        with their votes, answers and audience nicknames. It cannot be undone.
+      </p>
+      <form @submit.prevent="deleteAccount">
+        <label class="field">
+          <span>Confirm with your password</span>
+          <input v-model="deletePassword" type="password" autocomplete="current-password" required />
+        </label>
+        <p v-if="deleteError" class="error-banner" role="alert">{{ deleteError }}</p>
+        <button class="button danger" type="submit" :disabled="deleting || !deletePassword">
+          {{ deleting ? 'Deleting…' : 'Delete my account' }}
+        </button>
+      </form>
+    </details>
   </div>
 </template>
+
+<style scoped>
+.account-delete { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); max-width: 420px; }
+.account-delete summary { cursor: pointer; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 600; padding: var(--space-2) 0; }
+.account-delete form { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+</style>
