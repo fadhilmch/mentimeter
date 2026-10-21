@@ -53,7 +53,9 @@ describe('participant aliases', () => {
 
 describe('computeLeaderboard', () => {
   it('scores +1 per correct answer across quiz slides', () => {
-    const board = computeLeaderboard(quizPresentation());
+    const p = quizPresentation();
+    p.slides.forEach((slide) => { slide.revealed = true; });
+    const board = computeLeaderboard(p);
     expect(board).toEqual([
       { name: aliasFor('p-2'), score: 2, rank: 1 },
       { name: aliasFor('p-3'), score: 1, rank: 2 },
@@ -64,6 +66,7 @@ describe('computeLeaderboard', () => {
 
   it('shares ranks on ties and skips the next rank', () => {
     const p = quizPresentation();
+    p.slides.forEach((slide) => { slide.revealed = true; });
     p.slides[1].options[1].votes = []; // p-3 loses Q2 answer
     p.slides[1].options[0].votes = ['p-2', 'p-3']; // both correct on Q2
     const board = computeLeaderboard(p);
@@ -102,24 +105,73 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(state.leaderboard).toBeNull();
   });
 
-  it('reveals answer, correct count and leaderboard once voting is closed', () => {
-    const state = publicState(quizPresentation({ votingOpen: false }));
+  it('reveals presented answers and their scores once voting closes', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    const state = publicState(p);
+    // Only the presented question (currentSlide 0) is revealed and scored.
     expect(state.slides[0].tally.correctOptionIndex).toBe(1);
     expect(state.slides[0].tally.correctCount).toBe(2);
+    expect(state.leaderboard).toEqual([
+      { name: aliasFor('p-2'), score: 1, rank: 1 },
+      { name: aliasFor('p-3'), score: 1, rank: 1 },
+    ]);
+  });
+
+  it('keeps future quiz answers sealed when voting closes mid-quiz', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    const state = publicState(p);
+    const future = state.slides[1].tally;
+    expect('correctOptionIndex' in future).toBe(false);
+    expect('correctCount' in future).toBe(false);
+  });
+
+  it('freezes a revealed question: votes stay rejected after reopening', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    applyLiveAction(p, { type: 'voting:set', open: true });
+    expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-1' })).toThrow(
+      'This question has already been revealed',
+    );
+    // The still-sealed future question accepts votes normally.
+    expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 1, optionIndex: 0, participantId: 'p-1' })).not.toThrow();
+  });
+
+  it('scores only revealed questions as the quiz progresses', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false }); // reveals Q1
+    applyLiveAction(p, { type: 'voting:set', open: true });
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 1 });
+    applyLiveAction(p, { type: 'voting:set', open: false }); // reveals Q2
+    const state = publicState(p);
     expect(state.leaderboard).toEqual([
       { name: aliasFor('p-2'), score: 2, rank: 1 },
       { name: aliasFor('p-3'), score: 1, rank: 2 },
     ]);
   });
 
+  it('a presenter vote reset un-reveals the question for a fresh round', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    applyLiveAction(p, { type: 'vote:reset', slideIndex: 0 });
+    applyLiveAction(p, { type: 'voting:set', open: true });
+    expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-1' })).not.toThrow();
+    expect('correctOptionIndex' in publicState(p).slides[0].tally).toBe(false);
+  });
+
   it('keeps everything hidden while results are hidden, even when closed', () => {
-    const state = publicState(quizPresentation({ votingOpen: false, resultsVisible: false }));
+    const p = quizPresentation({ resultsVisible: false });
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    const state = publicState(p);
     expect(state.slides[0].tally).toBeNull();
     expect(state.leaderboard).toBeNull();
   });
 
   it('never leaks participant ids or nicknamed identity map', () => {
-    const state = publicState(quizPresentation({ votingOpen: false, participants: [{ participantId: 'p-2', nickname: 'Fadhil' }] }));
+    const p = quizPresentation({ participants: [{ participantId: 'p-2', nickname: 'Fadhil' }] });
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    const state = publicState(p);
     const raw = JSON.stringify(state);
     expect(raw).not.toContain('p-2');
     expect(raw).not.toContain('participantId');
