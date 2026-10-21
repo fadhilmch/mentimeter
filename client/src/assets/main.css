@@ -164,7 +164,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--t-track); color: var(--t-accink); padding: 8px 18px; border-radius: 10px;
   font-variant-numeric: tabular-nums;
 }
-.stage-body { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+.stage-body { max-width: 900px; margin: 0 auto; padding: 48px 24px; overflow-x: clip; }
 .stage-question { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 32px; }
 .result-row { margin-bottom: 22px; }
 .result-row .result-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
@@ -372,7 +372,9 @@ input:focus, select:focus, textarea:focus {
 .slide-next-leave-to { opacity: 0; transform: translateX(-48px); }
 .slide-prev-enter-from { opacity: 0; transform: translateX(-48px); }
 .slide-prev-leave-to { opacity: 0; transform: translateX(48px); }
-.slide-next-leave-active, .slide-prev-leave-active { position: absolute; width: 100%; }
+/* Grid stacking keeps the outgoing slide in flow: no overlap with controls, no page overflow. */
+.stage-slide-slot { display: grid; }
+.stage-slide-slot > * { grid-area: 1 / 1; min-width: 0; }
 
 /* Audience selection pop */
 .option-button.chosen { animation: select-pop 220ms var(--ease); }
