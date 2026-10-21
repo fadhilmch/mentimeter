@@ -89,3 +89,24 @@ describe('resetSlide', () => {
     expect(slide.responses).toEqual([]);
   });
 });
+
+describe('word cloud tally with words that are also object property names', () => {
+  const cloud = (...words) => ({
+    questionType: 'word-cloud',
+    question: 'One word?',
+    options: [],
+    responses: words.map((text, i) => ({ text, authorId: `p${i}` })),
+  });
+
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf'])('counts "%s" as a normal word', (word) => {
+    const tally = tallySlide(cloud(word, 'normal', word.toUpperCase()));
+    expect(tally.total).toBe(3);
+    expect(tally.words).toEqual(expect.arrayContaining([{ text: word.toLowerCase(), count: 2 }, { text: 'normal', count: 1 }]));
+    expect(tally.words).toHaveLength(2);
+  });
+
+  it('still sorts by count then alphabetically', () => {
+    const tally = tallySlide(cloud('b', 'a', 'b', '__proto__'));
+    expect(tally.words.map((w) => w.text)).toEqual(['b', '__proto__', 'a']);
+  });
+});
