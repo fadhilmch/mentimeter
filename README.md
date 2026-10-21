@@ -6,12 +6,14 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 
 ## Features
 
-- **Two slide types**: multiple-choice polls with live bar charts, and open-ended questions where the audience submits answers and upvotes each other's.
+- **Six slide types**: multiple-choice polls with live bar charts, quizzes with a correct-answer reveal, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
+- **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
 - **6-digit join codes**: audience joins from any browser, no signup.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
 - **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
 - **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
+- **Honest limits by design**: quiz players stay anonymous - the stage reveals the correct answer and how many got it right, with no named leaderboard. Word cloud takes one word per participant (a new word replaces the old). Rankings use tap-to-order.
 - **Playful, accessible motion**: directional slide transitions, animated bars and count-up tallies, and selection feedback, all disabled under `prefers-reduced-motion`.
 - **Two realtime transports** (same event protocol, same UI):
   - **Socket.IO** - default, fully self-hosted and open-source.
@@ -110,7 +112,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 27 tests: access codes, tallies, live actions, auth, REST, sockets
+cd server && npm test          # 57 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
