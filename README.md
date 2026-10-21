@@ -8,6 +8,7 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 
 - **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
 - **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
+- **Presenter keyboard**: Left/Right arrows and Page Up/Down change slides (ignored while typing or when the join panel is open).
 - **Landing page**: `/` introduces the product with a create-a-presentation call to action and a join-with-code field. The join form itself lives at `/join` (also reachable as `/join?code=123456`); audience links `/p/<code>` are unchanged.
 - **6-digit join codes and QR**: audience joins from any browser, no signup. The presenter header's join chip opens a QR code (dark on white, readable in either color mode) that links to `/p/<code>` on the origin the presenter is using, plus the code and a copyable link.
 - **Light and dark mode**: a toggle in every header; the choice is saved per browser and defaults to the system setting. Presenter and audience screens keep the presentation's chosen palette in both modes.

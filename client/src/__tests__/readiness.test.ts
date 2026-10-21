@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, setUnauthorizedHandler } from '../api'
+import { slideStepForKey } from '../presenterKeys'
 
 const ROOT = join(__dirname, '..', '..')
 
@@ -37,5 +38,24 @@ describe('public page basics', () => {
     const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
     expect(html).toContain('property="og:title"')
     expect(readFileSync(join(ROOT, 'public/robots.txt'), 'utf8')).toContain('User-agent')
+  })
+})
+
+describe('presenter keyboard', () => {
+  const key = (k: string, target: unknown = { tagName: 'BODY' }, mods = {}) =>
+    slideStepForKey({ key: k, altKey: false, ctrlKey: false, metaKey: false, target: target as EventTarget, ...mods })
+
+  it('steps slides with arrows and page keys', () => {
+    expect(key('ArrowRight')).toBe(1)
+    expect(key('PageDown')).toBe(1)
+    expect(key('ArrowLeft')).toBe(-1)
+    expect(key('PageUp')).toBe(-1)
+  })
+
+  it('ignores typing fields, browser shortcuts and other keys', () => {
+    expect(key('ArrowRight', { tagName: 'INPUT' })).toBeNull()
+    expect(key('ArrowLeft', { tagName: 'TEXTAREA' })).toBeNull()
+    expect(key('ArrowLeft', { tagName: 'BODY' }, { altKey: true })).toBeNull()
+    expect(key('a')).toBeNull()
   })
 })

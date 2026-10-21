@@ -11,6 +11,7 @@ import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import JoinPanel from '../components/JoinPanel.vue'
 import { useColorMode } from '../colorMode'
+import { slideStepForKey } from '../presenterKeys'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 
 const route = useRoute()
@@ -31,7 +32,19 @@ onMounted(async () => {
   }
 })
 
-onBeforeUnmount(() => live.leave())
+// Arrow keys and Page Up/Down change slides, as in other presentation tools.
+function onKey(e: KeyboardEvent) {
+  if (showJoin.value) return
+  const step = slideStepForKey(e)
+  if (step === null) return
+  e.preventDefault()
+  go(step)
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  live.leave()
+})
 
 const slide = computed(() => live.currentSlide)
 const state = computed(() => live.state)
