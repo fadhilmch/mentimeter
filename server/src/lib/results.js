@@ -136,6 +136,7 @@ export function toggleUpvote(slide, responseIndex, participantId) {
 export function resetSlide(slide) {
   if (slide.questionType === 'multiple-choice' || slide.questionType === 'quiz') {
     for (const option of slide.options) option.votes = [];
+    slide.revealed = false;
   } else if (slide.questionType === 'rating') {
     slide.ratings = [];
   } else if (slide.questionType === 'ranking') {
