@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
 import { getTheme, themeVars } from '../themes'
+import { aliasFor } from '../alias'
+import { participantId } from '../participant'
 import type { RankingOption } from '../types'
 
 const route = useRoute()
@@ -38,6 +40,8 @@ const pal = computed(() => theme.value.pal)
 const accent = computed(() => slide.value?.design?.accent ?? pal.value[0])
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
+const myName = computed(() => localStorage.getItem('livepoll.nickname')?.trim() || aliasFor(participantId()))
+const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
 
 // Start each slide's ranking with a clean slate.
 watch(
@@ -170,7 +174,7 @@ async function sendRanking() {
             {{ option.text }}
             <span v-if="slide.questionType === 'quiz' && resultsVisible && slide.tally?.correctOptionIndex === i" class="quiz-mark">✓</span>
           </button>
-          <p v-if="slide.questionType === 'quiz' && resultsVisible && slide.tally" class="muted">
+          <p v-if="slide.questionType === 'quiz' && resultsVisible && slide.tally && slide.tally.correctCount !== undefined" class="muted">
             {{ slide.tally.correctCount }} of {{ slide.tally.total }} got it right.
             <template v-if="myVotes[state.currentSlide] !== undefined">
               {{ myVotes[state.currentSlide] === slide.tally.correctOptionIndex ? 'You did!' : 'Not yours this time.' }}
@@ -277,6 +281,18 @@ async function sendRanking() {
       </template>
       <p v-else class="muted">Waiting for the presenter…</p>
     </template>
+    <div v-if="state?.leaderboard?.length" class="card leaderboard-card">
+      <p class="eyebrow">Quiz leaderboard</p>
+      <ol class="leaderboard-list">
+        <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
+          <span class="rank-badge">#{{ entry.rank }}</span>
+          <span class="lb-name">{{ entry.name }}</span>
+          <span class="lb-score">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+        </li>
+      </ol>
+      <p v-if="myEntry && myEntry.rank > 5" class="muted">You are #{{ myEntry.rank }} with {{ myEntry.score }} pt{{ myEntry.score === 1 ? '' : 's' }}.</p>
+      <p v-else-if="myEntry" class="muted">That's you - #{{ myEntry.rank }}.</p>
+    </div>
   </div>
   </div>
 </template>
@@ -314,6 +330,37 @@ async function sendRanking() {
 .rating-button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+.leaderboard-card {
+  margin-top: 22px;
+  text-align: left;
+}
+.leaderboard-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.leaderboard-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.leaderboard-list li.me {
+  outline: 2px solid var(--accent, #8b7cf6);
+}
+.lb-name {
+  font-weight: 700;
+  flex: 1;
+}
+.lb-score {
+  font-weight: 800;
+  color: var(--accent, #8b7cf6);
 }
 .rank-badge {
   width: 26px;
