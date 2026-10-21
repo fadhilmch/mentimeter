@@ -47,6 +47,15 @@ export const useLiveStore = defineStore('live', {
     upvote(slideIndex: number, responseIndex: number) {
       return this.act({ type: 'response:upvote', slideIndex, responseIndex, participantId: participantId() });
     },
+    submitWord(slideIndex: number, text: string) {
+      return this.act({ type: 'word:submit', slideIndex, text, participantId: participantId() });
+    },
+    castRating(slideIndex: number, value: number) {
+      return this.act({ type: 'rating:cast', slideIndex, value, participantId: participantId() });
+    },
+    submitRanking(slideIndex: number, order: string[]) {
+      return this.act({ type: 'ranking:submit', slideIndex, order, participantId: participantId() });
+    },
     goToSlide(slideIndex: number) {
       return this.act({ type: 'slide:change', slideIndex });
     },
