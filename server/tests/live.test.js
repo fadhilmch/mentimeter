@@ -129,6 +129,20 @@ describe('presenter live controls', () => {
     const hide = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'results:set', visible: false });
     expect(hide.status).toBe(200);
     expect(hide.body.state.resultsVisible).toBe(false);
+    // hidden: projection strips tallies from every audience channel
+    expect(hide.body.state.slides[0].tally).toBeNull();
+    const codeJoin = await request(app).get(`/api/presentations/code/${code}`);
+    expect(codeJoin.status).toBe(200);
+    expect(codeJoin.body.data.slides[0].tally).toBeNull();
+    expect(codeJoin.body.data.slides[0].options[0].votes).toBeUndefined();
+    const liveJoin = await request(app).get(`/api/live/${code}/state`);
+    if (liveJoin.status === 200) expect(liveJoin.body.data.slides[0].tally).toBeNull();
+    // reveal restores the projection
+    const reveal = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'results:set', visible: true });
+    expect(reveal.body.state.slides[0].tally).not.toBeNull();
+    const rejoined = await request(app).get(`/api/presentations/code/${code}`);
+    expect(rejoined.body.data.slides[0].tally).not.toBeNull();
+    expect(rejoined.body.data.slides[0].options[0].votes).toBeUndefined();
 
     const other = await request(app).post(`/api/presentations/${seeded._id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'voting:set', open: false });
     expect(other.status).toBe(404);
