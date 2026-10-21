@@ -59,9 +59,18 @@ describe('computeLeaderboard', () => {
     expect(board).toEqual([
       { name: aliasFor('p-2'), score: 2, rank: 1 },
       { name: aliasFor('p-3'), score: 1, rank: 2 },
+      { name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
-    // p-1 answered Q1 wrong and never answered Q2: not on the board.
-    expect(board.some((e) => e.name === aliasFor('p-1'))).toBe(false);
+  });
+
+  it('keeps participants of only unrevealed questions off the board', () => {
+    const p = quizPresentation();
+    p.slides[0].revealed = true; // Q2 stays sealed
+    const board = computeLeaderboard(p);
+    expect(board.map((e) => e.name).sort()).toEqual([aliasFor('p-1'), aliasFor('p-2'), aliasFor('p-3')].sort());
+    // p-1's wrong Q1 answer counts them in at 0; Q2 (sealed) answers are ignored.
+    expect(board.find((e) => e.name === aliasFor('p-1')).score).toBe(0);
+    expect(board.find((e) => e.name === aliasFor('p-3')).score).toBe(1);
   });
 
   it('shares ranks on ties and skips the next rank', () => {
@@ -73,6 +82,7 @@ describe('computeLeaderboard', () => {
     expect(board.map((e) => [e.score, e.rank])).toEqual([
       [2, 1],
       [2, 1],
+      [0, 3],
     ]);
   });
 });
@@ -115,6 +125,7 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(state.leaderboard).toEqual([
       { name: aliasFor('p-2'), score: 1, rank: 1 },
       { name: aliasFor('p-3'), score: 1, rank: 1 },
+      { name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
   });
 
@@ -148,6 +159,7 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(state.leaderboard).toEqual([
       { name: aliasFor('p-2'), score: 2, rank: 1 },
       { name: aliasFor('p-3'), score: 1, rank: 2 },
+      { name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
   });
 
