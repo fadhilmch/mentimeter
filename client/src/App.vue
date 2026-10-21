@@ -9,7 +9,7 @@ const route = useRoute();
 
 function signOut() {
   auth.logout();
-  router.push({ name: 'join' });
+  router.push({ name: 'home' });
 }
 </script>
 
@@ -23,7 +23,12 @@ function signOut() {
       <nav class="topnav">
         <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
         <button v-if="auth.isLoggedIn" class="link-button" @click="signOut">Sign out</button>
-        <RouterLink v-else to="/login">Sign in</RouterLink>
+        <template v-else>
+          <RouterLink to="/login">Sign in</RouterLink>
+          <RouterLink v-if="route.name === 'home'" to="/signup" class="button nav-cta">
+            <span class="long">Create a presentation</span><span class="short">Create</span>
+          </RouterLink>
+        </template>
       </nav>
     </header>
     <main>
@@ -31,3 +36,13 @@ function signOut() {
     </main>
   </div>
 </template>
+
+<style scoped>
+.topnav .nav-cta { padding: 8px 16px; color: #fff; font-size: 0.9rem; }
+.topnav .nav-cta:hover { color: #fff; }
+.short { display: none; }
+@media (max-width: 520px) {
+  .long { display: none; }
+  .short { display: inline; }
+}
+</style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useLiveStore } from '../stores/live'
 import { participantId } from '../participant'
 import { aliasFor } from '../alias'
@@ -8,8 +8,10 @@ import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import logoUrl from '../assets/logo.svg'
 
 const router = useRouter()
+const route = useRoute()
 const live = useLiveStore()
-const code = ref('')
+// A code can arrive from the landing page (?code=123456); keep digits only.
+const code = ref(String(route.query.code ?? '').replace(/\D/g, '').slice(0, 6))
 const nickname = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const error = ref('')
 const busy = ref(false)

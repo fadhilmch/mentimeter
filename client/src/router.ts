@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import LandingView from './views/LandingView.vue';
 import JoinView from './views/JoinView.vue';
 import LoginView from './views/LoginView.vue';
 import SignupView from './views/SignupView.vue';
@@ -10,7 +11,8 @@ import AudienceView from './views/AudienceView.vue';
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'join', component: JoinView },
+    { path: '/', name: 'home', component: LandingView },
+    { path: '/join', name: 'join', component: JoinView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/signup', name: 'signup', component: SignupView },
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
