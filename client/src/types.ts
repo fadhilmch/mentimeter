@@ -18,6 +18,7 @@ export interface PresentationState {
   id: string;
   title: string;
   accessCode: string;
+  theme?: 'iris' | 'apricot' | 'plum' | 'cobalt';
   currentSlide: number;
   slides: PublicSlide[];
 }
