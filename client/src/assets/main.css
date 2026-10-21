@@ -22,6 +22,7 @@
   --t-stage2: #1c1c1f;
   --t-track: rgba(255, 255, 255, 0.13);
   --t-acc: #5b5bd6;
+  --t-accink: #b8baf8;
   --stage: var(--t-sbg);
   --stage-2: var(--t-stage2);
   /* Motion tokens */
@@ -160,7 +161,7 @@ input:focus, select:focus, textarea:focus {
 }
 .stage-topbar .code-chip {
   font-size: 1.4rem; font-weight: 800; letter-spacing: 0.3em;
-  background: var(--t-track); color: var(--t-acc); padding: 8px 18px; border-radius: 10px;
+  background: var(--t-track); color: var(--t-accink); padding: 8px 18px; border-radius: 10px;
   font-variant-numeric: tabular-nums;
 }
 .stage-body { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
@@ -182,7 +183,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--t-stage2); border-radius: 10px; padding: 14px 18px;
 }
 .response-item .upvote-count {
-  font-weight: 800; color: var(--t-acc); min-width: 44px; text-align: right;
+  font-weight: 800; color: var(--t-accink); min-width: 44px; text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .stage-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 40px; }
