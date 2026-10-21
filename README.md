@@ -1,17 +1,20 @@
 # CrowdFlow
 
-Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
+[![CI](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fadhilmch/crowdflow/actions/workflows/ci.yml)
 
-> **Naming:** CrowdFlow was developed under the working title `LivePoll`. Some internal identifiers (browser storage keys, local database names) still use it; renaming those needs a migration plan and is tracked separately.
+Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
 
 ## Features
 
-- **Two slide types**: multiple-choice polls with live bar charts, and open-ended questions where the audience submits answers and upvotes each other's.
+- **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
+- **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
 - **6-digit join codes**: audience joins from any browser, no signup.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
 - **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
 - **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
+- **Quiz leaderboard**: players pick an optional nickname on join (otherwise a stable automatic alias), earn +1 per correct answer - the final answer counts, changes are allowed until voting closes - and the top 5 plus your own rank appear on stage and audience once voting closes. Answers and scores stay hidden while voting is open.
+- **Honest limits by design**: quiz players stay anonymous beyond their nickname or alias. Word cloud takes one word per participant (a new word replaces the old). Rankings use tap-to-order.
 - **Playful, accessible motion**: directional slide transitions, animated bars and count-up tallies, and selection feedback, all disabled under `prefers-reduced-motion`.
 - **Two realtime transports** (same event protocol, same UI):
   - **Socket.IO** - default, fully self-hosted and open-source.
@@ -110,7 +113,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 27 tests: access codes, tallies, live actions, auth, REST, sockets
+cd server && npm test          # 72 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
@@ -135,4 +138,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set.
+Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set. CrowdFlow is an independent project and is not affiliated with or endorsed by Mentimeter.

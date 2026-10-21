@@ -17,16 +17,32 @@ const optionInputSchema = z.union([
 
 const normalizeOption = (option) => (typeof option === 'string' ? { text: option } : option);
 
+const designInputSchema = z
+  .object({
+    accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    imageUrl: z.string().trim().url().max(500).optional(),
+    imageLayout: z.enum(['beside', 'behind']).optional(),
+  })
+  .optional();
+
 const slideSchema = z
   .object({
     id: z.string().min(1).max(64).optional(),
-    questionType: z.enum(['multiple-choice', 'open-ended']),
+    questionType: z.enum(['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz']),
     question: z.string().trim().min(1).max(300),
     options: z.array(optionInputSchema).max(12).default([]),
+    correctOptionId: z.string().min(1).max(64).optional(),
+    design: designInputSchema,
   })
   .superRefine((slide, ctx) => {
     if (slide.questionType === 'multiple-choice' && slide.options.length < 2) {
       ctx.addIssue({ code: 'custom', message: 'Multiple-choice slides need at least 2 options', path: ['options'] });
+    }
+    if ((slide.questionType === 'ranking' || slide.questionType === 'quiz') && slide.options.length < 2) {
+      ctx.addIssue({ code: 'custom', message: 'Ranking and quiz slides need at least 2 options', path: ['options'] });
+    }
+    if (slide.design?.imageLayout && !slide.design?.imageUrl) {
+      ctx.addIssue({ code: 'custom', message: 'Image layout only applies when an image is set', path: ['design'] });
     }
   });
 
@@ -72,6 +88,8 @@ presentationsRouter.post('/', authenticate, validate(createSchema), async (req, 
       ...slide,
       options: slide.options.map(normalizeOption).map((option) => ({ ...option, votes: [] })),
       responses: [],
+      ratings: [],
+      rankings: [],
     }));
     const data = await Presentation.create({ ...req.body, slides, accessCode, owner: req.auth.userId });
     ensureSlideIds(data);
@@ -100,9 +118,12 @@ presentationsRouter.get('/:id', authenticate, async (req, res, next) => {
     // Upgrade-on-read: stamp stable ids onto pre-identity decks. This is purely
     // additive (no votes, responses or structure are touched) and gives the
     // editor real identities to echo back on save. The write is version-guarded:
-    // a concurrent change wins, and we simply reload and return its ids.
-    if (!(await stampSlideIdsIfMissing(data))) {
+    // a concurrent change wins, and the winner may be a vote, which stamps
+    // nothing - so reload and retry instead of returning an unidentified deck.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (await stampSlideIdsIfMissing(data)) break;
       data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+      if (!data) return res.status(404).json({ message: 'Presentation not found' });
     }
     return res.json({ data });
   } catch (err) {
