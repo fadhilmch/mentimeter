@@ -38,6 +38,7 @@ const isFirst = computed(() => (state.value?.currentSlide ?? 0) <= 0)
 const isLast = computed(() => !!state.value && state.value.currentSlide >= state.value.slides.length - 1)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const accent = computed(() => slide.value?.design?.accent ?? null)
+const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
 
 function optionsOf(): RankingOption[] {
   const s = slide.value
@@ -252,13 +253,16 @@ function end() {
         </div>
 
         <div v-if="live.state?.leaderboard?.length" class="leaderboard-stage" aria-live="polite">
-          <p class="eyebrow" style="margin:0 0 8px;">Quiz leaderboard</p>
+          <div class="lb-head">
+            <p class="eyebrow" style="margin:0;">Quiz leaderboard</p>
+            <span class="lb-count">{{ live.state.leaderboard.length }} player{{ live.state.leaderboard.length === 1 ? '' : 's' }}</span>
+          </div>
           <ol class="lb-rows">
             <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.name">
-              <span class="lb-rank">#{{ entry.rank }}</span>
+              <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
               <ParticipantAvatar :name="entry.name" :size="36" />
               <span class="lb-name">{{ entry.name }}</span>
-              <span class="lb-pts">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+              <span class="lb-pts" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
             </li>
           </ol>
           <button v-if="live.state.leaderboard.length > 5" class="button ghost" style="margin-top:10px;" @click="showFullBoard = !showFullBoard">
@@ -284,31 +288,58 @@ function end() {
   padding: 16px 18px;
   text-align: left;
 }
+.lb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.lb-count {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
 .lb-rows {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .lb-rows li {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 1.05rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px 14px;
 }
 .lb-rank {
+  width: 40px;
+  flex: none;
   font-weight: 800;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.55);
-  min-width: 34px;
 }
 .lb-name {
   font-weight: 700;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .lb-pts {
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--t-accink, rgba(255, 255, 255, 0.85));
+  white-space: nowrap;
+}
+.lb-pts.zero {
+  color: rgba(255, 255, 255, 0.6);
 }
 .stage-question-row.has-image:not(.behind) {
   display: flex;
