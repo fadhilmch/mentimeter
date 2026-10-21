@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const optionSchema = new mongoose.Schema(
   {
+    // Stable identity stamped on save; lets edits keep votes attached to the right option.
+    id: { type: String },
     text: { type: String, required: true, trim: true, maxlength: 200 },
     votes: { type: [String], default: [] },
   },
@@ -20,6 +22,8 @@ const responseSchema = new mongoose.Schema(
 
 const slideSchema = new mongoose.Schema(
   {
+    // Stable identity stamped on save; lets edits keep votes/responses attached to the right slide.
+    id: { type: String },
     questionType: { type: String, enum: ['multiple-choice', 'open-ended'], required: true },
     question: { type: String, required: true, trim: true, maxlength: 300 },
     options: { type: [optionSchema], default: [] },
@@ -39,6 +43,10 @@ const presentationSchema = new mongoose.Schema(
     currentSlide: { type: Number, default: 0, min: 0 },
     votingOpen: { type: Boolean, default: true },
     resultsVisible: { type: Boolean, default: true },
+    // Bumped only when the slide/option structure changes. Votes and live
+    // actions do not touch it, so the editor can detect concurrent structural
+    // edits without conflicting with live audience activity.
+    structureRevision: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
