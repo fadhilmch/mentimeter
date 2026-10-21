@@ -51,7 +51,7 @@ async function join() {
             autocomplete="off"
           />
         </label>
-        <p v-if="error" class="error-text">{{ error }}</p>
+        <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">
           {{ busy ? 'Joining…' : 'Join presentation' }}
         </button>
