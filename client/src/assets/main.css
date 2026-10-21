@@ -58,9 +58,7 @@ main { flex: 1; width: 100%; }
   font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;
   color: var(--ink); text-decoration: none;
 }
-.brand-mark {
-  width: 22px; height: 22px;
-}
+.brand-logo { height: 30px; width: auto; display: block; }
 .topnav { display: flex; align-items: center; gap: 18px; }
 .topnav a { color: var(--ink-2); text-decoration: none; font-weight: 600; font-size: 0.92rem; }
 .topnav a:hover { color: var(--ink); }
@@ -234,11 +232,9 @@ input:focus, select:focus, textarea:focus {
   .topbar { padding: 12px 16px; }
   .topnav { gap: 14px; }
   .topnav a, .topnav .link-button { white-space: nowrap; font-size: 0.85rem; }
-  .brand { font-size: 1rem; }
 }
 @media (max-width: 430px) {
-  .brand { font-size: 0; gap: 0; }
-  .brand-mark { width: 24px; height: 24px; }
+  .brand-logo { height: 26px; }
   .page { padding: 28px 16px 56px; }
   .stage-body { padding: 32px 16px; }
   .stage-topbar .code-chip { font-size: 1.1rem; letter-spacing: 0.2em; }
@@ -284,7 +280,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Join lockup */
 .join-lockup { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-.join-wordmark { font-weight: 800; font-size: 1.25rem; letter-spacing: -0.02em; }
+.join-logo { height: 34px; width: auto; display: block; }
 .eyebrow {
   font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--lead); margin: 0 0 6px;

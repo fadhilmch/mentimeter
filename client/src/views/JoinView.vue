@@ -5,7 +5,7 @@ import { useLiveStore } from '../stores/live'
 import { participantId } from '../participant'
 import { aliasFor } from '../alias'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
-import logoUrl from '../assets/logo.svg'
+import logoUrl from '../assets/logo-light.svg'
 
 const router = useRouter()
 const route = useRoute()
@@ -49,8 +49,7 @@ async function join() {
 <template>
   <div class="page page-narrow">
     <div class="join-lockup">
-      <img :src="logoUrl" width="40" height="40" alt="" aria-hidden="true" />
-      <span class="join-wordmark">CrowdFlow</span>
+      <img class="join-logo" :src="logoUrl" alt="CrowdFlow" />
     </div>
     <p class="eyebrow">Live polling</p>
     <h1>Join a presentation</h1>

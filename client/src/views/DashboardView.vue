@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { getTheme } from '../themes'
-import logoUrl from '../assets/logo.svg'
+import logoUrl from '../assets/logo-mark.svg'
 import { useAuthStore } from '../stores/auth'
 
 interface PresentationSummary {

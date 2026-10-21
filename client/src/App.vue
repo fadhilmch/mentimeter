@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from './stores/auth';
-import logoUrl from './assets/logo.svg';
+import logoUrl from './assets/logo-light.svg';
 import { useRoute, useRouter } from 'vue-router';
 
 const auth = useAuthStore();
@@ -17,8 +17,7 @@ function signOut() {
   <div class="app-shell">
     <header v-if="!route.meta.bare" class="topbar">
       <RouterLink to="/" class="brand">
-        <img class="brand-mark" :src="logoUrl" alt="" aria-hidden="true" />
-        CrowdFlow
+        <img class="brand-logo" :src="logoUrl" alt="CrowdFlow" />
       </RouterLink>
       <nav class="topnav">
         <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
