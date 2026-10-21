@@ -66,8 +66,10 @@ async function createPresentation() {
 
     <div v-else-if="presentations.length" class="presentation-grid">
       <div v-for="p in presentations" :key="p._id" class="card presentation-card">
-        <span class="code-chip">{{ p.accessCode }}</span>
-        <span class="theme-dot" :style="{ background: getTheme(p.theme).acc }" :title="getTheme(p.theme).name"></span>
+        <div class="code-row">
+          <span class="code-chip">{{ p.accessCode }}</span>
+          <span class="theme-dot" :style="{ background: getTheme(p.theme).acc }" :title="getTheme(p.theme).name"></span>
+        </div>
         <h2>{{ p.title }}</h2>
         <p class="muted" style="margin:0;">
           {{ p.slides.length }} slide{{ p.slides.length === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
