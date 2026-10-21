@@ -16,6 +16,7 @@ const code = String(route.params.code)
 const error = ref('')
 const busy = ref('')
 const confirmingReset = ref(false)
+const showFullBoard = ref(false)
 
 onMounted(async () => {
   try {
@@ -190,7 +191,7 @@ function end() {
             </div>
           </div>
           <p style="color:rgba(255,255,255,0.6);">
-            {{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}<template v-if="slide.questionType === 'quiz'"> · {{ slide.tally.correctCount }} correct</template>
+            {{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}<template v-if="slide.questionType === 'quiz' && slide.tally.correctCount !== undefined"> · {{ slide.tally.correctCount }} correct</template>
 
 
           </p>
@@ -249,6 +250,20 @@ function end() {
         </Transition>
         </div>
 
+        <div v-if="live.state?.leaderboard?.length" class="leaderboard-stage" aria-live="polite">
+          <p class="eyebrow" style="margin:0 0 8px;">Quiz leaderboard</p>
+          <ol class="lb-rows">
+            <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.name">
+              <span class="lb-rank">#{{ entry.rank }}</span>
+              <span class="lb-name">{{ entry.name }}</span>
+              <span class="lb-pts">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+            </li>
+          </ol>
+          <button v-if="live.state.leaderboard.length > 5" class="button ghost" style="margin-top:10px;" @click="showFullBoard = !showFullBoard">
+            {{ showFullBoard ? 'Show top 5' : `Show all ${live.state.leaderboard.length}` }}
+          </button>
+        </div>
+
         <div class="stage-nav">
           <button class="button" :disabled="isFirst" @click="go(-1)">← Previous</button>
           <button class="button" :disabled="isLast" @click="go(1)">Next →</button>
@@ -260,6 +275,39 @@ function end() {
 </template>
 
 <style scoped>
+.leaderboard-stage {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px 18px;
+  text-align: left;
+}
+.lb-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lb-rows li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 1.05rem;
+}
+.lb-rank {
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.55);
+  min-width: 34px;
+}
+.lb-name {
+  font-weight: 700;
+  flex: 1;
+}
+.lb-pts {
+  font-weight: 800;
+}
 .stage-question-row.has-image:not(.behind) {
   display: flex;
   align-items: center;
