@@ -167,7 +167,7 @@ async function sendRanking() {
               'quiz-correct': slide.questionType === 'quiz' && resultsVisible && slide.tally?.correctOptionIndex === i,
             }"
             :style="myVotes[state.currentSlide] === i ? { borderColor: pal[i % pal.length] } : {}"
-            :disabled="!votingOpen"
+            :disabled="!votingOpen || (slide.questionType === 'quiz' && slide.tally?.correctOptionIndex !== undefined)"
             @click="choose(i)"
           >
             <span class="option-dot" :style="myVotes[state.currentSlide] === i ? { background: pal[i % pal.length], borderColor: pal[i % pal.length] } : { borderColor: pal[i % pal.length] }"></span>
