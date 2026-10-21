@@ -25,6 +25,6 @@ Summary generated from `client/package-lock.json` and `server/package-lock.json`
 
 Notes:
 
-- Everything declared is permissive (MIT, ISC, BSD, Apache-2.0, 0BSD, CC0, BlueOak) except MPL-2.0, which is `lightningcss` and its platform binaries, used as a build tool and not modified or redistributed by this repo.
-- `xmlhttprequest-ssl` declares no licence field in the lockfile; check its package metadata before redistributing.
+- Everything declared is permissive (MIT, ISC, BSD, Apache-2.0, 0BSD, CC0, BlueOak) except MPL-2.0, which is `lightningcss` and its platform binaries, used in the development/build toolchain. Distribution obligations should be checked for any packaged release; this table is not a release compliance verdict.
+- `xmlhttprequest-ssl` 4.0.0 declares no licence field in the lockfile. Its published npm archive contains an MIT-style `LICENSE` (copyright passive.ly LLC); inspected directly. Preserve the notice when redistributing.
 - This is an engineering summary, not legal advice.

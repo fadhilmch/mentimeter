@@ -12,7 +12,7 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 - **6-digit join codes and QR**: audience joins from any browser, no signup. The presenter header's join chip opens a QR code (dark on white, readable in either color mode) that links to `/p/<code>` on the origin the presenter is using, plus the code and a copyable link.
 - **Light and dark mode**: a toggle in every header; the choice is saved per browser and defaults to the system setting. Presenter and audience screens keep the presentation's chosen palette in both modes.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
-- **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
+- **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle. After a refresh, `GET /api/live/<code>/me` (participant id in the `x-participant-id` header) returns that person's own answers so their selection shows again.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
 - **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
 - **Quiz leaderboard**: players pick an optional nickname on join (otherwise a stable automatic alias), earn +1 per correct answer - the final answer counts, changes are allowed until voting closes - and the top 5 plus your own rank appear on stage and audience once voting closes. Answers and scores stay hidden while voting is open.
