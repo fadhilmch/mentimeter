@@ -71,6 +71,7 @@
 body {
   margin: 0;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  word-spacing: 0.1em; /* Plus Jakarta Sans has a narrow space; keep words clearly separated at small sizes */
   background: var(--paper);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
