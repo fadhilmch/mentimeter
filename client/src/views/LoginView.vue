@@ -33,7 +33,7 @@ async function submit() {
       <form @submit.prevent="submit">
         <label class="field"><span>Username</span><input v-model="username" required autocomplete="username" /></label>
         <label class="field"><span>Password</span><input v-model="password" type="password" required autocomplete="current-password" /></label>
-        <p v-if="error" class="error-text">{{ error }}</p>
+        <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
       </form>
     </div>
