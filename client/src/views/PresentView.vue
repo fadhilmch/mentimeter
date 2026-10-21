@@ -125,7 +125,8 @@ function end() {
           </button>
         </div>
 
-        <Transition :name="`slide-${direction}`" mode="out-in">
+        <div class="stage-slide-slot">
+        <Transition :name="`slide-${direction}`">
         <div :key="state.currentSlide">
         <p style="color:rgba(255,255,255,0.6); font-weight:600; margin:0 0 8px;">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
@@ -163,6 +164,7 @@ function end() {
         </template>
         </div>
         </Transition>
+        </div>
 
         <div class="stage-nav">
           <button class="button" :disabled="isFirst" @click="go(-1)">← Previous</button>
