@@ -1,8 +1,8 @@
-# LivePoll (working title)
+# CrowdFlow
 
 Open-source live audience polling - a modern rebuild of this repository's original Mentimeter-style app. Presenters build slides, the audience joins with a 6-digit code (no account needed), and results update live on the big screen.
 
-> **Naming:** the final product name is not chosen yet. The codebase intentionally uses the neutral working title `LivePoll` in UI copy and local dev defaults; rename before public launch.
+> **Naming:** CrowdFlow was developed under the working title `LivePoll`. Some internal identifiers (browser storage keys, local database names) still use it; renaming those needs a migration plan and is tracked separately.
 
 ## Features
 
@@ -37,6 +37,8 @@ Starts an in-memory MongoDB with seeded demo data on http://localhost:3000:
 
 - Audience join code: **123456**
 - Presenter login: **demo / demo1234**
+
+The demo account and join code exist only in this in-memory demo seed. A normal deployment has no pre-seeded users or presentations.
 
 Build the client first (`cd client && npm install && npm run build`) to have the server serve it, or run the Vite dev server alongside.
 
@@ -106,7 +108,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 18 tests: access codes, tallies, live actions, auth, REST, sockets
+cd server && npm test          # 27 tests: access codes, tallies, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
@@ -121,10 +123,13 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 
 ## Roadmap / open decisions
 
-- Final product name and domain (working title in use)
 - License selection
 - Presenter-only slide control (currently anyone with the code can advance slides)
 - Optional per-presentation audience authentication
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
