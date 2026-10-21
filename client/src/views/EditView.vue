@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, ApiError } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { THEMES } from '../themes'
+import SlidePreview from '../components/SlidePreview.vue'
 
 interface EditableOption {
   id?: string
@@ -53,6 +54,8 @@ const conflicted = ref(false)
 const showValidation = ref(false)
 const dirty = ref(false)
 const ready = ref(false)
+const activeSlide = ref(0)
+const copied = ref(false)
 
 const titleError = computed(() => (title.value.trim() ? '' : 'Give the presentation a title.'))
 
@@ -65,6 +68,7 @@ function slideError(slide: EditableSlide): string {
 }
 
 const hasValidationErrors = computed(() => titleError.value !== '' || slides.value.some((s) => slideError(s) !== ''))
+const previewSlide = computed(() => slides.value[activeSlide.value] ?? slides.value[0])
 
 function applyLoaded(p: LoadedPresentation) {
   title.value = p.title
@@ -121,10 +125,39 @@ function addSlide(type: 'multiple-choice' | 'open-ended') {
     question: '',
     options: type === 'multiple-choice' ? [{ text: '' }, { text: '' }] : [],
   })
+  activeSlide.value = slides.value.length - 1
 }
 
 function removeSlide(index: number) {
   slides.value.splice(index, 1)
+  activeSlide.value = Math.min(activeSlide.value, slides.value.length - 1)
+}
+
+function moveSlide(index: number, delta: number) {
+  const target = index + delta
+  if (target < 0 || target >= slides.value.length) return
+  const [moved] = slides.value.splice(index, 1)
+  slides.value.splice(target, 0, moved)
+  activeSlide.value = target
+}
+
+const joinLink = computed(() => (accessCode.value ? `${window.location.origin}/p/${accessCode.value}` : ''))
+
+async function copyJoinLink() {
+  const link = joinLink.value
+  if (!link) return
+  try {
+    await navigator.clipboard.writeText(link)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = link
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
+  copied.value = true
+  window.setTimeout(() => (copied.value = false), 1500)
 }
 
 function addOption(slide: EditableSlide) {
@@ -256,6 +289,7 @@ async function remove() {
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
         <div>
           <span v-if="accessCode" class="code-chip" style="font-weight:800; letter-spacing:0.18em; background:var(--accent-soft); color:var(--accent-strong); padding:5px 12px; border-radius:8px;">{{ accessCode }}</span>
+          <button v-if="accessCode" class="button ghost" style="margin-left:8px; padding:5px 12px; font-size:0.85rem;" @click="copyJoinLink">{{ copied ? 'Copied ✓' : 'Copy join link' }}</button>
           <h1 style="margin-top:10px;">Edit presentation</h1>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -304,11 +338,21 @@ async function remove() {
         </div>
       </div>
 
+      <div class="card" style="margin-top:20px;">
+        <h2 style="margin-bottom:10px;">Stage preview</h2>
+        <SlidePreview v-if="previewSlide" :slide="previewSlide" :theme-id="themeId" />
+        <p v-else class="muted" style="margin:0;">Add a slide to preview it here.</p>
+      </div>
+
       <div class="slide-list">
-        <div v-for="(slide, i) in slides" :key="slide.id ?? `new-${i}`" class="slide-item">
+        <div v-for="(slide, i) in slides" :key="slide.id ?? `new-${i}`" class="slide-item" @focusin="activeSlide = i">
           <div class="slide-head">
             <span class="slide-type">{{ i + 1 }} · {{ slide.questionType === 'multiple-choice' ? 'Multiple choice' : 'Open question' }}</span>
-            <button class="icon-button" title="Remove slide" :aria-label="`Remove slide ${i + 1}`" @click="removeSlide(i)">✕</button>
+            <span style="display:flex; gap:6px;">
+              <button class="icon-button" title="Move slide up" :aria-label="`Move slide ${i + 1} up`" :disabled="i === 0" @click="moveSlide(i, -1)">↑</button>
+              <button class="icon-button" title="Move slide down" :aria-label="`Move slide ${i + 1} down`" :disabled="i === slides.length - 1" @click="moveSlide(i, 1)">↓</button>
+              <button class="icon-button" title="Remove slide" :aria-label="`Remove slide ${i + 1}`" @click="removeSlide(i)">✕</button>
+            </span>
           </div>
           <label class="field">
             <span>Question</span>
