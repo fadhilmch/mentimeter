@@ -58,6 +58,10 @@ describe('live room protocol', () => {
     const badJoin = await emit(audience, 'presentation:join', { accessCode: '999999' });
     expect(badJoin.ok).toBe(false);
 
+    // Slide control is not available to anyone on the public socket.
+    const slideChange = await emit(audience, 'live:action', { type: 'slide:change', slideIndex: 0 });
+    expect(slideChange.ok).toBe(false);
+
     audience.close();
     presenter.close();
   }, 20000);

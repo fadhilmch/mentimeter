@@ -75,7 +75,12 @@ function go(delta: number) {
   if (next < 0 || next >= state.value.slides.length) return
   direction.value = delta > 0 ? 'next' : 'prev'
   confirmingReset.value = false
-  live.goToSlide(next)
+  // Slide control is presenter-only: it goes through the authenticated route.
+  api
+    .presenterAction(auth.token, String(state.value.id), { type: 'slide:change', slideIndex: next })
+    .catch((err) => {
+      error.value = err instanceof Error ? err.message : 'Could not change slide.'
+    })
 }
 
 async function presenterAction(action: Record<string, unknown>, label: string) {
