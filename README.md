@@ -138,4 +138,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set.
+Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set. CrowdFlow is an independent project and is not affiliated with or endorsed by Mentimeter.
