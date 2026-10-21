@@ -63,6 +63,10 @@ const slideSchema = new mongoose.Schema(
     rankings: { type: [rankingSchema], default: [] },
     // Quiz slides mark the correct option by its stable option id.
     correctOptionId: { type: String },
+    // Set when the quiz answer has been shown to the audience. Locks voting on
+    // this question permanently (until a presenter vote reset): nobody can
+    // change an answer they have already seen revealed.
+    revealed: { type: Boolean, default: false },
     design: { type: designSchema, default: undefined },
   },
   { _id: false },
