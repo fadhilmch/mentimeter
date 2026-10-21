@@ -39,6 +39,7 @@ const theme = computed(() => getTheme(state.value?.theme))
 const pageStyle = computed(() => themeVars(theme.value))
 const pal = computed(() => theme.value.pal)
 const accent = computed(() => slide.value?.design?.accent ?? pal.value[0])
+const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const myName = computed(() => localStorage.getItem('livepoll.nickname')?.trim() || aliasFor(participantId()))
@@ -283,17 +284,20 @@ async function sendRanking() {
       <p v-else class="muted">Waiting for the presenter…</p>
     </template>
     <div v-if="state?.leaderboard?.length" class="card leaderboard-card">
-      <p class="eyebrow">Quiz leaderboard</p>
+      <div class="lb-head">
+        <p class="eyebrow">Quiz leaderboard</p>
+        <span class="lb-count">{{ state.leaderboard.length }} player{{ state.leaderboard.length === 1 ? '' : 's' }}</span>
+      </div>
       <ol class="leaderboard-list">
         <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
-          <span class="rank-badge">#{{ entry.rank }}</span>
-          <ParticipantAvatar :name="entry.name" :size="28" />
-          <span class="lb-name">{{ entry.name }}</span>
-          <span class="lb-score">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+          <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
+          <ParticipantAvatar :name="entry.name" :size="32" />
+          <span class="lb-name">{{ entry.name }}<span v-if="entry.name === myName" class="you-chip">You</span></span>
+          <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
         </li>
       </ol>
-      <p v-if="myEntry && myEntry.rank > 5" class="muted">You are #{{ myEntry.rank }} with {{ myEntry.score }} pt{{ myEntry.score === 1 ? '' : 's' }}.</p>
-      <p v-else-if="myEntry" class="muted">That's you - #{{ myEntry.rank }}.</p>
+      <p v-if="myEntry && myEntry.rank > 5" class="muted">You are #{{ myEntry.rank }} of {{ state.leaderboard.length }} with {{ myEntry.score }} pt{{ myEntry.score === 1 ? '' : 's' }}. Every correct answer adds a point.</p>
+      <p v-else-if="myEntry" class="muted">That's you - #{{ myEntry.rank }} of {{ state.leaderboard.length }}. Every correct answer adds a point.</p>
     </div>
   </div>
   </div>
@@ -337,6 +341,16 @@ async function sendRanking() {
   margin-top: 22px;
   text-align: left;
 }
+.lb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.lb-count {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
 .leaderboard-list {
   list-style: none;
   margin: 10px 0 0;
@@ -348,21 +362,50 @@ async function sendRanking() {
 .leaderboard-list li {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
 }
 .leaderboard-list li.me {
   outline: 2px solid var(--accent, #8b7cf6);
 }
+.lb-rank {
+  width: 40px;
+  flex: none;
+  font-weight: 800;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.55);
+}
 .lb-name {
   font-weight: 700;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.you-chip {
+  background: var(--accent, #8b7cf6);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-left: 6px;
+  vertical-align: 2px;
 }
 .lb-score {
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: var(--accent, #8b7cf6);
+  white-space: nowrap;
+}
+.lb-score.zero {
+  color: rgba(255, 255, 255, 0.6);
 }
 .rank-badge {
   width: 26px;
