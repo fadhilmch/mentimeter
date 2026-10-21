@@ -6,7 +6,11 @@ import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
 import type { RankingOption } from '../types'
-import logoMarkUrl from '../assets/logo-mark.svg'
+import logoLight from '../assets/logo-light.svg'
+import logoDark from '../assets/logo-dark.svg'
+import ColorModeToggle from '../components/ColorModeToggle.vue'
+import JoinPanel from '../components/JoinPanel.vue'
+import { useColorMode } from '../colorMode'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 
 const route = useRoute()
@@ -32,7 +36,9 @@ onBeforeUnmount(() => live.leave())
 const slide = computed(() => live.currentSlide)
 const state = computed(() => live.state)
 const theme = computed(() => getTheme(state.value?.theme))
-const stageStyle = computed(() => themeVars(theme.value))
+const { mode } = useColorMode()
+const showJoin = ref(false)
+const stageStyle = computed(() => themeVars(theme.value, mode.value))
 const pal = computed(() => theme.value.pal)
 const isFirst = computed(() => (state.value?.currentSlide ?? 0) <= 0)
 const isLast = computed(() => !!state.value && state.value.currentSlide >= state.value.slides.length - 1)
@@ -142,23 +148,33 @@ function end() {
 <template>
   <div class="stage-page" :style="stageStyle">
     <header class="stage-topbar">
-      <span class="stage-brand"><img :src="logoMarkUrl" alt="CrowdFlow" />{{ state?.title ?? 'Presentation' }}</span>
-      <span class="code-chip">JOIN {{ code }}</span>
-      <button class="button ghost" style="color:#edeef0;" @click="end">End</button>
+      <div class="stage-brand">
+        <img class="stage-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
+        <span class="stage-title">{{ state?.title ?? 'Presentation' }}</span>
+      </div>
+      <button type="button" class="code-chip" aria-label="Show join QR code" @click="showJoin = true">
+        <span>JOIN {{ code }}</span>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3M21 14v.01M14 21h.01M17.5 21H21v-3.5" /></svg>
+      </button>
+      <div class="stage-actions">
+        <ColorModeToggle />
+        <button class="button ghost end-button" @click="end">End</button>
+      </div>
     </header>
+    <JoinPanel v-if="showJoin" :code="code" @close="showJoin = false" />
 
     <div class="stage-body">
       <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">
         <div class="stage-controls">
-          <button class="button ghost" style="color:#edeef0;" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
+          <button class="button ghost" style="color:var(--t-ink);" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
             {{ votingOpen ? 'Close voting' : 'Reopen voting' }}
           </button>
-          <button class="button ghost" style="color:#edeef0;" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
+          <button class="button ghost" style="color:var(--t-ink);" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
             {{ resultsVisible ? 'Hide results' : 'Reveal results' }}
           </button>
-          <button class="button ghost" style="color:#edeef0;" :disabled="!!busy" @click="askReset">
+          <button class="button ghost" style="color:var(--t-ink);" :disabled="!!busy" @click="askReset">
             {{ confirmingReset ? 'Tap again to confirm reset' : 'Reset votes' }}
           </button>
         </div>
@@ -166,7 +182,7 @@ function end() {
         <div class="stage-slide-slot">
         <Transition :name="`slide-${direction}`">
         <div :key="state.currentSlide">
-        <p style="color:rgba(255,255,255,0.6); font-weight:600; margin:0 0 8px;">
+        <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); font-weight:600; margin:0 0 8px;">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
         </p>
         <div
@@ -197,7 +213,7 @@ function end() {
               <div class="result-fill" :style="{ width: `${Math.max(slide.tally.percentages?.[i] ?? 0, 2)}%`, background: pal[i % pal.length], transitionDelay: `${i * 60}ms` }"></div>
             </div>
           </div>
-          <p style="color:rgba(255,255,255,0.6);">
+          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">
             {{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}<template v-if="slide.questionType === 'quiz' && slide.tally.correctCount !== undefined"> · {{ slide.tally.correctCount }} correct</template>
 
 
@@ -209,14 +225,14 @@ function end() {
           <div v-if="cloudWords.length" class="cloud-stage" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
           </div>
-          <p v-else style="color:rgba(255,255,255,0.6);">Waiting for words…</p>
-          <p style="color:rgba(255,255,255,0.6);">{{ slide.tally?.total ?? 0 }} word{{ (slide.tally?.total ?? 0) === 1 ? '' : 's' }}</p>
+          <p v-else style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">Waiting for words…</p>
+          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">{{ slide.tally?.total ?? 0 }} word{{ (slide.tally?.total ?? 0) === 1 ? '' : 's' }}</p>
         </template>
 
         <template v-else-if="slide.questionType === 'rating' && slide.tally">
           <div class="rating-stage" aria-live="polite">
             <p class="rating-big">{{ slide.tally.average }}</p>
-            <p style="color:rgba(255,255,255,0.6); margin-top:0;">average of {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}</p>
+            <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); margin-top:0;">average of {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}</p>
             <div v-if="slide.tally.buckets" class="bucket-row">
               <div v-for="(count, i) in slide.tally.buckets" :key="i" class="bucket-col">
                 <span class="bucket-count" :style="{ visibility: count ? 'visible' : 'hidden' }">{{ count }}</span>
@@ -240,7 +256,7 @@ function end() {
               <div class="result-fill" :style="{ width: `${Math.max(row.pct, 2)}%`, background: row.color }"></div>
             </div>
           </div>
-          <p style="color:rgba(255,255,255,0.6);">{{ slide.tally.total }} ranking{{ slide.tally.total === 1 ? '' : 's' }}</p>
+          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">{{ slide.tally.total }} ranking{{ slide.tally.total === 1 ? '' : 's' }}</p>
           </div>
         </template>
 
@@ -251,7 +267,7 @@ function end() {
               <span class="upvote-count">▲ {{ r.upvotes }}</span>
             </div>
           </div>
-          <p v-if="!slide.responses.length" style="color:rgba(255,255,255,0.6);">Waiting for answers…</p>
+          <p v-if="!slide.responses.length" style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">Waiting for answers…</p>
         </template>
         </div>
         </Transition>
@@ -280,7 +296,7 @@ function end() {
           <button class="button" :disabled="isLast" @click="go(1)">Next →</button>
         </div>
       </template>
-      <p v-else style="color:rgba(255,255,255,0.6);">This presentation has no slides yet.</p>
+      <p v-else style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">This presentation has no slides yet.</p>
     </div>
   </div>
 </template>
@@ -288,7 +304,7 @@ function end() {
 <style scoped>
 .leaderboard-stage {
   margin-top: 18px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--t-ink) 6%, transparent);
   border-radius: 16px;
   padding: 16px 18px;
   text-align: left;
@@ -301,7 +317,7 @@ function end() {
 }
 .lb-count {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
   font-variant-numeric: tabular-nums;
 }
 .lb-rows {
@@ -317,7 +333,7 @@ function end() {
   align-items: center;
   gap: 12px;
   font-size: 1.05rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--t-ink) 5%, transparent);
   border-radius: 12px;
   padding: 10px 14px;
 }
@@ -327,7 +343,7 @@ function end() {
   font-weight: 800;
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.55);
+  color: color-mix(in srgb, var(--t-ink) 55%, transparent);
 }
 .lb-name {
   font-weight: 700;
@@ -340,11 +356,11 @@ function end() {
 .lb-pts {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--t-accink, rgba(255, 255, 255, 0.85));
+  color: var(--t-accink, color-mix(in srgb, var(--t-ink) 85%, transparent));
   white-space: nowrap;
 }
 .lb-pts.zero {
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
 }
 .stage-question-row.has-image:not(.behind) {
   display: flex;
@@ -415,13 +431,13 @@ function end() {
 }
 .bucket-num {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
   font-weight: 700;
 }
 .bucket-count {
   font-size: 0.85rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--t-ink) 90%, transparent);
   min-height: 1.1em;
 }
 .quiz-correct-tag {

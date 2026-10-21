@@ -2,7 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
-import { getTheme, themeVars } from '../themes'
+import { getTheme, readableOn, themeVars } from '../themes'
+import logoLight from '../assets/logo-light.svg'
+import logoDark from '../assets/logo-dark.svg'
+import ColorModeToggle from '../components/ColorModeToggle.vue'
+import { useColorMode } from '../colorMode'
 import { aliasFor } from '../alias'
 import { participantId } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
@@ -36,9 +40,11 @@ onBeforeUnmount(() => live.leave())
 const slide = computed(() => live.currentSlide)
 const state = computed(() => live.state)
 const theme = computed(() => getTheme(state.value?.theme))
-const pageStyle = computed(() => themeVars(theme.value))
+const { mode } = useColorMode()
+const pageStyle = computed(() => themeVars(theme.value, mode.value))
 const pal = computed(() => theme.value.pal)
 const accent = computed(() => slide.value?.design?.accent ?? pal.value[0])
+const onAccent = computed(() => readableOn(accent.value))
 const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
@@ -144,6 +150,10 @@ async function sendRanking() {
 
 <template>
   <div class="audience-themed" :style="pageStyle">
+    <header class="stage-topbar audience-topbar">
+      <img class="stage-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
+      <div class="stage-actions"><ColorModeToggle /></div>
+    </header>
   <div class="audience-page">
     <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
     <p v-if="!state" class="connecting">Connecting…</p>
@@ -195,7 +205,7 @@ async function sendRanking() {
                 <span>One word</span>
                 <input v-model="wordDraft" maxlength="40" placeholder="Type a single word…" />
               </label>
-              <button class="button block" type="submit" :disabled="!wordDraft.trim() || !votingOpen" :style="{ background: accent }">
+              <button class="button block" type="submit" :disabled="!wordDraft.trim() || !votingOpen" :style="{ background: accent, color: onAccent }">
                 {{ myWords[state.currentSlide] ? 'Replace my word' : 'Send' }}
               </button>
             </form>
@@ -215,7 +225,7 @@ async function sendRanking() {
               :key="n"
               class="rating-button"
               :class="{ chosen: (myRatings[state.currentSlide] ?? 0) >= n }"
-              :style="(myRatings[state.currentSlide] ?? 0) >= n ? { background: accent, borderColor: accent } : {}"
+              :style="(myRatings[state.currentSlide] ?? 0) >= n ? { background: accent, borderColor: accent, color: onAccent } : {}"
               :disabled="!votingOpen"
               :aria-checked="myRatings[state.currentSlide] === n"
               role="radio"
@@ -238,7 +248,7 @@ async function sendRanking() {
             :disabled="!votingOpen"
             @click="tapRank(option.id)"
           >
-            <span class="rank-badge" :style="rankingDraft.includes(option.id) ? { background: accent, borderColor: accent } : {}">
+            <span class="rank-badge" :style="rankingDraft.includes(option.id) ? { background: accent, borderColor: accent, color: onAccent } : {}">
               {{ rankingDraft.includes(option.id) ? rankingDraft.indexOf(option.id) + 1 : '' }}
             </span>
             {{ option.text }}
@@ -246,7 +256,7 @@ async function sendRanking() {
           <button
             class="button block"
             style="margin-top:12px;"
-            :style="{ background: accent }"
+            :style="{ background: accent, color: onAccent }"
             :disabled="rankingDraft.length !== optionsOf().length || !votingOpen"
             @click="sendRanking"
           >
@@ -328,8 +338,8 @@ async function sendRanking() {
   font-size: 1.05rem;
   font-weight: 800;
   border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid color-mix(in srgb, var(--t-ink) 18%, transparent);
+  background: color-mix(in srgb, var(--t-ink) 5%, transparent);
   color: inherit;
   cursor: pointer;
 }
@@ -348,7 +358,7 @@ async function sendRanking() {
 }
 .lb-count {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
   font-variant-numeric: tabular-nums;
 }
 .leaderboard-list {
@@ -365,7 +375,7 @@ async function sendRanking() {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--t-ink) 5%, transparent);
 }
 .leaderboard-list li.me {
   outline: 2px solid var(--accent, #8b7cf6);
@@ -376,7 +386,7 @@ async function sendRanking() {
   font-weight: 800;
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.55);
+  color: color-mix(in srgb, var(--t-ink) 55%, transparent);
 }
 .lb-name {
   font-weight: 700;
@@ -405,13 +415,13 @@ async function sendRanking() {
   white-space: nowrap;
 }
 .lb-score.zero {
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
 }
 .rank-badge {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: 2px solid color-mix(in srgb, var(--t-ink) 35%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;

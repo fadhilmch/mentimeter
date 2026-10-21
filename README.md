@@ -9,7 +9,8 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 - **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
 - **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
 - **Landing page**: `/` introduces the product with a create-a-presentation call to action and a join-with-code field. The join form itself lives at `/join` (also reachable as `/join?code=123456`); audience links `/p/<code>` are unchanged.
-- **6-digit join codes**: audience joins from any browser, no signup.
+- **6-digit join codes and QR**: audience joins from any browser, no signup. The presenter header's join chip opens a QR code (dark on white, readable in either color mode) that links to `/p/<code>` on the origin the presenter is using, plus the code and a copyable link.
+- **Light and dark mode**: a toggle in every header; the choice is saved per browser and defaults to the system setting. Presenter and audience screens keep the presentation's chosen palette in both modes.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
 - **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
@@ -115,6 +116,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 
 ```bash
 cd server && npm test          # 79 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
+cd client && npm test          # 3 tests: presentation theme variables in light and dark mode
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 

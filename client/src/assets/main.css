@@ -23,6 +23,7 @@
   --t-track: rgba(255, 255, 255, 0.13);
   --t-acc: #5b5bd6;
   --t-accink: #b8baf8;
+  --t-ink: #edeef0;
   --stage: var(--t-sbg);
   --stage-2: var(--t-stage2);
   /* Motion tokens */
@@ -152,11 +153,24 @@ input:focus, select:focus, textarea:focus {
 .icon-button:hover { color: var(--danger); background: #fdeaec; }
 
 /* Presenter stage (dark) */
-.stage-page { background: var(--t-sbg); color: #edeef0; min-height: 100vh; }
+.stage-page { background: var(--t-sbg); color: var(--t-ink); min-height: 100vh; }
 .stage-topbar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 24px; background: var(--t-stage2);
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  padding: 12px 24px; background: var(--t-stage2); border-bottom: 1px solid var(--t-track);
 }
+.stage-topbar .stage-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.stage-topbar .stage-logo { height: 28px; width: auto; flex: none; }
+.stage-topbar .stage-title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; font-size: 0.95rem; color: color-mix(in srgb, var(--t-ink) 65%, transparent);
+  padding-left: 14px; border-left: 1px solid var(--t-track);
+}
+.stage-topbar .stage-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.stage-topbar .mode-toggle, .stage-topbar :deep(.mode-toggle) { color: var(--t-ink); border-color: var(--t-track); }
+.stage-topbar .end-button { color: var(--t-ink); }
+.audience-topbar { grid-template-columns: 1fr auto; }
+.stage-topbar button.code-chip { display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer; font-family: inherit; }
+.stage-topbar button.code-chip:hover { filter: brightness(1.12); }
 .stage-topbar .code-chip {
   font-size: 1.4rem; font-weight: 800; letter-spacing: 0.3em;
   background: var(--t-track); color: var(--t-accink); padding: 8px 18px; border-radius: 10px;
@@ -184,15 +198,15 @@ input:focus, select:focus, textarea:focus {
   font-weight: 800; color: var(--t-accink); min-width: 44px; text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.stage-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 40px; }
-.stage-nav .button { background: var(--t-stage2); color: #edeef0; box-shadow: inset 0 0 0 1px var(--t-track); }
+.stage-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 40px; position: sticky; bottom: 12px; }
+.stage-nav .button { background: var(--t-stage2); color: var(--t-ink); box-shadow: inset 0 0 0 1px var(--t-track); }
 .stage-nav .button:hover:not(:disabled) { background: var(--t-track); }
 
 /* Audience */
 .audience-page { max-width: 640px; margin: 0 auto; padding: 32px 20px 72px; }
-.audience-themed { min-height: 100vh; background: var(--t-sbg); color: #edeef0; }
-.audience-themed .audience-title { color: rgba(255,255,255,0.65); }
-.audience-themed .muted { color: rgba(255,255,255,0.6); }
+.audience-themed { min-height: 100vh; background: var(--t-sbg); color: var(--t-ink); }
+.audience-themed .audience-title { color: color-mix(in srgb, var(--t-ink) 65%, transparent); }
+.audience-themed .muted { color: color-mix(in srgb, var(--t-ink) 60%, transparent); }
 .audience-title { font-size: 1rem; color: var(--ink-3); font-weight: 600; margin-bottom: 4px; }
 .audience-question { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 24px; }
 .option-button {
@@ -209,11 +223,11 @@ input:focus, select:focus, textarea:focus {
   transition: background var(--dur-pop) var(--ease), border-color var(--dur-pop) var(--ease), transform var(--dur-pop) var(--ease);
 }
 .audience-themed .option-button {
-  background: var(--t-stage2); border-color: transparent; color: #edeef0;
+  background: var(--t-stage2); border-color: transparent; color: var(--t-ink);
 }
 .audience-themed .option-button:hover { border-color: var(--t-track); }
-.audience-themed .option-button.chosen { background: var(--t-stage2); color: #fff; }
-.audience-themed .option-dot { border-color: rgba(255,255,255,0.45); }
+.audience-themed .option-button.chosen { background: var(--t-stage2); color: var(--t-ink); }
+.audience-themed .option-dot { border-color: color-mix(in srgb, var(--t-ink) 45%, transparent); }
 .option-button.chosen .option-dot { box-shadow: inset 0 0 0 3px var(--t-sbg, #fff); transform: scale(1.05); }
 .upvote-button {
   border: 1px solid var(--line); background: var(--card); border-radius: 999px;
@@ -238,6 +252,11 @@ input:focus, select:focus, textarea:focus {
   .page { padding: 28px 16px 56px; }
   .stage-body { padding: 32px 16px; }
   .stage-topbar .code-chip { font-size: 1.1rem; letter-spacing: 0.2em; }
+  .stage-topbar { grid-template-columns: 1fr auto; gap: 8px 10px; padding: 10px 14px; }
+  .stage-topbar:not(.audience-topbar) .code-chip { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
+  .stage-topbar .stage-brand { gap: 10px; }
+  .stage-topbar .stage-logo { height: 24px; }
+  .stage-topbar .stage-title { font-size: 0.85rem; padding-left: 10px; }
 }
 
 .button:focus-visible, .option-button:focus-visible, .upvote-button:focus-visible, .icon-button:focus-visible, .link-button:focus-visible {
@@ -287,10 +306,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Themed open-ended card on the audience screen */
-.audience-themed .card { background: var(--t-stage2); border-color: transparent; color: #edeef0; }
-.audience-themed .card .field span { color: rgba(255,255,255,0.65); }
-.audience-themed .card textarea { background: var(--t-sbg); border-color: var(--t-track); color: #edeef0; }
-.audience-themed .upvote-button { background: var(--t-sbg); border-color: var(--t-track); color: #edeef0; }
+.audience-themed .card { background: var(--t-stage2); border-color: transparent; color: var(--t-ink); }
+.audience-themed .card .field span { color: color-mix(in srgb, var(--t-ink) 65%, transparent); }
+.audience-themed .card textarea { background: var(--t-sbg); border-color: var(--t-track); color: var(--t-ink); }
+.audience-themed .upvote-button { background: var(--t-sbg); border-color: var(--t-track); color: var(--t-ink); }
 .audience-themed .upvote-button.on { border-color: var(--t-acc); color: var(--t-acc); background: var(--t-track); }
 
 /* --- Polish pass --- */
@@ -341,22 +360,19 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 640px) {
   .theme-picker { grid-template-columns: repeat(2, 1fr); }
   .cf-roles { grid-template-columns: 1fr; }
-  .stage-nav { position: sticky; bottom: 12px; }
   .join-lockup { justify-content: flex-start; }
   h1 { font-size: clamp(1.5rem, 6vw, 2rem); }
 }
 
 /* --- Live controls + stage motion --- */
-.stage-topbar .stage-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-.stage-topbar .stage-brand img { width: 22px; height: 22px; }
 
 .stage-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 22px; }
 .stage-controls .button { font-size: 0.88rem; padding: 8px 16px; }
 .stage-controls .button.is-on { background: var(--t-accink); color: #111113; border-color: transparent; }
 
 .results-hidden {
-  border: 1px dashed rgba(255,255,255,0.25); border-radius: var(--radius);
-  padding: 48px 24px; text-align: center; color: rgba(255,255,255,0.65);
+  border: 1px dashed color-mix(in srgb, var(--t-ink) 25%, transparent); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; color: color-mix(in srgb, var(--t-ink) 65%, transparent);
 }
 
 /* Directional slide transitions */
@@ -380,6 +396,20 @@ input:focus, select:focus, textarea:focus {
 .option-button:disabled { opacity: 0.55; cursor: not-allowed; }
 .voting-closed {
   display: flex; align-items: center; gap: 10px; font-weight: 600;
-  border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 12px 14px;
-  color: rgba(255,255,255,0.75); margin-top: 14px;
+  border: 1px solid color-mix(in srgb, var(--t-ink) 20%, transparent); border-radius: 10px; padding: 12px 14px;
+  color: color-mix(in srgb, var(--t-ink) 75%, transparent); margin-top: 14px;
+}
+
+/* --- Dark mode: app chrome. Stage and audience use --t-* vars from themes.ts. --- */
+:root[data-theme='dark'] {
+  --ink: #edeef0;
+  --ink-2: #b0b4ba;
+  --ink-3: #80838d;
+  --paper: #111113;
+  --card: #18191b;
+  --line: #2e3135;
+  --lead: #7d7de8;
+  --lead-strong: #9a9af0;
+  --lead-soft: #232349;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.35);
 }
