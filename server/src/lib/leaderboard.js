@@ -33,16 +33,22 @@ export function displayName(presentation, participantId) {
 /** Sorted board: score desc, name asc tiebreak; competition ranks (1, 2, 2, 4). */
 export function computeLeaderboard(presentation) {
   const scores = new Map();
+  const answered = new Set();
   for (const slide of presentation.slides ?? []) {
     if (slide.questionType !== 'quiz' || !slide.correctOptionId || !slide.revealed) continue;
+    for (const option of slide.options ?? []) {
+      for (const participantId of option.votes ?? []) answered.add(participantId);
+    }
     const correct = (slide.options ?? []).find((option) => option.id && option.id === slide.correctOptionId);
     if (!correct) continue;
     for (const participantId of correct.votes ?? []) {
       scores.set(participantId, (scores.get(participantId) ?? 0) + 1);
     }
   }
-  const entries = [...scores.entries()]
-    .map(([participantId, score]) => ({ name: displayName(presentation, participantId), score }))
+  // Everyone who answered a revealed question is on the board, wrong answers
+  // included - a 0-point player still sees their own rank.
+  const entries = [...answered]
+    .map((participantId) => ({ name: displayName(presentation, participantId), score: scores.get(participantId) ?? 0 }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   entries.forEach((entry, i) => {
     entry.rank = i > 0 && entry.score === entries[i - 1].score ? entries[i - 1].rank : i + 1;
