@@ -118,9 +118,12 @@ presentationsRouter.get('/:id', authenticate, async (req, res, next) => {
     // Upgrade-on-read: stamp stable ids onto pre-identity decks. This is purely
     // additive (no votes, responses or structure are touched) and gives the
     // editor real identities to echo back on save. The write is version-guarded:
-    // a concurrent change wins, and we simply reload and return its ids.
-    if (!(await stampSlideIdsIfMissing(data))) {
+    // a concurrent change wins, and the winner may be a vote, which stamps
+    // nothing - so reload and retry instead of returning an unidentified deck.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (await stampSlideIdsIfMissing(data)) break;
       data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+      if (!data) return res.status(404).json({ message: 'Presentation not found' });
     }
     return res.json({ data });
   } catch (err) {
