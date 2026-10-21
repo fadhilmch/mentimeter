@@ -34,6 +34,15 @@ export function applyLiveAction(presentation, action) {
       return;
     case 'voting:set':
       presentation.votingOpen = action.open;
+      if (!action.open) {
+        // Closing voting reveals the presented quiz questions (up to the current
+        // slide). Future questions stay sealed: their answers never leave the
+        // server and their votes stay changeable on reopen.
+        for (let i = 0; i <= presentation.currentSlide && i < presentation.slides.length; i += 1) {
+          const slide = presentation.slides[i];
+          if (slide.questionType === 'quiz') slide.revealed = true;
+        }
+      }
       return;
     case 'results:set':
       presentation.resultsVisible = action.visible;
@@ -53,9 +62,14 @@ export function applyLiveAction(presentation, action) {
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
       presentation.currentSlide = action.slideIndex;
       return;
-    case 'vote:cast':
+    case 'vote:cast': {
+      const slide = presentation.slides[action.slideIndex];
+      if (slide?.questionType === 'quiz' && slide.revealed) {
+        throw new TypeError('This question has already been revealed');
+      }
       castVote(presentation.slides[action.slideIndex], action.optionIndex, action.participantId);
       return;
+    }
     case 'response:add':
       addResponse(presentation.slides[action.slideIndex], action.text, action.participantId);
       return;
@@ -77,9 +91,9 @@ export function applyLiveAction(presentation, action) {
 }
 
 /** Quiz tally that withholds the answer while voting is still open. */
-function quizTally(slide, quizRevealed) {
+function quizTally(slide, _quizRevealed) {
   const tally = tallySlide(slide);
-  if (slide.questionType !== 'quiz' || quizRevealed) return tally;
+  if (slide.questionType !== 'quiz' || slide.revealed) return tally;
   const { correctOptionIndex, correctCount, ...open } = tally;
   return open;
 }
