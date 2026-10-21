@@ -39,6 +39,6 @@ async function submit() {
         <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Creating…' : 'Sign up' }}</button>
       </form>
     </div>
-    <p class="muted" style="margin-top: 18px;">Already have an account? <router-link class="text-link" to="/login">Log in</router-link></p>
+    <p class="muted" style="margin-top: 18px;">Already have an account?&nbsp;<router-link class="text-link" to="/login">Log in</router-link></p>
   </div>
 </template>

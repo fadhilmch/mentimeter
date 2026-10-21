@@ -82,8 +82,8 @@ async function join() {
       </form>
     </div>
     <p class="muted" style="text-align:center; margin-top: 28px;">
-      Presenting? <router-link class="text-link" to="/login">Log in</router-link>
-      or <router-link class="text-link" to="/signup">sign up</router-link>
+      Presenting?&nbsp;<router-link class="text-link" to="/login">Log in</router-link>
+      &nbsp;or&nbsp;<router-link class="text-link" to="/signup">sign up</router-link>
     </p>
   </div>
 </template>
