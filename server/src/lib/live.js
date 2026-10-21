@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
+import { computeLeaderboard } from './leaderboard.js';
 
 export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('slide:change'), slideIndex: z.number().int().min(0) }),
@@ -10,6 +11,7 @@ export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('word:submit'), slideIndex: z.number().int().min(0), text: z.string().max(40), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('rating:cast'), slideIndex: z.number().int().min(0), value: z.number().int().min(1).max(10), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('ranking:submit'), slideIndex: z.number().int().min(0), order: z.array(z.string().min(1).max(64)).min(2).max(12), participantId: z.string().min(6).max(64) }),
+  z.object({ type: z.literal('participant:identify'), participantId: z.string().min(6).max(64), nickname: z.string().max(24) }),
 ]);
 
 /** Presenter-only actions: accepted on the authenticated route, never on public live channels. */
@@ -36,6 +38,17 @@ export function applyLiveAction(presentation, action) {
     case 'results:set':
       presentation.resultsVisible = action.visible;
       return;
+    case 'participant:identify': {
+      const nickname = action.nickname.trim();
+      presentation.participants = (presentation.participants ?? []).filter(
+        (entry) => entry.participantId !== action.participantId,
+      );
+      // Empty nickname clears back to the automatic alias.
+      if (nickname.length > 0) {
+        presentation.participants.push({ participantId: action.participantId, nickname });
+      }
+      return;
+    }
     case 'slide:change':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
       presentation.currentSlide = action.slideIndex;
@@ -63,10 +76,21 @@ export function applyLiveAction(presentation, action) {
   }
 }
 
+/** Quiz tally that withholds the answer while voting is still open. */
+function quizTally(slide, quizRevealed) {
+  const tally = tallySlide(slide);
+  if (slide.questionType !== 'quiz' || quizRevealed) return tally;
+  const { correctOptionIndex, correctCount, ...open } = tally;
+  return open;
+}
+
 /** Audience-safe snapshot: vote identities and response authors never leave the server.
  *  While the presenter hides results, tallies and responses stay on the server too. */
 export function publicState(presentation) {
   const resultsVisible = presentation.resultsVisible !== false;
+  // Quiz integrity: the correct answer, correct counts and the leaderboard only
+  // leave the server after the presenter closes voting.
+  const quizRevealed = presentation.votingOpen === false;
   return {
     id: presentation._id,
     title: presentation.title,
@@ -75,6 +99,8 @@ export function publicState(presentation) {
     currentSlide: presentation.currentSlide,
     votingOpen: presentation.votingOpen !== false,
     resultsVisible,
+    // Scores reveal with the answers: only once voting is closed and results are visible.
+    leaderboard: quizRevealed && resultsVisible ? computeLeaderboard(presentation) : null,
     slides: presentation.slides.map((slide) => ({
       id: slide.id,
       questionType: slide.questionType,
@@ -90,8 +116,9 @@ export function publicState(presentation) {
       ...(slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'
         ? {
             options: slide.options.map(({ text }) => text),
-            // The correct answer leaves the server only while results are visible.
-            tally: resultsVisible ? tallySlide(slide) : null,
+            // The correct answer leaves the server only while results are visible,
+            // and for quiz slides only after voting closes.
+            tally: resultsVisible ? quizTally(slide, quizRevealed) : null,
           }
         : slide.questionType === 'rating' || slide.questionType === 'ranking'
           ? {
