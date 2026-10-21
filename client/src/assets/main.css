@@ -31,6 +31,7 @@
   --t-track: rgba(255, 255, 255, 0.13);
   --t-acc: #5b5bd6;
   --t-accink: #b8baf8;
+  --t-onaccink: #111113;
   --t-ink: #edeef0;
   --t-correct: #3dd68c;
   --stage: var(--t-sbg);
@@ -111,7 +112,7 @@ input:focus, select:focus, textarea:focus {
 .button:active { transform: translateY(1px); }
 .button:disabled { opacity: 0.5; cursor: not-allowed; }
 .button.secondary { background: var(--accent-soft); color: var(--accent-strong); }
-.button.secondary:hover { background: #e3dffc; }
+.button.secondary:hover { background: color-mix(in srgb, var(--accent-strong) 14%, var(--accent-soft)); }
 .button.ghost { background: none; color: var(--ink-2); }
 .button.ghost:hover { color: var(--ink); background: var(--paper); }
 .button.danger { background: none; color: var(--danger); }
@@ -333,7 +334,7 @@ input:focus, select:focus, textarea:focus {
 /* Error banner */
 .error-banner {
   display: flex; align-items: flex-start; gap: 10px;
-  background: #fdeded; border: 1px solid #f7c1c1; color: #cd2b31;
+  background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger-ink);
   border-radius: 10px; padding: 12px 14px; font-size: 0.92rem; font-weight: 600;
   margin: 12px 0;
 }
@@ -377,7 +378,8 @@ input:focus, select:focus, textarea:focus {
 
 .stage-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 22px; }
 .stage-controls .button { font-size: 0.88rem; padding: 8px 16px; }
-.stage-controls .button.is-on { background: var(--t-accink); color: #111113; border-color: transparent; }
+.stage-controls .button.ghost { color: var(--t-ink); }
+.stage-controls .button.is-on { background: var(--t-accink); color: var(--t-onaccink); border-color: transparent; }
 
 .results-hidden {
   border: 1px dashed color-mix(in srgb, var(--t-ink) 25%, transparent); border-radius: var(--radius);

@@ -168,13 +168,13 @@ function end() {
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">
         <div class="stage-controls">
-          <button class="button ghost" style="color:var(--t-ink);" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
+          <button class="button ghost" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
             {{ votingOpen ? 'Close voting' : 'Reopen voting' }}
           </button>
-          <button class="button ghost" style="color:var(--t-ink);" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
+          <button class="button ghost" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
             {{ resultsVisible ? 'Hide results' : 'Reveal results' }}
           </button>
-          <button class="button ghost" style="color:var(--t-ink);" :disabled="!!busy" @click="askReset">
+          <button class="button ghost" :disabled="!!busy" @click="askReset">
             {{ confirmingReset ? 'Tap again to confirm reset' : 'Reset votes' }}
           </button>
         </div>

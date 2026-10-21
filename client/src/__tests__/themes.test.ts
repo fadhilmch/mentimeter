@@ -49,3 +49,14 @@ describe('correct-answer color', () => {
     expect(contrast(light['--t-correct'], light['--t-sbg'])).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe('active control state', () => {
+  it('text on the active presenter control is readable for every theme and mode', () => {
+    for (const t of THEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        const v = themeVars(t, mode);
+        expect(contrast(v['--t-accink'], v['--t-onaccink'])).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+});
