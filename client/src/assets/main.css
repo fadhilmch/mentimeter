@@ -164,7 +164,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--t-track); color: var(--t-accink); padding: 8px 18px; border-radius: 10px;
   font-variant-numeric: tabular-nums;
 }
-.stage-body { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+.stage-body { max-width: 900px; margin: 0 auto; padding: 48px 24px; overflow-x: clip; }
 .stage-question { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 32px; }
 .result-row { margin-bottom: 22px; }
 .result-row .result-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
@@ -348,4 +348,42 @@ input:focus, select:focus, textarea:focus {
   .stage-nav { position: sticky; bottom: 12px; }
   .join-lockup { justify-content: flex-start; }
   h1 { font-size: clamp(1.5rem, 6vw, 2rem); }
+}
+
+/* --- Live controls + stage motion --- */
+.stage-topbar .stage-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.stage-topbar .stage-brand img { width: 22px; height: 22px; }
+
+.stage-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 22px; }
+.stage-controls .button { font-size: 0.88rem; padding: 8px 16px; }
+.stage-controls .button.is-on { background: var(--t-accink); color: #111113; border-color: transparent; }
+
+.results-hidden {
+  border: 1px dashed rgba(255,255,255,0.25); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; color: rgba(255,255,255,0.65);
+}
+
+/* Directional slide transitions */
+.slide-next-enter-active, .slide-next-leave-active,
+.slide-prev-enter-active, .slide-prev-leave-active {
+  transition: opacity var(--dur-slide) var(--ease), transform var(--dur-slide) var(--ease);
+}
+.slide-next-enter-from { opacity: 0; transform: translateX(48px); }
+.slide-next-leave-to { opacity: 0; transform: translateX(-48px); }
+.slide-prev-enter-from { opacity: 0; transform: translateX(-48px); }
+.slide-prev-leave-to { opacity: 0; transform: translateX(48px); }
+/* Grid stacking keeps the outgoing slide in flow: no overlap with controls, no page overflow. */
+.stage-slide-slot { display: grid; }
+.stage-slide-slot > * { grid-area: 1 / 1; min-width: 0; }
+
+/* Audience selection pop */
+.option-button.chosen { animation: select-pop 220ms var(--ease); }
+@keyframes select-pop { 0% { transform: scale(1); } 40% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+/* Audience closed-voting state */
+.option-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.voting-closed {
+  display: flex; align-items: center; gap: 10px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 12px 14px;
+  color: rgba(255,255,255,0.75); margin-top: 14px;
 }

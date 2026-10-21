@@ -92,3 +92,59 @@ describe('live HTTP endpoints (Ably transport path)', () => {
     expect(state.body.data.slides[0].tally.total).toBe(1);
   });
 });
+
+describe('presenter live controls', () => {
+  async function signup(username = 'owner1') {
+    const res = await request(app).post('/api/users/signup').send({ username, password: 'super-secret-1' });
+    return res.body.token;
+  }
+
+  it('resets votes, toggles voting and results, owner only', async () => {
+    const token = await signup();
+    const seeded = await seedPresentation();
+    // seedPresentation creates its own owner; make one owned by the signed-up user instead
+    const mine = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${token}`)
+      .send({ title: 'Mine', slides: [{ questionType: 'multiple-choice', question: 'Pick', options: ['A', 'B'] }] });
+    const id = mine.body.data._id;
+    const code = mine.body.data.accessCode;
+
+    await request(app).post(`/api/live/${code}/action`).send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'participant-1' });
+
+    const unauth = await request(app).post(`/api/presentations/${id}/live-actions`).send({ type: 'vote:reset', slideIndex: 0 });
+    expect(unauth.status).toBe(401);
+
+    const reset = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'vote:reset', slideIndex: 0 });
+    expect(reset.status).toBe(200);
+    expect(reset.body.state.slides[0].tally.total).toBe(0);
+
+    const close = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'voting:set', open: false });
+    expect(close.status).toBe(200);
+    expect(close.body.state.votingOpen).toBe(false);
+
+    const blocked = await request(app).post(`/api/live/${code}/action`).send({ type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'participant-2' });
+    expect(blocked.status).toBe(400);
+
+    const hide = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'results:set', visible: false });
+    expect(hide.status).toBe(200);
+    expect(hide.body.state.resultsVisible).toBe(false);
+    // hidden: projection strips tallies from every audience channel
+    expect(hide.body.state.slides[0].tally).toBeNull();
+    const codeJoin = await request(app).get(`/api/presentations/code/${code}`);
+    expect(codeJoin.status).toBe(200);
+    expect(codeJoin.body.data.slides[0].tally).toBeNull();
+    expect(codeJoin.body.data.slides[0].options[0].votes).toBeUndefined();
+    const liveJoin = await request(app).get(`/api/live/${code}/state`);
+    if (liveJoin.status === 200) expect(liveJoin.body.data.slides[0].tally).toBeNull();
+    // reveal restores the projection
+    const reveal = await request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'results:set', visible: true });
+    expect(reveal.body.state.slides[0].tally).not.toBeNull();
+    const rejoined = await request(app).get(`/api/presentations/code/${code}`);
+    expect(rejoined.body.data.slides[0].tally).not.toBeNull();
+    expect(rejoined.body.data.slides[0].options[0].votes).toBeUndefined();
+
+    const other = await request(app).post(`/api/presentations/${seeded._id}/live-actions`).set('authorization', `Bearer ${token}`).send({ type: 'voting:set', open: false });
+    expect(other.status).toBe(404);
+  });
+});

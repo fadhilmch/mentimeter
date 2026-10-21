@@ -11,6 +11,8 @@ Open-source live audience polling - a modern rebuild of this repository's origin
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
 - **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
+- **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
+- **Playful, accessible motion**: directional slide transitions, animated bars and count-up tallies, and selection feedback, all disabled under `prefers-reduced-motion`.
 - **Two realtime transports** (same event protocol, same UI):
   - **Socket.IO** - default, fully self-hosted and open-source.
   - **Ably** - for serverless hosting (e.g. Vercel) where a persistent WebSocket server cannot run.

@@ -69,3 +69,23 @@ describe('open-ended responses', () => {
     expect(() => toggleUpvote(slide, 9, 'fan')).toThrow(RangeError);
   });
 });
+
+describe('resetSlide', () => {
+  it('clears multiple-choice votes', async () => {
+    const { resetSlide } = await import('../src/lib/results.js');
+    const slide = mcSlide();
+    castVote(slide, 0, 'p1');
+    castVote(slide, 1, 'p2');
+    resetSlide(slide);
+    expect(slide.options[0].votes).toEqual([]);
+    expect(slide.options[1].votes).toEqual([]);
+  });
+
+  it('clears open-ended responses', async () => {
+    const { resetSlide } = await import('../src/lib/results.js');
+    const slide = { questionType: 'open-ended', question: 'Q?', options: [], responses: [] };
+    addResponse(slide, 'hello', 'p1');
+    resetSlide(slide);
+    expect(slide.responses).toEqual([]);
+  });
+});

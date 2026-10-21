@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
-import { castVote, addResponse, toggleUpvote, tallySlide } from './results.js';
+import { castVote, addResponse, toggleUpvote, tallySlide, resetSlide } from './results.js';
 
 export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('slide:change'), slideIndex: z.number().int().min(0) }),
@@ -9,9 +9,30 @@ export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('response:upvote'), slideIndex: z.number().int().min(0), responseIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
 ]);
 
+/** Presenter-only actions: accepted on the authenticated route, never on public live channels. */
+export const presenterActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('vote:reset'), slideIndex: z.number().int().min(0) }),
+  z.object({ type: z.literal('voting:set'), open: z.boolean() }),
+  z.object({ type: z.literal('results:set'), visible: z.boolean() }),
+]);
+
 /** Applies one validated live action to a presentation document. */
 export function applyLiveAction(presentation, action) {
+  const mutatesAnswers = ['vote:cast', 'response:add', 'response:upvote'].includes(action.type);
+  if (mutatesAnswers && presentation.votingOpen === false) {
+    throw new TypeError('Voting is closed for this presentation');
+  }
   switch (action.type) {
+    case 'vote:reset':
+      if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
+      resetSlide(presentation.slides[action.slideIndex]);
+      return;
+    case 'voting:set':
+      presentation.votingOpen = action.open;
+      return;
+    case 'results:set':
+      presentation.resultsVisible = action.visible;
+      return;
     case 'slide:change':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
       presentation.currentSlide = action.slideIndex;
@@ -30,23 +51,29 @@ export function applyLiveAction(presentation, action) {
   }
 }
 
-/** Audience-safe snapshot: vote identities and response authors never leave the server. */
+/** Audience-safe snapshot: vote identities and response authors never leave the server.
+ *  While the presenter hides results, tallies and responses stay on the server too. */
 export function publicState(presentation) {
+  const resultsVisible = presentation.resultsVisible !== false;
   return {
     id: presentation._id,
     title: presentation.title,
     accessCode: presentation.accessCode,
     theme: presentation.theme,
     currentSlide: presentation.currentSlide,
+    votingOpen: presentation.votingOpen !== false,
+    resultsVisible,
     slides: presentation.slides.map((slide) => ({
       questionType: slide.questionType,
       question: slide.question,
       ...(slide.questionType === 'multiple-choice'
-        ? { options: slide.options.map(({ text }) => text), tally: tallySlide(slide) }
+        ? { options: slide.options.map(({ text }) => text), tally: resultsVisible ? tallySlide(slide) : null }
         : {
-            responses: slide.responses
-              .map(({ text, upvotes, createdAt }) => ({ text, upvotes: upvotes.length, createdAt }))
-              .sort((a, b) => b.upvotes - a.upvotes),
+            responses: resultsVisible
+              ? slide.responses
+                  .map(({ text, upvotes, createdAt }) => ({ text, upvotes: upvotes.length, createdAt }))
+                  .sort((a, b) => b.upvotes - a.upvotes)
+              : [],
           }),
     })),
   };

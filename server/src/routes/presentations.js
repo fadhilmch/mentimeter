@@ -4,6 +4,8 @@ import { Presentation } from '../models/presentation.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { validate } from '../middleware/validate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
+import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
 
 const slideSchema = z.object({
@@ -60,7 +62,7 @@ presentationsRouter.get('/code/:accessCode', async (req, res, next) => {
   try {
     const data = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!data) return res.status(404).json({ message: 'No presentation with that code' });
-    return res.json({ data });
+    return res.json({ data: publicState(data) });
   } catch (err) {
     return next(err);
   }
@@ -102,6 +104,26 @@ presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req
     const data = await presentation.save();
     return res.json({ data });
   } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Presenter-only live controls (vote reset, open/close voting, hide/reveal
+ * results). Authenticated + owner-scoped, unlike the public live channels.
+ */
+presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, next) => {
+  try {
+    const action = presenterActionSchema.parse(req.body);
+    const presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
+    applyLiveAction(presentation, action);
+    const data = await presentation.save();
+    await broadcastState(data.accessCode);
+    return res.json({ ok: true, state: publicState(data) });
+  } catch (err) {
+    if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid action', issues: err.issues });
+    if (err instanceof RangeError || err instanceof TypeError) return res.status(400).json({ message: err.message });
     return next(err);
   }
 });
