@@ -17,7 +17,7 @@ function signOut() {
     <header v-if="!route.meta.bare" class="topbar">
       <RouterLink to="/" class="brand">
         <span class="brand-mark" aria-hidden="true"></span>
-        LivePoll
+        CrowdFlow
       </RouterLink>
       <nav class="topnav">
         <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
