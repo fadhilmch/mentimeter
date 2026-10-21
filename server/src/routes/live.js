@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Presentation } from '../models/presentation.js';
 import { applyLiveActionByCode, liveActionSchema, publicState } from '../lib/live.js';
+import { answersFor } from '../lib/answers.js';
 import { createSubscriberToken, publishState, getAblyRest } from '../ably.js';
 
 /**
@@ -27,6 +28,21 @@ liveRouter.get('/:accessCode/state', async (req, res, next) => {
     const presentation = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
     return res.json({ data: publicState(presentation) });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/** The caller's own answers, keyed by the anonymous participant id sent in a header (kept out of URLs and logs). */
+liveRouter.get('/:accessCode/me', async (req, res, next) => {
+  try {
+    const participantId = req.get('x-participant-id');
+    if (!participantId || participantId.length < 6 || participantId.length > 64) {
+      return res.status(400).json({ message: 'x-participant-id header is required' });
+    }
+    const presentation = await Presentation.findOne({ accessCode: req.params.accessCode });
+    if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    return res.json({ data: answersFor(presentation, participantId) });
   } catch (err) {
     return next(err);
   }

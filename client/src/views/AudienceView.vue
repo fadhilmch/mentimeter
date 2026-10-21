@@ -22,6 +22,7 @@ const myVotes = reactive<Record<number, number>>({})
 const myUpvotes = reactive<Record<string, boolean>>({})
 const myWords = reactive<Record<number, string>>({})
 const myRatings = reactive<Record<number, number>>({})
+interface MyAnswers { vote?: number; rating?: number; word?: string; ranking?: string[]; upvotes?: number[] }
 const rankingDraft = ref<string[]>([])
 const submittedRankings = reactive<Record<number, string[]>>({})
 
@@ -33,6 +34,7 @@ onMounted(async () => {
       error.value = err instanceof Error ? err.message : 'Could not join.'
     }
   }
+  await restoreMyAnswers()
 })
 
 onBeforeUnmount(() => live.leave())
@@ -54,7 +56,7 @@ const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === 
 // Start each slide's ranking with a clean slate.
 watch(
   () => state.value?.currentSlide,
-  () => { rankingDraft.value = [] },
+  (slideIndex) => { rankingDraft.value = [...(submittedRankings[slideIndex ?? -1] ?? [])] },
 )
 
 function optionsOf(): RankingOption[] {
@@ -74,6 +76,27 @@ const cloudWords = computed(() => {
     color: pal.value[i % pal.value.length],
   }))
 })
+
+/** After a refresh the server still has this person's answers: show them again. */
+async function restoreMyAnswers() {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/live/${code}/me`, {
+      headers: { 'x-participant-id': participantId() },
+    })
+    if (!res.ok) return
+    const { data } = (await res.json()) as { data: Record<string, MyAnswers> }
+    for (const [key, mine] of Object.entries(data)) {
+      const slideIndex = Number(key)
+      if (mine.vote !== undefined) myVotes[slideIndex] = mine.vote
+      if (mine.rating !== undefined) myRatings[slideIndex] = mine.rating
+      if (mine.word !== undefined) myWords[slideIndex] = mine.word
+      if (mine.ranking) submittedRankings[slideIndex] = mine.ranking
+      for (const responseIndex of mine.upvotes ?? []) myUpvotes[`${slideIndex}:${responseIndex}`] = true
+    }
+  } catch {
+    // Offline or an older server: the page works as before, just without the highlight.
+  }
+}
 
 async function choose(optionIndex: number) {
   if (!state.value) return
