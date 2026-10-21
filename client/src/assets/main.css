@@ -364,7 +364,14 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md); padding: var(--space-3) 14px; font-size: 0.92rem; font-weight: 600;
   margin: var(--space-3) 0;
 }
-.audience-themed .error-banner, .stage-page .error-banner { background: rgb(229 72 77 / 0.16); border-color: rgb(229 72 77 / 0.4); color: #ff9ba0; }
+/* On themed pages the text uses the theme's own ink, which is readable on the theme's background in
+   every theme and colour mode. A red tint and border still mark it as an error. */
+.audience-themed .error-banner, .stage-page .error-banner {
+  background: color-mix(in srgb, var(--danger) 18%, var(--t-sbg));
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  border-left-width: 4px;
+  color: var(--t-ink);
+}
 
 /* Loading skeletons */
 .skel { position: relative; overflow: hidden; background: var(--line); border-radius: var(--radius-sm); min-height: 14px; }

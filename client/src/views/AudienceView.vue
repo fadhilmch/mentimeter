@@ -239,14 +239,14 @@ async function sendRanking() {
             <form @submit.prevent="submitWord">
               <label class="field" style="margin-bottom:10px;">
                 <span>One word</span>
-                <input v-model="wordDraft" maxlength="40" placeholder="Type a single word…" />
+                <input v-model="wordDraft" maxlength="40" placeholder="Type a single word…" :disabled="!votingOpen" />
               </label>
               <button class="button block" type="submit" :disabled="!wordDraft.trim() || !votingOpen" :style="{ background: accent, color: onAccent }">
                 {{ myWords[state.currentSlide] ? 'Replace my word' : 'Send' }}
               </button>
             </form>
           </div>
-          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}" - sending a new one replaces it.</p>
+          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}"<template v-if="votingOpen"> - sending a new one replaces it</template>.</p>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the cloud for now.</p>
           <div v-else-if="cloudWords.length" class="cloud-box" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
@@ -268,7 +268,7 @@ async function sendRanking() {
               @click="rate(n)"
             >{{ n }}</button>
           </div>
-          <p v-if="myRatings[state.currentSlide]" class="muted">You rated {{ myRatings[state.currentSlide] }} of 10 - tap again to change it.</p>
+          <p v-if="myRatings[state.currentSlide]" class="muted">You rated {{ myRatings[state.currentSlide] }} of 10<template v-if="votingOpen"> - tap again to change it</template>.</p>
           <p v-if="resultsVisible && slide.tally" class="muted">Room average: {{ slide.tally.average }} from {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}.</p>
           <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
@@ -301,7 +301,7 @@ async function sendRanking() {
           <p v-if="rankingDraft.length && rankingDraft.length !== optionsOf().length" class="muted">
             {{ optionsOf().length - rankingDraft.length }} left to place.
           </p>
-          <p v-if="submittedRankings[state.currentSlide]" class="muted">Ranking sent - reorder and send again to change it.</p>
+          <p v-if="submittedRankings[state.currentSlide]" class="muted">Ranking sent<template v-if="votingOpen"> - reorder and send again to change it</template>.</p>
           <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
@@ -310,7 +310,7 @@ async function sendRanking() {
             <form @submit.prevent="submitResponse">
               <label class="field" style="margin-bottom:10px;">
                 <span>Your answer</span>
-                <textarea v-model="draft" rows="2" maxlength="280" placeholder="Type your answer…"></textarea>
+                <textarea v-model="draft" rows="2" maxlength="280" placeholder="Type your answer…" :disabled="!votingOpen"></textarea>
               </label>
               <button class="button block" type="submit" :disabled="!draft.trim() || !votingOpen">Send</button>
             </form>
