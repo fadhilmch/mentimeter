@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import { getTheme, themeVars } from '../themes'
 
 const route = useRoute()
 const live = useLiveStore()
@@ -25,6 +26,9 @@ onBeforeUnmount(() => live.leave())
 
 const slide = computed(() => live.currentSlide)
 const state = computed(() => live.state)
+const theme = computed(() => getTheme(state.value?.theme))
+const pageStyle = computed(() => themeVars(theme.value))
+const pal = computed(() => theme.value.pal)
 
 async function choose(optionIndex: number) {
   if (!state.value) return
@@ -61,9 +65,10 @@ async function upvote(responseIndex: number) {
 </script>
 
 <template>
+  <div class="audience-themed" :style="pageStyle">
   <div class="audience-page">
-    <p v-if="error" class="error-text">{{ error }}</p>
-    <p v-if="!state" class="muted">Connecting…</p>
+    <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
+    <p v-if="!state" class="connecting">Connecting…</p>
     <template v-else>
       <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
       <template v-if="slide">
@@ -75,8 +80,10 @@ async function upvote(responseIndex: number) {
             :key="i"
             class="option-button"
             :class="{ chosen: myVotes[state.currentSlide] === i }"
+            :style="myVotes[state.currentSlide] === i ? { borderColor: pal[i % pal.length] } : {}"
             @click="choose(i)"
           >
+            <span class="option-dot" :style="myVotes[state.currentSlide] === i ? { background: pal[i % pal.length], borderColor: pal[i % pal.length] } : { borderColor: pal[i % pal.length] }"></span>
             {{ option }}
           </button>
           <p v-if="myVotes[state.currentSlide] !== undefined" class="muted">
@@ -95,7 +102,7 @@ async function upvote(responseIndex: number) {
             </form>
           </div>
           <div v-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
-            <div v-for="(r, i) in slide.responses" :key="i" class="response-item" style="background:var(--card); border:1px solid var(--line); color:var(--ink);">
+            <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
               <span>{{ r.text }}</span>
               <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${i}`] }" @click="upvote(i)">
                 ▲ {{ r.upvotes }}
@@ -106,5 +113,6 @@ async function upvote(responseIndex: number) {
       </template>
       <p v-else class="muted">Waiting for the presenter…</p>
     </template>
+  </div>
   </div>
 </template>
