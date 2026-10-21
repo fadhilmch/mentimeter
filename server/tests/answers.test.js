@@ -51,6 +51,11 @@ describe('GET /api/live/:code/me', () => {
     const res = await request(app).get('/api/live/111222/me').set('x-participant-id', ME);
     expect(res.status).toBe(200);
     expect(res.body.data[0]).toEqual({ vote: 1 });
+    expect(res.headers["cache-control"]).toBe("private, no-store");
+    expect(res.headers.vary).toContain("x-participant-id");
+    const other = await request(app).get("/api/live/111222/me").set("x-participant-id", OTHER);
+    expect(other.body.data[0]).toEqual({ vote: 0 });
+    expect(other.body.data[1]).toEqual({ rating: 2 });
   });
 
   it('requires the participant header and a known code', async () => {

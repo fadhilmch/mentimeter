@@ -42,6 +42,8 @@ liveRouter.get('/:accessCode/me', async (req, res, next) => {
     }
     const presentation = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    res.set("Cache-Control", "private, no-store");
+    res.vary("x-participant-id");
     return res.json({ data: answersFor(presentation, participantId) });
   } catch (err) {
     return next(err);

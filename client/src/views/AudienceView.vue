@@ -93,6 +93,7 @@ async function restoreMyAnswers() {
       if (mine.ranking) submittedRankings[slideIndex] = mine.ranking
       for (const responseIndex of mine.upvotes ?? []) myUpvotes[`${slideIndex}:${responseIndex}`] = true
     }
+    rankingDraft.value = [...(submittedRankings[state.value?.currentSlide ?? -1] ?? [])]
   } catch {
     // Offline or an older server: the page works as before, just without the highlight.
   }
