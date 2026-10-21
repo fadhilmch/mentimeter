@@ -62,7 +62,7 @@ presentationsRouter.get('/code/:accessCode', async (req, res, next) => {
   try {
     const data = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!data) return res.status(404).json({ message: 'No presentation with that code' });
-    return res.json({ data });
+    return res.json({ data: publicState(data) });
   } catch (err) {
     return next(err);
   }
