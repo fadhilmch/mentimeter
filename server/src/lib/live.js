@@ -51,8 +51,10 @@ export function applyLiveAction(presentation, action) {
   }
 }
 
-/** Audience-safe snapshot: vote identities and response authors never leave the server. */
+/** Audience-safe snapshot: vote identities and response authors never leave the server.
+ *  While the presenter hides results, tallies and responses stay on the server too. */
 export function publicState(presentation) {
+  const resultsVisible = presentation.resultsVisible !== false;
   return {
     id: presentation._id,
     title: presentation.title,
@@ -60,16 +62,18 @@ export function publicState(presentation) {
     theme: presentation.theme,
     currentSlide: presentation.currentSlide,
     votingOpen: presentation.votingOpen !== false,
-    resultsVisible: presentation.resultsVisible !== false,
+    resultsVisible,
     slides: presentation.slides.map((slide) => ({
       questionType: slide.questionType,
       question: slide.question,
       ...(slide.questionType === 'multiple-choice'
-        ? { options: slide.options.map(({ text }) => text), tally: tallySlide(slide) }
+        ? { options: slide.options.map(({ text }) => text), tally: resultsVisible ? tallySlide(slide) : null }
         : {
-            responses: slide.responses
-              .map(({ text, upvotes, createdAt }) => ({ text, upvotes: upvotes.length, createdAt }))
-              .sort((a, b) => b.upvotes - a.upvotes),
+            responses: resultsVisible
+              ? slide.responses
+                  .map(({ text, upvotes, createdAt }) => ({ text, upvotes: upvotes.length, createdAt }))
+                  .sort((a, b) => b.upvotes - a.upvotes)
+              : [],
           }),
     })),
   };
