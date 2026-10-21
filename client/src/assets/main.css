@@ -14,6 +14,14 @@
   --warmth: #ffb224;      /* amber - celebrations, tips */
   --good: #30a46c;
   --danger: #e5484d;
+  --danger-ink: #b42318;   /* error text on a card */
+  --danger-soft: #fdeaec;
+  --on-accent: #ffffff;    /* text on filled --lead / --accent */
+  /* Inverse band (landing closing section) */
+  --inverse: #111113;
+  --inverse-ink: #ffffff;
+  --inverse-muted: #b0b2ba;
+  --inverse-line: #4a4a55;
   --accent: var(--lead);
   --accent-strong: var(--lead-strong);
   --accent-soft: var(--lead-soft);
@@ -24,6 +32,7 @@
   --t-acc: #5b5bd6;
   --t-accink: #b8baf8;
   --t-ink: #edeef0;
+  --t-correct: #3dd68c;
   --stage: var(--t-sbg);
   --stage-2: var(--t-stage2);
   /* Motion tokens */
@@ -106,7 +115,7 @@ input:focus, select:focus, textarea:focus {
 .button.ghost { background: none; color: var(--ink-2); }
 .button.ghost:hover { color: var(--ink); background: var(--paper); }
 .button.danger { background: none; color: var(--danger); }
-.button.danger:hover { background: #fdeaec; }
+.button.danger:hover { background: var(--danger-soft); }
 .button.big { padding: 15px 24px; font-size: 1.05rem; border-radius: 12px; }
 .button.block { width: 100%; }
 
@@ -411,5 +420,7 @@ input:focus, select:focus, textarea:focus {
   --lead: #7d7de8;
   --lead-strong: #9a9af0;
   --lead-soft: #232349;
+  --danger-ink: #ff9ba0;
+  --danger-soft: rgb(229 72 77 / 0.16);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.35);
 }

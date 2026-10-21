@@ -115,8 +115,8 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 79 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
-cd client && npm test          # 3 tests: presentation theme variables in light and dark mode
+cd server && npm test          # access codes, tallies for all six slide types, live actions, auth, REST, sockets
+cd client && npm test          # presentation theme variables and contrast in light and dark mode
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
@@ -131,8 +131,13 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 
 ## Roadmap / open decisions
 
-- License selection
 - Optional per-presentation audience authentication
+
+## Project docs
+
+- [Design system](docs/DESIGN_SYSTEM.md): tokens, light/dark rules, what not to hard-code.
+- [Dependency licences](docs/DEPENDENCY_LICENSES.md): licence summary of the lockfiles.
+- Licence: [MIT](LICENSE).
 
 ## Contributing
 

@@ -38,6 +38,7 @@ export function themeVars(theme: PresentationTheme, mode: ColorMode = 'dark'): R
       '--t-acc': theme.pal[0],
       '--t-accink': '#3e3fa0',
       '--t-ink': '#1c2024',
+      '--t-correct': '#18794e',
     };
   }
   return {
@@ -47,6 +48,7 @@ export function themeVars(theme: PresentationTheme, mode: ColorMode = 'dark'): R
     '--t-acc': theme.acc,
     '--t-accink': theme.accInk,
     '--t-ink': '#edeef0',
+    '--t-correct': '#3dd68c',
   };
 }
 

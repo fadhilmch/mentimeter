@@ -475,7 +475,7 @@ async function remove() {
   gap: 5px;
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--muted, #6b6f76);
+  color: var(--ink-2);
   flex-shrink: 0;
   cursor: pointer;
 }
@@ -511,19 +511,19 @@ async function remove() {
   padding: 0;
 }
 .accent-swatch.none {
-  background: #fff;
-  border-color: rgba(0, 0, 0, 0.2);
+  background: var(--card);
+  border-color: var(--line);
   font-weight: 800;
-  color: #555;
+  color: var(--ink-2);
 }
 .accent-swatch.sel {
-  outline: 3px solid var(--accent, #5b5bd6);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 .slide-error {
   margin: 6px 0 0;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #b42318;
+  color: var(--danger-ink);
 }
 </style>

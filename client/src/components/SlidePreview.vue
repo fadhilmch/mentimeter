@@ -58,7 +58,7 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
   background: var(--t-sbg);
   border-radius: 14px;
   padding: 22px 24px;
-  color: #edeef0;
+  color: var(--t-ink);
 }
 .sp-question {
   margin: 0 0 16px;

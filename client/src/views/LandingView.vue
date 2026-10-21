@@ -103,17 +103,17 @@ h1 em {
   display: flex; align-items: center; gap: 12px; padding: 16px;
   background: var(--card); border: 1px solid var(--line); border-radius: 14px;
 }
-.tile { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; color: #fff; font-weight: 800; }
+.tile { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; color: var(--on-accent); font-weight: 800; }
 .type b { display: block; }
 .type-text { display: block; font-size: 0.85rem; color: var(--ink-2); }
 .final {
   margin: 8px 0 24px; padding: 48px 32px; text-align: center;
-  background: #111113; color: #fff; border-radius: 24px;
+  background: var(--inverse); color: var(--inverse-ink); border-radius: 24px;
 }
 .final h2 { margin: 0 0 8px; font-size: clamp(1.5rem, 3vw, 2rem); }
-.final p { margin: 0 0 24px; color: #b0b2ba; }
+.final p { margin: 0 0 24px; color: var(--inverse-muted); }
 .final-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.ghost-light { background: transparent; color: #fff; border: 1px solid #4a4a55; }
+.ghost-light { background: transparent; color: var(--inverse-ink); border: 1px solid var(--inverse-line); }
 .ghost-light:hover { background: rgb(255 255 255 / 0.08); }
 
 @media (max-width: 760px) {

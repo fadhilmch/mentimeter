@@ -444,8 +444,8 @@ function end() {
   margin-left: 8px;
   font-size: 0.78rem;
   font-weight: 800;
-  color: #3dd68c;
-  border: 1px solid #3dd68c;
+  color: var(--t-correct);
+  border: 1px solid var(--t-correct);
   border-radius: 999px;
   padding: 1px 8px;
 }

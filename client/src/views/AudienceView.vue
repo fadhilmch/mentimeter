@@ -378,7 +378,7 @@ async function sendRanking() {
   background: color-mix(in srgb, var(--t-ink) 5%, transparent);
 }
 .leaderboard-list li.me {
-  outline: 2px solid var(--accent, #8b7cf6);
+  outline: 2px solid var(--accent);
 }
 .lb-rank {
   width: 40px;
@@ -397,8 +397,8 @@ async function sendRanking() {
   white-space: nowrap;
 }
 .you-chip {
-  background: var(--accent, #8b7cf6);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -411,7 +411,7 @@ async function sendRanking() {
 .lb-score {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--accent, #8b7cf6);
+  color: var(--accent);
   white-space: nowrap;
 }
 .lb-score.zero {
@@ -433,10 +433,10 @@ async function sendRanking() {
 .quiz-mark {
   margin-left: auto;
   font-weight: 900;
-  color: #3dd68c;
+  color: var(--t-correct);
 }
 .quiz-correct {
-  border-color: #3dd68c !important;
+  border-color: var(--t-correct) !important;
 }
 .audience-slide.has-image.layout-beside {
   display: flex;

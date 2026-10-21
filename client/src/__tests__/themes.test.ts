@@ -40,3 +40,12 @@ describe('readableOn', () => {
     expect(readableOn('#5b5bd6')).toBe('#ffffff');
   });
 });
+
+describe('correct-answer color', () => {
+  it('stays readable against each mode surface', () => {
+    const dark = themeVars(THEMES[0], 'dark');
+    const light = themeVars(THEMES[0], 'light');
+    expect(contrast(dark['--t-correct'], dark['--t-sbg'])).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(light['--t-correct'], light['--t-sbg'])).toBeGreaterThanOrEqual(4.5);
+  });
+});
