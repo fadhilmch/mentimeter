@@ -15,12 +15,14 @@ const slideSchema = z.object({
 const createSchema = z.object({
   title: z.string().trim().min(1).max(120),
   location: z.string().trim().max(120).optional(),
+  theme: z.enum(['iris', 'apricot', 'plum', 'cobalt']).optional(),
   slides: z.array(slideSchema).max(50).default([]),
 });
 
 const updateSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   location: z.string().trim().max(120).nullable().optional(),
+  theme: z.enum(['iris', 'apricot', 'plum', 'cobalt']).optional(),
   slides: z.array(slideSchema).max(50).optional(),
   currentSlide: z.number().int().min(0).optional(),
 });
