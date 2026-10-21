@@ -1,0 +1,13 @@
+{
+  "name": "crowdflow",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Open-source live audience polling: audiences join with a 6-digit code and answer live.",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev:memory": "npm --prefix server run dev:memory",
+    "test": "npm --prefix server test",
+    "build": "npm --prefix client run build"
+  }
+}
