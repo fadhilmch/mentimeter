@@ -149,7 +149,12 @@ presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req
         });
       }
       const normalized = slides.map((slide) => ({ ...slide, options: slide.options.map(normalizeOption) }));
-      if (baseStructureRevision === undefined || (normalized.length > 0 && normalized.every((s) => !s.id))) {
+      // A deck with no stored slides has nothing to attach identities to, so a
+      // first save of brand-new slides (no ids yet) is legitimate. Only reject
+      // id-less slides when stored slides exist that they could be mismatched with.
+      const echoesNoIdentities =
+        presentation.slides.length > 0 && normalized.length > 0 && normalized.every((s) => !s.id);
+      if (baseStructureRevision === undefined || echoesNoIdentities) {
         // The client is not echoing identities; it may hold stale data. Reject
         // rather than guess: no attachment beats wrong attachment.
         return res.status(409).json({ code: 'stale', message: 'Reload the presentation before saving.' });

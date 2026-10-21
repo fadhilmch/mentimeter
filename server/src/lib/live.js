@@ -60,6 +60,10 @@ export function applyLiveAction(presentation, action) {
     }
     case 'slide:change':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
+      // Closing voting applies to the question on stage. Moving to a different
+      // slide opens it for the new question; revealed quizzes stay frozen
+      // through their own `revealed` flag, so going back cannot change answers.
+      if (action.slideIndex !== presentation.currentSlide) presentation.votingOpen = true;
       presentation.currentSlide = action.slideIndex;
       return;
     case 'vote:cast': {
