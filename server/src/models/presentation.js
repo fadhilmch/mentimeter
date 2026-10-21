@@ -20,14 +20,50 @@ const responseSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const ratingSchema = new mongoose.Schema(
+  {
+    authorId: { type: String, required: true },
+    value: { type: Number, required: true, min: 1, max: 10 },
+  },
+  { _id: false },
+);
+
+const rankingSchema = new mongoose.Schema(
+  {
+    authorId: { type: String, required: true },
+    // Option ids in the participant's chosen order, best first.
+    order: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
+const designSchema = new mongoose.Schema(
+  {
+    // Optional per-slide accent; inherits the presentation theme when unset.
+    accent: { type: String, match: /^#[0-9a-fA-F]{6}$/ },
+    imageUrl: { type: String, trim: true, maxlength: 500 },
+    imageLayout: { type: String, enum: ['beside', 'behind'] },
+  },
+  { _id: false },
+);
+
 const slideSchema = new mongoose.Schema(
   {
     // Stable identity stamped on save; lets edits keep votes/responses attached to the right slide.
     id: { type: String },
-    questionType: { type: String, enum: ['multiple-choice', 'open-ended'], required: true },
+    questionType: {
+      type: String,
+      enum: ['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz'],
+      required: true,
+    },
     question: { type: String, required: true, trim: true, maxlength: 300 },
     options: { type: [optionSchema], default: [] },
     responses: { type: [responseSchema], default: [] },
+    ratings: { type: [ratingSchema], default: [] },
+    rankings: { type: [rankingSchema], default: [] },
+    // Quiz slides mark the correct option by its stable option id.
+    correctOptionId: { type: String },
+    design: { type: designSchema, default: undefined },
   },
   { _id: false },
 );
