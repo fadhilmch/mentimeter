@@ -57,7 +57,6 @@ export interface PresentationState {
 }
 
 export type LiveAction =
-  | { type: 'slide:change'; slideIndex: number }
   | { type: 'vote:cast'; slideIndex: number; optionIndex: number; participantId: string }
   | { type: 'response:add'; slideIndex: number; text: string; participantId: string }
   | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string }

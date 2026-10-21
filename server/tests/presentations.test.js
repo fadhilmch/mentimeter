@@ -115,6 +115,48 @@ describe('presentation routes', () => {
     expect(res.body.code).toBe('stale');
   });
 
+  it('saves the first slides of a brand-new empty presentation (no ids yet)', async () => {
+    const token = await signup();
+    const created = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${token}`)
+      .send({ title: 'Untitled presentation' })
+      .expect(201);
+    const id = created.body.data._id;
+    expect(created.body.data.slides).toEqual([]);
+    const saved = await request(app)
+      .put(`/api/presentations/${id}`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        title: 'Fresh',
+        baseStructureRevision: created.body.data.structureRevision,
+        slides: [{ questionType: 'multiple-choice', question: 'Q?', options: [{ text: 'a' }, { text: 'b' }] }],
+      })
+      .expect(200);
+    expect(saved.body.data.title).toBe('Fresh');
+    expect(saved.body.data.slides).toHaveLength(1);
+    expect(saved.body.data.slides[0].id).toEqual(expect.any(String));
+    expect(saved.body.data.structureRevision).toBe(created.body.data.structureRevision + 1);
+    // The saved deck reopens with the slide.
+    const reopened = await request(app).get(`/api/presentations/${id}`).set('authorization', `Bearer ${token}`).expect(200);
+    expect(reopened.body.data.slides[0].question).toBe('Q?');
+  });
+
+  it('still requires the current revision when saving into an empty deck', async () => {
+    const token = await signup();
+    const created = await request(app).post('/api/presentations').set('authorization', `Bearer ${token}`).send({ title: 'E' }).expect(201);
+    await request(app)
+      .put(`/api/presentations/${created.body.data._id}`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ baseStructureRevision: 5, slides: [{ questionType: 'multiple-choice', question: 'Q?', options: [{ text: 'a' }, { text: 'b' }] }] })
+      .expect(409);
+    await request(app)
+      .put(`/api/presentations/${created.body.data._id}`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ slides: [{ questionType: 'multiple-choice', question: 'Q?', options: [{ text: 'a' }, { text: 'b' }] }] })
+      .expect(409);
+  });
+
   it('rejects edits made against an outdated structure revision', async () => {
     const token = await signup();
     const created = await request(app)

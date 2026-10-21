@@ -42,7 +42,7 @@ describe('live HTTP endpoints (Ably transport path)', () => {
 
   it('returns 404 for unknown codes on state, action and token', async () => {
     expect((await request(app).get('/api/live/000000/state')).status).toBe(404);
-    expect((await request(app).post('/api/live/000000/action').send({ type: 'slide:change', slideIndex: 0 })).status).toBe(404);
+    expect((await request(app).post('/api/live/000000/action').send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'p-abcdef' })).status).toBe(404);
     expect((await request(app).get('/api/live/000000/token')).status).toBe(501); // transport unconfigured is reported before code lookup
   });
 
@@ -98,6 +98,39 @@ describe('presenter live controls', () => {
     const res = await request(app).post('/api/users/signup').send({ username, password: 'super-secret-1' });
     return res.body.token;
   }
+
+  it('slide control is presenter-only: public channels cannot change slides or reopen voting', async () => {
+    const token = await signup();
+    const mine = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${token}`)
+      .send({ title: 'Mine', slides: [
+        { questionType: 'multiple-choice', question: 'One', options: ['A', 'B'] },
+        { questionType: 'multiple-choice', question: 'Two', options: ['A', 'B'] },
+      ] });
+    const id = mine.body.data._id;
+    const code = mine.body.data.accessCode;
+    const live = (b) => request(app).post(`/api/live/${code}/action`).send(b);
+    const owner = (b, t = token) => request(app).post(`/api/presentations/${id}/live-actions`).set('authorization', `Bearer ${t}`).send(b);
+
+    expect((await live({ type: 'slide:change', slideIndex: 1 })).status).toBe(400);
+    expect((await request(app).post(`/api/presentations/${id}/live-actions`).send({ type: 'slide:change', slideIndex: 1 })).status).toBe(401);
+    const other = await signup('someone-else');
+    expect((await owner({ type: 'slide:change', slideIndex: 1 }, other)).status).toBe(404);
+    expect((await request(app).get(`/api/live/${code}/state`)).body.data.currentSlide).toBe(0);
+
+    await owner({ type: 'voting:set', open: false });
+    // A participant cannot reopen voting by changing slides.
+    await live({ type: 'slide:change', slideIndex: 1 });
+    expect((await request(app).get(`/api/live/${code}/state`)).body.data.votingOpen).toBe(false);
+
+    // The presenter moving on does reopen voting for the new slide.
+    const moved = await owner({ type: 'slide:change', slideIndex: 1 });
+    expect(moved.status).toBe(200);
+    expect(moved.body.state.currentSlide).toBe(1);
+    expect(moved.body.state.votingOpen).toBe(true);
+    expect((await owner({ type: 'slide:change', slideIndex: 9 })).status).toBe(400);
+  });
 
   it('resets votes, toggles voting and results, owner only', async () => {
     const token = await signup();

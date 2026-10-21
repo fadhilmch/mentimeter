@@ -62,9 +62,6 @@ export const useLiveStore = defineStore('live', {
       else localStorage.removeItem('livepoll.nickname');
       return this.act({ type: 'participant:identify', participantId: participantId(), nickname: cleaned });
     },
-    goToSlide(slideIndex: number) {
-      return this.act({ type: 'slide:change', slideIndex });
-    },
     leave() {
       this.transport?.leave();
       this.transport = null;

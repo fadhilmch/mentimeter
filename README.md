@@ -113,7 +113,7 @@ Both realtime transports share one action vocabulary (`slide:change`, `vote:cast
 ## Testing
 
 ```bash
-cd server && npm test          # 72 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
+cd server && npm test          # 79 tests: access codes, tallies for all six slide types, live actions, auth, REST, sockets
 cd client && npm run typecheck # vue-tsc strict typecheck
 ```
 
@@ -124,12 +124,11 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 - Passwords hashed with bcrypt; JWT auth with a required secret in production.
 - Helmet headers, CORS allowlist, JSON body limits, rate-limited auth endpoints.
 - All inputs validated with Zod; audience-visible state strips voter identities.
-- Audience actions are keyed by join code: anyone with the code can vote. Presenter controls (edit, delete) require the owner account.
+- Audience actions are keyed by join code: anyone with the code can vote. Presenter controls (edit, delete, change slide, open/close voting, hide results, reset votes) require the owner account.
 
 ## Roadmap / open decisions
 
 - License selection
-- Presenter-only slide control (currently anyone with the code can advance slides)
 - Optional per-presentation audience authentication
 
 ## Contributing

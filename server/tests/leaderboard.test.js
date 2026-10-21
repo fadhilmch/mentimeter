@@ -163,6 +163,27 @@ describe('quiz answer reveal gating in publicState', () => {
     ]);
   });
 
+  it('closing voting does not carry over to the next slide; revealed quizzes stay frozen', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false }); // reveals Q1
+    expect(p.votingOpen).toBe(false);
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 1 });
+    expect(p.votingOpen).toBe(true);
+    expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 1, optionIndex: 0, participantId: 'p-1' })).not.toThrow();
+    // Going back reopens voting generally, but Q1 stays frozen.
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 0 });
+    expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-1' })).toThrow(
+      'This question has already been revealed',
+    );
+  });
+
+  it('re-selecting the current slide leaves a closed vote closed', () => {
+    const p = quizPresentation();
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    applyLiveAction(p, { type: 'slide:change', slideIndex: p.currentSlide });
+    expect(p.votingOpen).toBe(false);
+  });
+
   it('a presenter vote reset un-reveals the question for a fresh round', () => {
     const p = quizPresentation();
     applyLiveAction(p, { type: 'voting:set', open: false });

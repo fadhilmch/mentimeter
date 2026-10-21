@@ -4,7 +4,6 @@ import { castVote, addResponse, submitWord, castRating, submitRanking, toggleUpv
 import { computeLeaderboard } from './leaderboard.js';
 
 export const liveActionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('slide:change'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('vote:cast'), slideIndex: z.number().int().min(0), optionIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('response:add'), slideIndex: z.number().int().min(0), text: z.string().max(280), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('response:upvote'), slideIndex: z.number().int().min(0), responseIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
@@ -16,6 +15,7 @@ export const liveActionSchema = z.discriminatedUnion('type', [
 
 /** Presenter-only actions: accepted on the authenticated route, never on public live channels. */
 export const presenterActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('slide:change'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('vote:reset'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('voting:set'), open: z.boolean() }),
   z.object({ type: z.literal('results:set'), visible: z.boolean() }),
@@ -60,6 +60,10 @@ export function applyLiveAction(presentation, action) {
     }
     case 'slide:change':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
+      // Closing voting applies to the question on stage. Moving to a different
+      // slide opens it for the new question; revealed quizzes stay frozen
+      // through their own `revealed` flag, so going back cannot change answers.
+      if (action.slideIndex !== presentation.currentSlide) presentation.votingOpen = true;
       presentation.currentSlide = action.slideIndex;
       return;
     case 'vote:cast': {
