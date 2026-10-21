@@ -37,6 +37,8 @@ const presentationSchema = new mongoose.Schema(
     theme: { type: String, enum: ['iris', 'apricot', 'plum', 'cobalt'], default: 'iris' },
     slides: { type: [slideSchema], default: [] },
     currentSlide: { type: Number, default: 0, min: 0 },
+    votingOpen: { type: Boolean, default: true },
+    resultsVisible: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
