@@ -30,5 +30,7 @@ export const api = {
     call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token),
   deletePresentation: (token: string, id: string) =>
     call<{ data: unknown }>(`/api/presentations/${id}`, { method: 'DELETE' }, token),
+  presenterAction: (token: string, id: string, action: Record<string, unknown>) =>
+    call<{ ok: boolean; state: unknown }>(`/api/presentations/${id}/live-actions`, { method: 'POST', body: JSON.stringify(action) }, token),
   joinByCode: (accessCode: string) => call<{ data: { title: string; accessCode: string } }>(`/api/presentations/code/${accessCode}`),
 };
