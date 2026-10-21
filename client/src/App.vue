@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { useAuthStore } from './stores/auth';
-import logoUrl from './assets/logo-light.svg';
+import logoLight from './assets/logo-light.svg';
+import logoDark from './assets/logo-dark.svg';
+import ColorModeToggle from './components/ColorModeToggle.vue';
+import { useColorMode } from './colorMode';
 import { useRoute, useRouter } from 'vue-router';
 
 const auth = useAuthStore();
+const { mode } = useColorMode();
 const router = useRouter();
 const route = useRoute();
 
@@ -17,7 +21,7 @@ function signOut() {
   <div class="app-shell">
     <header v-if="!route.meta.bare" class="topbar">
       <RouterLink to="/" class="brand">
-        <img class="brand-logo" :src="logoUrl" alt="CrowdFlow" />
+        <img class="brand-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
       </RouterLink>
       <nav class="topnav">
         <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
@@ -28,6 +32,7 @@ function signOut() {
             <span class="long">Create a presentation</span><span class="short">Create</span>
           </RouterLink>
         </template>
+        <ColorModeToggle />
       </nav>
     </header>
     <main>

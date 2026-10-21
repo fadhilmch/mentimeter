@@ -5,7 +5,9 @@ import { useLiveStore } from '../stores/live'
 import { participantId } from '../participant'
 import { aliasFor } from '../alias'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
-import logoUrl from '../assets/logo-light.svg'
+import logoLight from '../assets/logo-light.svg'
+import logoDark from '../assets/logo-dark.svg'
+import { useColorMode } from '../colorMode'
 
 const router = useRouter()
 const route = useRoute()
@@ -44,12 +46,13 @@ async function join() {
     busy.value = false
   }
 }
+const { mode } = useColorMode()
 </script>
 
 <template>
   <div class="page page-narrow">
     <div class="join-lockup">
-      <img class="join-logo" :src="logoUrl" alt="CrowdFlow" />
+      <img class="join-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
     </div>
     <p class="eyebrow">Live polling</p>
     <h1>Join a presentation</h1>

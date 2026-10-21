@@ -18,7 +18,7 @@ export const router = createRouter({
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
     { path: '/edit/:id', name: 'edit', component: EditView, meta: { requiresAuth: true } },
     { path: '/present/:code', name: 'present', component: PresentView, meta: { bare: true } },
-    { path: '/p/:code', name: 'audience', component: AudienceView },
+    { path: '/p/:code', name: 'audience', component: AudienceView, meta: { bare: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });

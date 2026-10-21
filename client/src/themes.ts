@@ -26,12 +26,46 @@ export function getTheme(id?: string): PresentationTheme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];
 }
 
-export function themeVars(theme: PresentationTheme): Record<string, string> {
+export type ColorMode = 'light' | 'dark';
+
+/** Light stage surfaces: shared across presentation themes, accent follows the theme's first chart color. */
+export function themeVars(theme: PresentationTheme, mode: ColorMode = 'dark'): Record<string, string> {
+  if (mode === 'light') {
+    return {
+      '--t-sbg': '#f9f9fb',
+      '--t-stage2': '#ffffff',
+      '--t-track': 'rgba(28,32,36,0.09)',
+      '--t-acc': theme.pal[0],
+      '--t-accink': '#3e3fa0',
+      '--t-ink': '#1c2024',
+    };
+  }
   return {
     '--t-sbg': theme.sbg,
     '--t-stage2': theme.stage2,
     '--t-track': theme.track,
     '--t-acc': theme.acc,
     '--t-accink': theme.accInk,
+    '--t-ink': '#edeef0',
   };
+}
+
+function channel(v: number): number {
+  const c = v / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+/** WCAG contrast ratio of two #rrggbb colors. */
+export function contrast(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Text color (white or near-black) with the better contrast on a filled accent. */
+export function readableOn(bg: string): string {
+  return contrast(bg, '#ffffff') >= contrast(bg, '#111113') ? '#ffffff' : '#111113';
 }
