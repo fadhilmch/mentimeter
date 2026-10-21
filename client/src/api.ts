@@ -10,8 +10,18 @@ async function call<T>(path: string, options: RequestInit = {}, token?: string):
     },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.message ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
+}
+
+export class ApiError extends Error {
+  status: number;
+  body: { message?: string; code?: string; removedVotes?: number; removedResponses?: number };
+  constructor(status: number, body: { message?: string; code?: string; removedVotes?: number; removedResponses?: number }) {
+    super(body.message ?? `Request failed (${status})`);
+    this.status = status;
+    this.body = body;
+  }
 }
 
 export interface PublicUser { id: string; name: string; username: string }
