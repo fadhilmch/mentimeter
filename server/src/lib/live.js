@@ -36,6 +36,7 @@ export function publicState(presentation) {
     id: presentation._id,
     title: presentation.title,
     accessCode: presentation.accessCode,
+    theme: presentation.theme,
     currentSlide: presentation.currentSlide,
     slides: presentation.slides.map((slide) => ({
       questionType: slide.questionType,

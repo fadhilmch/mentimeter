@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { THEMES, getTheme } from '../themes'
 
 interface EditableSlide {
   questionType: 'multiple-choice' | 'open-ended'
@@ -15,6 +16,7 @@ interface LoadedPresentation {
   title: string
   location?: string
   accessCode: string
+  theme?: string
   slides: { questionType: 'multiple-choice' | 'open-ended'; question: string; options?: { text: string }[] }[]
 }
 
@@ -26,6 +28,7 @@ const id = String(route.params.id)
 const title = ref('')
 const location = ref('')
 const accessCode = ref('')
+const themeId = ref<string>('iris')
 const slides = ref<EditableSlide[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -39,6 +42,7 @@ onMounted(async () => {
     title.value = p.title
     location.value = p.location ?? ''
     accessCode.value = p.accessCode
+    themeId.value = p.theme ?? 'iris'
     slides.value = p.slides.map((s) => ({
       questionType: s.questionType,
       question: s.question,
@@ -75,6 +79,7 @@ async function save() {
     const payload = {
       title: title.value.trim() || 'Untitled presentation',
       location: location.value.trim() || null,
+      theme: themeId.value,
       slides: slides.value
         .filter((s) => s.question.trim())
         .map((s) => ({
@@ -105,7 +110,11 @@ async function remove() {
 
 <template>
   <div class="page">
-    <p v-if="loading" class="muted">Loading…</p>
+    <div v-if="loading" aria-label="Loading editor" style="margin-top:20px; display:flex; flex-direction:column; gap:14px;">
+      <div class="skel" style="height:38px; max-width:280px;"></div>
+      <div class="skel skel-card" style="height:180px;"></div>
+      <div class="skel skel-card" style="height:120px;"></div>
+    </div>
     <template v-else>
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
         <div>
@@ -120,11 +129,35 @@ async function remove() {
         </div>
       </div>
 
-      <p v-if="error" class="error-text">{{ error }}</p>
+      <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
 
       <div class="card" style="margin-top:20px;">
         <label class="field"><span>Title</span><input v-model="title" maxlength="120" placeholder="All-hands kickoff" /></label>
         <label class="field" style="margin-bottom:0;"><span>Location <span class="muted">(optional)</span></span><input v-model="location" maxlength="120" placeholder="Stockholm office" /></label>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <h2 style="margin-bottom:4px;">Theme</h2>
+        <p class="muted" style="margin:0 0 10px;">Colors for this presentation's stage and audience screens. The rest of the app keeps the standard CrowdFlow look.</p>
+        <div class="theme-picker" role="radiogroup" aria-label="Presentation theme">
+          <button
+            v-for="t in THEMES"
+            :key="t.id"
+            type="button"
+            role="radio"
+            :aria-checked="themeId === t.id"
+            class="theme-option"
+            :class="{ sel: themeId === t.id }"
+            @click="themeId = t.id"
+          >
+            <span class="theme-mini" :style="{ background: t.sbg }">
+              <span class="mq"></span>
+              <span class="mb"><i v-for="(c, j) in t.pal.slice(0, 3)" :key="j" :style="{ height: ['46%','82%','60%'][j], background: c }"></i></span>
+              <span class="ml" :style="{ background: t.acc }"></span>
+            </span>
+            <span class="theme-name">{{ t.name }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="slide-list">

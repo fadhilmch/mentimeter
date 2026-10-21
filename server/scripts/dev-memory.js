@@ -24,6 +24,7 @@ await Presentation.create({
   title: 'All-hands kickoff',
   location: 'Stockholm office',
   accessCode: '123456',
+  theme: 'iris',
   currentSlide: 0,
   slides: [
     {

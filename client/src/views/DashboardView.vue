@@ -2,9 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
+import { getTheme } from '../themes'
+import logoUrl from '../assets/logo.svg'
 import { useAuthStore } from '../stores/auth'
 
 interface PresentationSummary {
+  theme?: string
   _id: string
   title: string
   accessCode: string
@@ -56,12 +59,17 @@ async function createPresentation() {
       </button>
     </div>
 
-    <p v-if="error" class="error-text">{{ error }}</p>
-    <p v-if="loading" class="muted" style="margin-top:32px;">Loading…</p>
+    <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
+    <div v-if="loading" class="presentation-grid" aria-label="Loading presentations">
+      <div v-for="i in 3" :key="i" class="skel skel-card"></div>
+    </div>
 
     <div v-else-if="presentations.length" class="presentation-grid">
       <div v-for="p in presentations" :key="p._id" class="card presentation-card">
-        <span class="code-chip">{{ p.accessCode }}</span>
+        <div class="code-row">
+          <span class="code-chip">{{ p.accessCode }}</span>
+          <span class="theme-dot" :style="{ background: getTheme(p.theme).acc }" :title="getTheme(p.theme).name"></span>
+        </div>
         <h2>{{ p.title }}</h2>
         <p class="muted" style="margin:0;">
           {{ p.slides.length }} slide{{ p.slides.length === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
@@ -74,6 +82,7 @@ async function createPresentation() {
     </div>
 
     <div v-else class="card empty-state" style="margin-top:24px;">
+      <img class="empty-mark" :src="logoUrl" alt="" aria-hidden="true" />
       <h2>No presentations yet</h2>
       <p>Create your first one - add slides, get a 6-digit code, present.</p>
     </div>

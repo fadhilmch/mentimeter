@@ -34,6 +34,7 @@ const presentationSchema = new mongoose.Schema(
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     accessCode: { type: String, required: true, unique: true, index: true },
     location: { type: String, trim: true, maxlength: 120 },
+    theme: { type: String, enum: ['iris', 'apricot', 'plum', 'cobalt'], default: 'iris' },
     slides: { type: [slideSchema], default: [] },
     currentSlide: { type: Number, default: 0, min: 0 },
   },

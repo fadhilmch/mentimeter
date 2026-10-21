@@ -35,7 +35,7 @@ async function submit() {
         <label class="field"><span>Username</span><input v-model="username" required autocomplete="username" placeholder="ada" /></label>
         <label class="field"><span>Password</span><input v-model="password" type="password" minlength="8" required autocomplete="new-password" /></label>
         <p class="muted">Username: 3-30 characters, lowercase letters, numbers, dots and dashes. Password: at least 8 characters.</p>
-        <p v-if="error" class="error-text">{{ error }}</p>
+        <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Creating…' : 'Sign up' }}</button>
       </form>
     </div>

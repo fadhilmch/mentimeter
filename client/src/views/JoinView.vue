@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import logoUrl from '../assets/logo.svg'
 
 const router = useRouter()
 const live = useLiveStore()
@@ -30,6 +31,11 @@ async function join() {
 
 <template>
   <div class="page page-narrow">
+    <div class="join-lockup">
+      <img :src="logoUrl" width="40" height="40" alt="" aria-hidden="true" />
+      <span class="join-wordmark">CrowdFlow</span>
+    </div>
+    <p class="eyebrow">Live polling</p>
     <h1>Join a presentation</h1>
     <p class="sub">Enter the 6-digit code shown on the presenter's screen. No account needed.</p>
     <div class="card join-card">
@@ -45,7 +51,7 @@ async function join() {
             autocomplete="off"
           />
         </label>
-        <p v-if="error" class="error-text">{{ error }}</p>
+        <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">
           {{ busy ? 'Joining…' : 'Join presentation' }}
         </button>
