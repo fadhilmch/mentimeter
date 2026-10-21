@@ -34,6 +34,13 @@ describe('public page basics', () => {
     for (const line of routes) expect(line, line).toContain('title:')
   })
 
+  it('self-hosts the app font instead of loading a font CDN', () => {
+    const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
+    expect(html).not.toMatch(/fonts\.(googleapis|gstatic)\.com/)
+    expect(readFileSync(join(ROOT, 'public/fonts/OFL.txt'), 'utf8')).toContain('SIL Open Font License')
+    expect(readFileSync(join(ROOT, 'src/assets/main.css'), 'utf8')).toContain('/fonts/PlusJakartaSans-latin.woff2')
+  })
+
   it('ships share tags and robots.txt', () => {
     const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
     expect(html).toContain('property="og:title"')

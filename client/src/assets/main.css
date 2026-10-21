@@ -1,3 +1,11 @@
+/* Plus Jakarta Sans (SIL OFL 1.1), self-hosted so visitors' browsers do not contact a font CDN. Licence: public/fonts/OFL.txt */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/PlusJakartaSans-latin.woff2') format('woff2');
+}
 :root {
   /* Neutrals: Radix Colors Slate (light scale) */
   --ink: #1c2024;        /* slate-12 */

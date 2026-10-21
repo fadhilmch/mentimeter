@@ -40,6 +40,8 @@ export const api = {
     call<AuthResponse>('/api/users/signup', { method: 'POST', body: JSON.stringify({ name, username, password }) }),
   login: (username: string, password: string) =>
     call<AuthResponse>('/api/users/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  deleteAccount: (token: string, password: string) =>
+    call<{ ok: boolean; deletedPresentations: number }>('/api/users/me', { method: 'DELETE', body: JSON.stringify({ password }) }, token),
   myPresentations: (token: string) => call<{ data: unknown[] }>('/api/presentations', {}, token),
   createPresentation: (token: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>('/api/presentations', { method: 'POST', body: JSON.stringify(payload) }, token),
