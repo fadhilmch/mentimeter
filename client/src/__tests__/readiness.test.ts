@@ -66,3 +66,12 @@ describe('presenter keyboard', () => {
     expect(key('a')).toBeNull()
   })
 })
+
+describe('deleted presentation detection', () => {
+  it('recognises the errors the server sends when a presentation is gone', async () => {
+    const { isPresentationGone } = await import('../live/errors')
+    expect(isPresentationGone('Presentation is gone')).toBe(true)
+    expect(isPresentationGone('No presentation with that code')).toBe(true)
+    expect(isPresentationGone('Vote failed.')).toBe(false)
+  })
+})

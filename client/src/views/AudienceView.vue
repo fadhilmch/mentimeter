@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isPresentationGone } from '../live/errors'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
@@ -16,6 +17,11 @@ const route = useRoute()
 const live = useLiveStore()
 const code = String(route.params.code)
 const error = ref('')
+// Set once the server says the presentation no longer exists; nothing can be sent after that.
+const ended = ref(false)
+watch(error, (message) => {
+  if (isPresentationGone(message)) ended.value = true
+})
 const draft = ref('')
 const wordDraft = ref('')
 const myVotes = reactive<Record<number, number>>({})
@@ -48,7 +54,7 @@ const pal = computed(() => theme.value.pal)
 const accent = computed(() => slide.value?.design?.accent ?? pal.value[0])
 const onAccent = computed(() => readableOn(accent.value))
 const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
-const votingOpen = computed(() => state.value?.votingOpen !== false)
+const votingOpen = computed(() => state.value?.votingOpen !== false && !ended.value)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const myName = computed(() => localStorage.getItem('livepoll.nickname')?.trim() || aliasFor(participantId()))
 const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
@@ -101,10 +107,15 @@ async function restoreMyAnswers() {
 
 async function choose(optionIndex: number) {
   if (!state.value) return
-  myVotes[state.value.currentSlide] = optionIndex
+  const slideIndex = state.value.currentSlide
+  const previous = myVotes[slideIndex]
+  myVotes[slideIndex] = optionIndex
   try {
-    await live.vote(state.value.currentSlide, optionIndex)
+    await live.vote(slideIndex, optionIndex)
   } catch (err) {
+    // The answer was not saved, so do not keep showing it as locked in.
+    if (previous === undefined) delete myVotes[slideIndex]
+    else myVotes[slideIndex] = previous
     error.value = err instanceof Error ? err.message : 'Vote failed.'
   }
 }
@@ -179,7 +190,8 @@ async function sendRanking() {
       <div class="stage-actions"><ColorModeToggle /></div>
     </header>
   <div class="audience-page">
-    <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
+    <p v-if="ended" class="error-banner" role="alert">This presentation has ended or was deleted. Answers can no longer be sent.</p>
+    <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
     <p v-if="!state" class="connecting">Connecting…</p>
     <template v-else>
       <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
@@ -219,7 +231,7 @@ async function sendRanking() {
           <p v-else-if="votingOpen && myVotes[state.currentSlide] !== undefined" class="muted">
             Answer locked in - tap another option to change it.
           </p>
-          <p v-if="!votingOpen" class="voting-closed">Voting is closed - waiting for the presenter…</p>
+          <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
         <template v-else-if="slide.questionType === 'word-cloud'">
@@ -239,7 +251,7 @@ async function sendRanking() {
           <div v-else-if="cloudWords.length" class="cloud-box" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
           </div>
-          <p v-if="!votingOpen" class="voting-closed">Voting is closed - waiting for the presenter…</p>
+          <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
         <template v-else-if="slide.questionType === 'rating'">
@@ -258,7 +270,7 @@ async function sendRanking() {
           </div>
           <p v-if="myRatings[state.currentSlide]" class="muted">You rated {{ myRatings[state.currentSlide] }} of 10 - tap again to change it.</p>
           <p v-if="resultsVisible && slide.tally" class="muted">Room average: {{ slide.tally.average }} from {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}.</p>
-          <p v-if="!votingOpen" class="voting-closed">Voting is closed - waiting for the presenter…</p>
+          <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
         <template v-else-if="slide.questionType === 'ranking'">
@@ -290,7 +302,7 @@ async function sendRanking() {
             {{ optionsOf().length - rankingDraft.length }} left to place.
           </p>
           <p v-if="submittedRankings[state.currentSlide]" class="muted">Ranking sent - reorder and send again to change it.</p>
-          <p v-if="!votingOpen" class="voting-closed">Voting is closed - waiting for the presenter…</p>
+          <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
         <template v-else>
@@ -312,7 +324,7 @@ async function sendRanking() {
               </button>
             </div>
           </div>
-          <p v-if="!votingOpen" class="voting-closed">Voting is closed - waiting for the presenter…</p>
+          <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
       </template>
       <p v-else class="muted">Waiting for the presenter…</p>

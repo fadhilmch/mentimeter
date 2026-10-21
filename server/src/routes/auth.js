@@ -63,8 +63,19 @@ authRouter.delete('/me', authLimiter, authenticate, validate(deleteAccountSchema
     if (!(await bcrypt.compare(req.body.password, user.passwordHash))) {
       return res.status(403).json({ message: 'Wrong password' });
     }
+    // Two steps without a transaction (so no replica set is required). Presentations go first so
+    // none are left without an owner. If the second step fails, the presentations are already
+    // gone but the account remains, and repeating the request finishes the job.
     const { deletedCount } = await Presentation.deleteMany({ owner: user._id });
-    await User.deleteOne({ _id: user._id });
+    try {
+      await User.deleteOne({ _id: user._id });
+    } catch (err) {
+      console.error('Account deletion: presentations removed, account removal failed', err);
+      return res.status(500).json({
+        message: 'Your presentations were deleted, but the account could not be removed yet. Please try again.',
+        code: 'ACCOUNT_DELETE_INCOMPLETE',
+      });
+    }
     return res.json({ ok: true, deletedPresentations: deletedCount });
   } catch (err) {
     return next(err);
