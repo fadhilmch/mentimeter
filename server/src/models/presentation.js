@@ -76,6 +76,19 @@ const presentationSchema = new mongoose.Schema(
     location: { type: String, trim: true, maxlength: 120 },
     theme: { type: String, enum: ['iris', 'apricot', 'plum', 'cobalt'], default: 'iris' },
     slides: { type: [slideSchema], default: [] },
+    // Leaderboard names: optional nickname per stable anonymous participant id.
+    participants: {
+      type: [
+        new mongoose.Schema(
+          {
+            participantId: { type: String, required: true },
+            nickname: { type: String, trim: true, maxlength: 24 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     currentSlide: { type: Number, default: 0, min: 0 },
     votingOpen: { type: Boolean, default: true },
     resultsVisible: { type: Boolean, default: true },
