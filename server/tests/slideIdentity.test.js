@@ -64,3 +64,39 @@ describe('slideIdentity', () => {
     expect(removedVotes).toBe(1);
   });
 });
+
+describe('quiz correctOptionId remap', () => {
+  const quizSlide = (id, options, correctOptionId) => ({
+    id,
+    questionType: 'quiz',
+    question: 'Q?',
+    correctOptionId,
+    responses: [],
+    ratings: [],
+    rankings: [],
+    options: options.map(([oid, text, votes]) => ({ id: oid, text, votes: votes ?? [] })),
+  });
+
+  it('keeps the key on an existing option id', () => {
+    const stored = [quizSlide('s1', [['o1', 'a', ['v1']], ['o2', 'b']], 'o2')];
+    const incoming = [{ id: 's1', questionType: 'quiz', question: 'Q?', correctOptionId: 'o2', options: [{ id: 'o1', text: 'a' }, { id: 'o2', text: 'b' }] }];
+    const { merged } = matchSlideUpdate(stored, incoming);
+    expect(merged[0].correctOptionId).toBe('o2');
+    expect(merged[0].options[0].votes).toEqual(['v1']);
+  });
+
+  it('remaps a key pointing at a newly added option by position', () => {
+    const stored = [quizSlide('s1', [['o1', 'a']], undefined)];
+    const incoming = [{ id: 's1', questionType: 'quiz', question: 'Q?', correctOptionId: 'client-temp-id', options: [{ id: 'o1', text: 'a' }, { id: 'client-temp-id', text: 'b' }] }];
+    const { merged } = matchSlideUpdate(stored, incoming);
+    expect(merged[0].correctOptionId).toBe(merged[0].options[1].id);
+    expect(merged[0].correctOptionId).not.toBe('client-temp-id');
+  });
+
+  it('drops a dangling key that matches no incoming option', () => {
+    const stored = [quizSlide('s1', [['o1', 'a']], 'o1')];
+    const incoming = [{ id: 's1', questionType: 'quiz', question: 'Q?', correctOptionId: 'ghost', options: [{ id: 'o1', text: 'a' }] }];
+    const { merged } = matchSlideUpdate(stored, incoming);
+    expect(merged[0].correctOptionId).toBeUndefined();
+  });
+});
