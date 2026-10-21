@@ -5,6 +5,7 @@ import { useLiveStore } from '../stores/live'
 import { getTheme, themeVars } from '../themes'
 import { aliasFor } from '../alias'
 import { participantId } from '../participant'
+import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import type { RankingOption } from '../types'
 
 const route = useRoute()
@@ -286,6 +287,7 @@ async function sendRanking() {
       <ol class="leaderboard-list">
         <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
           <span class="rank-badge">#{{ entry.rank }}</span>
+          <ParticipantAvatar :name="entry.name" :size="28" />
           <span class="lb-name">{{ entry.name }}</span>
           <span class="lb-score">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
         </li>
