@@ -9,7 +9,6 @@ const COLOUR_EXCEPTIONS: Record<string, string> = {
   'components/landing/SamplePreview.vue': 'fixed dark mock of the presenter view, independent of colour mode',
   'components/JoinPanel.vue': 'QR code needs fixed high-contrast black on white to scan',
   'components/ParticipantAvatar.vue': 'white initials on generated gradient',
-  'components/landing/JoinWithCode.vue': 'placeholder tone, to be moved to a token',
 }
 
 function vueFiles(dir: string): string[] {

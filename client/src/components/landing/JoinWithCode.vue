@@ -53,7 +53,7 @@ function submit() {
   flex: 1; min-width: 0; border: 0; box-shadow: none; padding: 0 14px;
   font-size: var(--fs-lg); font-weight: 800; letter-spacing: 0.35em; font-variant-numeric: tabular-nums;
 }
-.code::placeholder { color: #b4b7c0; }
+.code::placeholder { color: var(--placeholder); }
 .code:focus { box-shadow: none; }
 .join:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(91 91 214 / 0.15); }
 .secondary-outline {
