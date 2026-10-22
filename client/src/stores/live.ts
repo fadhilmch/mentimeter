@@ -9,6 +9,8 @@ export const useLiveStore = defineStore('live', {
     state: null as PresentationState | null,
     error: '',
     connected: false,
+    /** Counts successful reconnects, so a view can drop an error that the reconnect has resolved. */
+    reconnects: 0,
   }),
   getters: {
     currentSlide(state) {
@@ -24,6 +26,9 @@ export const useLiveStore = defineStore('live', {
       this.transport = transport;
       transport.onState((state) => {
         this.state = state;
+      });
+      transport.onReconnect?.(() => {
+        this.reconnects += 1;
       });
       try {
         this.state = await transport.join(accessCode);
@@ -41,11 +46,11 @@ export const useLiveStore = defineStore('live', {
     vote(slideIndex: number, optionIndex: number) {
       return this.act({ type: 'vote:cast', slideIndex, optionIndex, participantId: participantId() });
     },
-    respond(slideIndex: number, text: string) {
-      return this.act({ type: 'response:add', slideIndex, text, participantId: participantId() });
+    respond(slideIndex: number, text: string, clientId?: string) {
+      return this.act({ type: 'response:add', slideIndex, text, participantId: participantId(), clientId });
     },
-    upvote(slideIndex: number, responseIndex: number) {
-      return this.act({ type: 'response:upvote', slideIndex, responseIndex, participantId: participantId() });
+    upvote(slideIndex: number, responseIndex: number, on?: boolean) {
+      return this.act({ type: 'response:upvote', slideIndex, responseIndex, participantId: participantId(), on });
     },
     submitWord(slideIndex: number, text: string) {
       return this.act({ type: 'word:submit', slideIndex, text, participantId: participantId() });

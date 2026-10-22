@@ -58,8 +58,8 @@ export interface PresentationState {
 
 export type LiveAction =
   | { type: 'vote:cast'; slideIndex: number; optionIndex: number; participantId: string }
-  | { type: 'response:add'; slideIndex: number; text: string; participantId: string }
-  | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string }
+  | { type: 'response:add'; slideIndex: number; text: string; participantId: string; clientId?: string }
+  | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string; on?: boolean }
   | { type: 'word:submit'; slideIndex: number; text: string; participantId: string }
   | { type: 'rating:cast'; slideIndex: number; value: number; participantId: string }
   | { type: 'ranking:submit'; slideIndex: number; order: string[]; participantId: string }
@@ -69,5 +69,7 @@ export interface LiveTransport {
   join(accessCode: string): Promise<PresentationState>;
   send(action: LiveAction): Promise<void>;
   onState(handler: (state: PresentationState) => void): void;
+  /** Optional: called after a dropped connection is re-established and the room is rejoined. */
+  onReconnect?(handler: () => void): void;
   leave(): void;
 }

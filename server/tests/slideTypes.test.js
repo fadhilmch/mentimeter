@@ -58,6 +58,15 @@ describe('word cloud', () => {
 });
 
 describe('rating', () => {
+  it('averages one rating per participant: a re-rate replaces, it never adds a second entry', () => {
+    const slide = ratingSlide();
+    castRating(slide, 6, 'participant-aaa');
+    castRating(slide, 2, 'participant-aaa');
+    expect(tallySlide(slide)).toMatchObject({ total: 1, average: 2 });
+    castRating(slide, 6, 'participant-bbb');
+    expect(tallySlide(slide)).toMatchObject({ total: 2, average: 4 });
+  });
+
   it('keeps one 1-10 rating per participant, replacing on re-rate', () => {
     const slide = ratingSlide();
     castRating(slide, 8, 'p1');

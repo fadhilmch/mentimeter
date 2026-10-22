@@ -58,6 +58,26 @@ describe('open-ended responses', () => {
     expect(() => addResponse(slide, 'x'.repeat(281), 'p1')).toThrow(RangeError);
   });
 
+  it('stores a retried comment once when it carries the same clientId', () => {
+    const slide = { questionType: 'open-ended', question: 'q', responses: [] };
+    addResponse(slide, 'hello', 'fan-1234', 'send-0001');
+    addResponse(slide, 'hello', 'fan-1234', 'send-0001');
+    expect(slide.responses).toHaveLength(1);
+    addResponse(slide, 'hello', 'fan-1234', 'send-0002');
+    addResponse(slide, 'hello', 'other-12', 'send-0001');
+    expect(slide.responses).toHaveLength(3);
+  });
+
+  it('an upvote that states its wanted result is safe to retry', () => {
+    const slide = { questionType: 'open-ended', question: 'q', responses: [{ text: 'x', authorId: 'author-1', upvotes: [] }] };
+    toggleUpvote(slide, 0, 'fan-1234', true);
+    toggleUpvote(slide, 0, 'fan-1234', true);
+    expect(slide.responses[0].upvotes).toEqual(['fan-1234']);
+    toggleUpvote(slide, 0, 'fan-1234', false);
+    toggleUpvote(slide, 0, 'fan-1234', false);
+    expect(slide.responses[0].upvotes).toEqual([]);
+  });
+
   it('toggles upvotes and blocks self-upvotes', () => {
     const slide = openSlide();
     addResponse(slide, 'idea', 'author');
