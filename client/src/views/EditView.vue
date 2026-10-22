@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { EditHistory } from '../editHistory'
 import { clearDraft, loadDraft, saveDraft } from '../draftStore'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, ApiError } from '../api'
@@ -90,6 +91,41 @@ const dirty = ref(false)
 const ready = ref(false)
 const activeSlide = ref(0)
 const copied = ref(false)
+const history = new EditHistory()
+const historyTick = ref(0) // bumps so the buttons re-read canUndo/canRedo
+let restoring = false
+const canUndo = computed(() => (historyTick.value, history.canUndo))
+const canRedo = computed(() => (historyTick.value, history.canRedo))
+const snapshot = () => JSON.stringify({ title: title.value, location: location.value, themeId: themeId.value, slides: slides.value })
+
+function applySnapshot(json: string) {
+  const d = JSON.parse(json) as DraftData
+  restoring = true
+  title.value = d.title
+  location.value = d.location
+  themeId.value = d.themeId
+  slides.value = d.slides
+  if (activeSlide.value >= d.slides.length) activeSlide.value = Math.max(0, d.slides.length - 1)
+  historyTick.value += 1
+  void nextTick(() => { restoring = false })
+}
+function undo() {
+  const s = history.undo()
+  if (s) applySnapshot(s)
+}
+function redo() {
+  const s = history.redo()
+  if (s) applySnapshot(s)
+}
+function onHistoryKey(event: KeyboardEvent) {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return
+  const el = event.target as HTMLElement | null
+  // Inside a text field the browser's own undo handles typing.
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+  event.preventDefault()
+  if (event.shiftKey) redo()
+  else undo()
+}
 const pendingDraft = ref<ReturnType<typeof loadDraft<DraftData>>>(null)
 
 const titleError = computed(() => (title.value.trim() ? '' : 'Give the presentation a title.'))
@@ -125,6 +161,8 @@ function applyLoaded(p: LoadedPresentation) {
   }))
   if (!slides.value.length) addSlide('multiple-choice')
   dirty.value = false
+  restoring = true
+  void nextTick(() => { restoring = false; history.reset(snapshot()); historyTick.value += 1 })
 }
 
 async function reload() {
@@ -150,13 +188,21 @@ onMounted(async () => {
     clearDraft(id)
   }
   window.addEventListener('beforeunload', warnUnsaved)
+  window.addEventListener('keydown', onHistoryKey)
 })
 
-onBeforeUnmount(() => window.removeEventListener('beforeunload', warnUnsaved))
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', warnUnsaved)
+  window.removeEventListener('keydown', onHistoryKey)
+})
 
 watch([title, location, themeId, slides], () => {
   if (!ready.value) return
   dirty.value = true
+  if (!restoring) {
+    history.record(snapshot())
+    historyTick.value += 1
+  }
   if (!pendingDraft.value) {
     saveDraft<DraftData>(id, structureRevision.value, {
       title: title.value,
@@ -407,6 +453,8 @@ async function remove() {
           <h1 style="margin-top:10px;">Edit presentation</h1>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
+          <button class="button ghost" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl+Z)" @click="undo">Undo</button>
+          <button class="button ghost" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" @click="redo">Redo</button>
           <span v-if="savedAt" class="muted">Saved {{ savedAt }}</span>
           <router-link class="button ghost" :to="{ name: 'present', params: { code: accessCode } }">Present</router-link>
           <button class="button danger" @click="remove">Delete</button>
