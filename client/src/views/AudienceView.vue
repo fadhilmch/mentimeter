@@ -362,9 +362,9 @@ async function sendRanking() {
           </div>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the results for now.</p>
           <div v-else-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
-            <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
+            <div v-for="r in slide.responses" :key="r.index" class="response-item">
               <span>{{ r.text }}</span>
-              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${i}`] }" :disabled="!votingOpen" @click="upvote(i)">
+              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${r.index}`] }" :disabled="!votingOpen" @click="upvote(r.index)">
                 ▲ {{ r.upvotes }}
               </button>
             </div>
