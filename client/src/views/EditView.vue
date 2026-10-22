@@ -415,7 +415,7 @@ async function remove() {
                 />
                 <span>correct</span>
               </label>
-              <input v-model="option.text" maxlength="200" :placeholder="`Option ${oi + 1}`" />
+              <input v-model="option.text" maxlength="200" :placeholder="`Option ${oi + 1}`" :aria-label="`Slide ${i + 1}, option ${oi + 1}`" />
               <button class="icon-button" title="Remove option" :aria-label="`Remove option ${oi + 1}`" @click="removeOption(slide, oi)">✕</button>
             </div>
             <button class="button ghost" @click="addOption(slide)">+ Add option</button>

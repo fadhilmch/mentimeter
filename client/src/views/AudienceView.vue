@@ -409,7 +409,7 @@ async function sendRanking() {
 }
 .lb-count {
   font-size: var(--fs-xs);
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   font-variant-numeric: tabular-nums;
 }
 .leaderboard-list {
@@ -466,7 +466,7 @@ async function sendRanking() {
   white-space: nowrap;
 }
 .lb-score.zero {
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .rank-badge {
   width: 26px;

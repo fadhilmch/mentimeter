@@ -48,8 +48,8 @@ async function copy() {
 .join-eyebrow { margin: 0 0 14px; font-weight: 700; color: color-mix(in srgb, var(--t-ink) 65%, transparent); }
 .join-qr { width: 240px; margin: 0 auto; border-radius: var(--radius-lg); overflow: hidden; background: #fff; line-height: 0; }
 .join-qr :deep(svg) { width: 100%; height: auto; display: block; }
-.join-or { margin: var(--space-4) 0 2px; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font-size: var(--fs-base); }
+.join-or { margin: var(--space-4) 0 2px; color: color-mix(in srgb, var(--t-ink) 72%, transparent); font-size: var(--fs-base); }
 .join-code { margin: 0; font-size: 2.2rem; font-weight: 800; letter-spacing: 0.22em; color: var(--t-accink); padding-left: 0.22em; }
-.join-url { margin-top: var(--space-3); border: 0; background: none; color: color-mix(in srgb, var(--t-ink) 60%, transparent); font: inherit; font-size: 0.8rem; cursor: pointer; word-break: break-all; }
+.join-url { margin-top: var(--space-3); border: 0; background: none; color: color-mix(in srgb, var(--t-ink) 72%, transparent); font: inherit; font-size: 0.8rem; cursor: pointer; word-break: break-all; }
 .join-url:hover { color: var(--t-ink); }
 </style>
