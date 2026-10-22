@@ -112,7 +112,16 @@ function quizTally(slide, _quizRevealed) {
 
 /** Audience-safe snapshot: vote identities and response authors never leave the server.
  *  While the presenter hides results, tallies and responses stay on the server too. */
+/**
+ * Slides after the one on screen are not sent to phones: only an id and the question type
+ * (clients use the type, e.g. to know a deck has a quiz). Question text, options and tallies
+ * arrive when the presenter reaches the slide. Set PROJECT_FUTURE_SLIDES=false to send everything,
+ * as before. Past slides stay in full.
+ */
+const futurePlaceholder = (slide) => ({ id: slide.id, questionType: slide.questionType, question: '', future: true });
+
 export function publicState(presentation) {
+  const hideFuture = process.env.PROJECT_FUTURE_SLIDES !== 'false';
   const resultsVisible = presentation.resultsVisible !== false;
   // Quiz integrity: the correct answer, correct counts and the leaderboard only
   // leave the server after the presenter closes voting.
@@ -130,7 +139,7 @@ export function publicState(presentation) {
     moderation: presentation.moderationMode === 'approve' ? 'approve' : 'off',
     // Scores reveal with the answers: only once voting is closed and results are visible.
     leaderboard: quizRevealed && resultsVisible ? computeLeaderboard(presentation) : null,
-    slides: presentation.slides.map((slide) => ({
+    slides: presentation.slides.map((slide, index) => (hideFuture && index > presentation.currentSlide ? futurePlaceholder(slide) : {
       id: slide.id,
       questionType: slide.questionType,
       question: slide.question,
