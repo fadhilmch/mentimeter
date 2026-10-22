@@ -72,6 +72,6 @@ onMounted(async () => {
 
 <style scoped>
 table { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
-th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 caption { text-align: left; padding-bottom: 4px; }
 </style>
