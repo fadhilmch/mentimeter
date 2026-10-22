@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/** Bar length relative to the largest bucket, so a single answer still shows. */
+function barWidth(count: number, all: number[]): number {
+  const max = Math.max(...all, 0)
+  return max ? Math.round((count / max) * 100) : 0
+}
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, downloadCsv } from '../api'
@@ -101,12 +106,13 @@ watch(() => route.fullPath, load)
         <h2>{{ s.index + 1 }}. {{ s.question }}</h2>
         <table v-if="s.options">
           <caption class="muted">{{ s.total }} answers</caption>
-          <thead><tr><th scope="col">Option</th><th scope="col">Votes</th><th scope="col">Share</th></tr></thead>
+          <thead><tr><th scope="col">Option</th><th scope="col">Votes</th><th scope="col">Share</th><th scope="col"><span class="sr-only">Bar</span></th></tr></thead>
           <tbody>
             <tr v-for="(o, k) in s.options" :key="k">
               <td>{{ o.text }}<span v-if="s.correctOptionIndex === k"> (correct)</span></td>
               <td>{{ o.count }}</td>
               <td>{{ o.percent }}%</td>
+              <td class="bar-cell" aria-hidden="true"><span class="bar" :style="{ width: `${o.percent}%` }" /></td>
             </tr>
           </tbody>
         </table>
@@ -115,18 +121,18 @@ watch(() => route.fullPath, load)
           <ul><li v-for="(r, k) in s.topResponses" :key="k">{{ r.text }} ({{ r.upvotes }} upvotes)</li></ul>
         </div>
         <div v-else-if="s.questionType === 'rating' && s.tally">
-          <p class="muted">{{ s.tally.total }} ratings, average {{ s.tally.average }}</p>
+          <p class="muted">{{ s.tally.total }} {{ s.tally.total === 1 ? 'rating' : 'ratings' }}, average {{ s.tally.average }}</p>
           <table>
-            <thead><tr><th scope="col">Rating</th><th scope="col">Count</th></tr></thead>
-            <tbody><tr v-for="(c, k) in (s.tally.buckets as number[])" :key="k"><td>{{ k + 1 }}</td><td>{{ c }}</td></tr></tbody>
+            <thead><tr><th scope="col">Rating</th><th scope="col">Count</th><th scope="col"><span class="sr-only">Bar</span></th></tr></thead>
+            <tbody><tr v-for="(c, k) in (s.tally.buckets as number[])" :key="k"><td>{{ k + 1 }}</td><td>{{ c }}</td><td class="bar-cell" aria-hidden="true"><span class="bar" :style="{ width: `${barWidth(c, s.tally.buckets as number[])}%` }" /></td></tr></tbody>
           </table>
         </div>
         <div v-else-if="s.questionType === 'word-cloud' && s.tally">
-          <p class="muted">{{ s.tally.total }} words</p>
+          <p class="muted">{{ s.tally.total }} {{ s.tally.total === 1 ? 'word' : 'words' }}</p>
           <ul><li v-for="w in (s.tally.words as { word?: string; text?: string; count: number }[])" :key="w.word ?? w.text">{{ w.word ?? w.text }} ({{ w.count }})</li></ul>
         </div>
         <div v-else-if="s.questionType === 'ranking' && s.tally">
-          <p class="muted">{{ s.tally.total }} rankings (higher points = ranked higher)</p>
+          <p class="muted">{{ s.tally.total }} {{ s.tally.total === 1 ? 'ranking' : 'rankings' }} (higher points = ranked higher)</p>
           <ul><li v-for="(p, k) in (s.tally.points as { text?: string; points?: number; optionId?: string }[])" :key="k">{{ p.text ?? p.optionId }}: {{ p.points }}</li></ul>
         </div>
         <pre v-else-if="s.tally" class="muted" style="white-space:pre-wrap;">{{ JSON.stringify(s.tally) }}</pre>
@@ -140,4 +146,7 @@ watch(() => route.fullPath, load)
 table { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 caption { text-align: left; padding-bottom: 4px; }
+.bar-cell { width: 40%; }
+.bar { display: block; height: 10px; min-width: 2px; border-radius: var(--radius-pill); background: var(--accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>

@@ -40,7 +40,7 @@ const myVotes = reactive<Record<number, number>>({})
 const myUpvotes = reactive<Record<string, boolean>>({})
 const myWords = reactive<Record<number, string>>({})
 const myRatings = reactive<Record<number, number>>({})
-interface MyAnswers { vote?: number; rating?: number; word?: string; pending?: boolean; ranking?: string[]; upvotes?: number[] }
+interface MyAnswers { vote?: number; rating?: number; word?: string; pending?: boolean; ranking?: string[]; upvotes?: number[]; upvoteIds?: string[] }
 const rankingDraft = ref<string[]>([])
 const submittedRankings = reactive<Record<number, string[]>>({})
 
@@ -132,7 +132,7 @@ async function restoreMyAnswers() {
       if (mine.word !== undefined) myWords[slideIndex] = mine.word
       if (mine.pending) myPendingWords[slideIndex] = true
       if (mine.ranking) submittedRankings[slideIndex] = mine.ranking
-      for (const responseIndex of mine.upvotes ?? []) myUpvotes[`${slideIndex}:${responseIndex}`] = true
+      for (const ref of mine.upvoteIds ?? mine.upvotes ?? []) myUpvotes[`${slideIndex}:${ref}`] = true
     }
     rankingDraft.value = [...(submittedRankings[state.value?.currentSlide ?? -1] ?? [])]
   } catch {
@@ -168,14 +168,14 @@ async function submitResponse() {
   }
 }
 
-async function upvote(responseIndex: number) {
+async function upvote(target: { id?: string; index: number }) {
   if (!state.value) return
-  const key = `${state.value.currentSlide}:${responseIndex}`
+  const key = `${state.value.currentSlide}:${target.id ?? target.index}`
   error.value = ''
   const want = !myUpvotes[key]
   myUpvotes[key] = want
   try {
-    await live.upvote(state.value.currentSlide, responseIndex, want)
+    await live.upvote(state.value.currentSlide, target, want)
   } catch (err) {
     myUpvotes[key] = !myUpvotes[key]
     error.value = err instanceof Error ? err.message : 'Upvote failed.'
@@ -369,9 +369,9 @@ async function sendRanking() {
           </div>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the results for now.</p>
           <div v-else-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
-            <div v-for="r in slide.responses" :key="r.index" class="response-item">
+            <div v-for="r in slide.responses" :key="r.id ?? r.index" class="response-item">
               <span>{{ r.text }}</span>
-              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${r.index}`] }" :disabled="!votingOpen" @click="upvote(r.index)">
+              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${r.id ?? r.index}`] }" :disabled="!votingOpen" @click="upvote(r)">
                 ▲ {{ r.upvotes }}
               </button>
             </div>

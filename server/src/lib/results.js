@@ -140,7 +140,14 @@ export function addResponse(slide, text, participantId, clientId, status = 'visi
 }
 
 /** `on` states the wanted result (true = upvoted), so a retry cannot undo it. Without `on` it toggles. */
-export function toggleUpvote(slide, responseIndex, participantId, on) {
+export function toggleUpvote(slide, target, participantId, on) {
+  // A string is a stable response id (preferred: it cannot point at a different answer after a reset).
+  // A number is the stored position, kept for clients that predate response ids.
+  let responseIndex = target;
+  if (typeof target === 'string') {
+    responseIndex = slide.responses.findIndex((entry) => entry.id === target);
+    if (responseIndex === -1) throw new RangeError('Response not found');
+  }
   if (!Number.isInteger(responseIndex) || responseIndex < 0 || responseIndex >= slide.responses.length) {
     throw new RangeError('Response index out of range');
   }

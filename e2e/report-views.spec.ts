@@ -22,7 +22,7 @@ test('report shows rating, word cloud and ranking views and CSV downloads', asyn
   await ctx.addInitScript((token) => { localStorage.setItem('livepoll.token', token); localStorage.setItem('livepoll.user', JSON.stringify({ id: 'e2e', username: 'e2e' })) }, deck.token)
   const page = await ctx.newPage()
   await page.goto(`/report/${deck.id}`)
-  await expect(page.getByText('1 ratings, average 8')).toBeVisible()
+  await expect(page.getByText('1 rating, average 8')).toBeVisible()
   await expect(page.getByText('Sunrise (1)')).toBeVisible()
   await expect(page.getByText('Second: 2')).toBeVisible()
   await page.waitForTimeout(600)

@@ -11,6 +11,7 @@ test('presenter sees how many clients are connected', async ({ browser, request 
   await expect(badge).toHaveText('1 connected')
   const phone = await joinAudience(browser, deck.code)
   await expect(badge).toHaveText('2 connected')
+  await presenter.screenshot({ path: '/tmp/presence.png' })
   await phone.context().close()
   await expect(badge).toHaveText('1 connected')
   await ctx.close()

@@ -78,8 +78,9 @@ export const useLiveStore = defineStore('live', {
     respond(slideIndex: number, text: string, clientId?: string) {
       return this.act({ type: 'response:add', slideIndex, text, participantId: participantId(), clientId });
     },
-    upvote(slideIndex: number, responseIndex: number, on?: boolean) {
-      return this.act({ type: 'response:upvote', slideIndex, responseIndex, participantId: participantId(), on });
+    upvote(slideIndex: number, target: { id?: string; index: number }, on?: boolean) {
+      // The stable id wins; the stored position is only for answers saved before ids existed.
+      return this.act({ type: 'response:upvote', slideIndex, ...(target.id ? { responseId: target.id } : { responseIndex: target.index }), participantId: participantId(), on });
     },
     submitWord(slideIndex: number, text: string) {
       return this.act({ type: 'word:submit', slideIndex, text, participantId: participantId() });

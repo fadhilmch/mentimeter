@@ -27,6 +27,8 @@ export function answersFor(presentation, participantId) {
     } else if (slide.questionType === 'open-ended') {
       const upvoted = (slide.responses ?? []).flatMap((entry, i) => ((entry.upvotes ?? []).includes(participantId) && (entry.status ?? 'visible') === 'visible' ? [i] : []));
       if (upvoted.length) mine.upvotes = upvoted;
+      const upvotedIds = (slide.responses ?? []).flatMap((entry) => (entry.id && (entry.upvotes ?? []).includes(participantId) && (entry.status ?? 'visible') === 'visible' ? [entry.id] : []));
+      if (upvotedIds.length) mine.upvoteIds = upvotedIds;
     }
     if (Object.keys(mine).length) answers[index] = mine;
   });

@@ -7,7 +7,7 @@ import { LiveError } from './audience.js';
 export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('vote:cast'), slideIndex: z.number().int().min(0), optionIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('response:add'), slideIndex: z.number().int().min(0), text: z.string().max(280), participantId: z.string().min(6).max(64), clientId: z.string().min(8).max(64).optional() }),
-  z.object({ type: z.literal('response:upvote'), slideIndex: z.number().int().min(0), responseIndex: z.number().int().min(0), participantId: z.string().min(6).max(64), on: z.boolean().optional() }),
+  z.object({ type: z.literal('response:upvote'), slideIndex: z.number().int().min(0), responseIndex: z.number().int().min(0).optional(), responseId: z.string().min(1).max(64).optional(), participantId: z.string().min(6).max(64), on: z.boolean().optional() }).refine((a) => a.responseIndex !== undefined || a.responseId !== undefined, { message: 'responseId is required' }),
   z.object({ type: z.literal('word:submit'), slideIndex: z.number().int().min(0), text: z.string().max(40), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('rating:cast'), slideIndex: z.number().int().min(0), value: z.number().int().min(1).max(10), participantId: z.string().min(6).max(64) }),
   z.object({ type: z.literal('ranking:submit'), slideIndex: z.number().int().min(0), order: z.array(z.string().min(1).max(64)).min(2).max(12), participantId: z.string().min(6).max(64) }),
@@ -86,7 +86,7 @@ export function applyLiveAction(presentation, action) {
       addResponse(presentation.slides[action.slideIndex], action.text, action.participantId, action.clientId, newResponseStatus(presentation));
       return;
     case 'response:upvote':
-      toggleUpvote(presentation.slides[action.slideIndex], action.responseIndex, action.participantId, action.on);
+      toggleUpvote(presentation.slides[action.slideIndex], action.responseId ?? action.responseIndex, action.participantId, action.on);
       return;
     case 'word:submit':
       submitWord(presentation.slides[action.slideIndex], action.text, action.participantId, newResponseStatus(presentation));
@@ -170,7 +170,7 @@ export function publicState(presentation) {
                 ? slide.responses
                     .map((response, index) => ({ response, index }))
                     .filter(({ response }) => isPublicResponse(response)) // pending, hidden and deleted text never leaves the server
-                    .map(({ response: { text, upvotes, createdAt }, index }) => ({ index, text, upvotes: upvotes.length, createdAt })) // index = stored position, the id upvotes address
+                    .map(({ response: { id, text, upvotes, createdAt }, index }) => ({ ...(id ? { id } : {}), index, text, upvotes: upvotes.length, createdAt })) // index = stored position, the id upvotes address
                     .sort((a, b) => b.upvotes - a.upvotes)
                 : [],
               ...(slide.questionType === 'word-cloud' ? { tally: resultsVisible ? tallySlide(slide) : null } : {}),
