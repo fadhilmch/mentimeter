@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { createDeck, joinAudience, poll, presenterAction } from './helpers'
+import { closeAudiences, createDeck, joinAudience, poll, presenterAction } from './helpers'
+
+test.afterEach(closeAudiences)
 
 test('a phone that goes offline says so, shows a banner, and recovers', async ({ browser, request }) => {
   const deck = await createDeck(request, 'E2E offline', [poll('Pick?', ['A', 'B'])])

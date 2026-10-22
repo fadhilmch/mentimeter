@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { createDeck, joinAudience, openEnded, poll, presenterAction, quiz } from './helpers'
+import { closeAudiences, createDeck, joinAudience, openEnded, poll, presenterAction, quiz } from './helpers'
+
+test.afterEach(closeAudiences)
 
 test.describe('critical live flows', () => {
   test('a comment upvote lands on the comment that was tapped, even after the list re-sorts', async ({ browser, request }) => {
