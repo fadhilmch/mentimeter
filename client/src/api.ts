@@ -99,3 +99,15 @@ export const api = {
     call<{ ok: boolean; state: unknown }>(`/api/presentations/${id}/live-actions`, { method: 'POST', body: JSON.stringify(action) }, token),
   joinByCode: (accessCode: string) => call<{ data: { title: string; accessCode: string } }>(`/api/presentations/code/${accessCode}`),
 };
+
+export interface ModerationItem { slideId: string; slideIndex: number; question: string; id: string; status: 'pending' | 'hidden'; text: string; createdAt?: string }
+export interface ModerationQueue { mode: 'off' | 'approve'; items: ModerationItem[]; log: { action: string; at: string }[] }
+export type ModerationAction = 'approve' | 'hide' | 'restore' | 'delete';
+
+export const moderationApi = {
+  queue: (token: string, id: string) => call<{ data: ModerationQueue }>(`/api/presentations/${id}/moderation`, {}, token),
+  setMode: (token: string, id: string, mode: 'off' | 'approve') =>
+    call<{ data: ModerationQueue; state: unknown }>(`/api/presentations/${id}/moderation/mode`, { method: 'POST', body: JSON.stringify({ mode }) }, token),
+  act: (token: string, id: string, slideId: string, responseId: string, action: ModerationAction) =>
+    call<{ data: ModerationQueue; state: unknown }>(`/api/presentations/${id}/moderation/${encodeURIComponent(slideId)}/${encodeURIComponent(responseId)}`, { method: 'POST', body: JSON.stringify({ action }) }, token),
+};

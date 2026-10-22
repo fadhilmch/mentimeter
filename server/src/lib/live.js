@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
-import { castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
+import { isPublicResponse, castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
 import { LiveError } from './audience.js';
 
@@ -21,6 +21,8 @@ export const presenterActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('voting:set'), open: z.boolean() }),
   z.object({ type: z.literal('results:set'), visible: z.boolean() }),
 ]);
+
+const newResponseStatus = (presentation) => (presentation.moderationMode === 'approve' ? 'pending' : 'visible');
 
 /** Applies one validated live action to a presentation document. */
 export function applyLiveAction(presentation, action) {
@@ -81,13 +83,13 @@ export function applyLiveAction(presentation, action) {
       return;
     }
     case 'response:add':
-      addResponse(presentation.slides[action.slideIndex], action.text, action.participantId, action.clientId);
+      addResponse(presentation.slides[action.slideIndex], action.text, action.participantId, action.clientId, newResponseStatus(presentation));
       return;
     case 'response:upvote':
       toggleUpvote(presentation.slides[action.slideIndex], action.responseIndex, action.participantId, action.on);
       return;
     case 'word:submit':
-      submitWord(presentation.slides[action.slideIndex], action.text, action.participantId);
+      submitWord(presentation.slides[action.slideIndex], action.text, action.participantId, newResponseStatus(presentation));
       return;
     case 'rating:cast':
       castRating(presentation.slides[action.slideIndex], action.value, action.participantId);
@@ -124,6 +126,8 @@ export function publicState(presentation) {
     currentSlide: presentation.currentSlide,
     votingOpen: presentation.votingOpen !== false,
     resultsVisible,
+    // Lets the audience say "waiting for approval"; says nothing about any held response.
+    moderation: presentation.moderationMode === 'approve' ? 'approve' : 'off',
     // Scores reveal with the answers: only once voting is closed and results are visible.
     leaderboard: quizRevealed && resultsVisible ? computeLeaderboard(presentation) : null,
     slides: presentation.slides.map((slide) => ({
@@ -153,7 +157,9 @@ export function publicState(presentation) {
           : {
               responses: resultsVisible
                 ? slide.responses
-                    .map(({ text, upvotes, createdAt }, index) => ({ index, text, upvotes: upvotes.length, createdAt })) // index = stored position, the id upvotes address
+                    .map((response, index) => ({ response, index }))
+                    .filter(({ response }) => isPublicResponse(response)) // pending, hidden and deleted text never leaves the server
+                    .map(({ response: { text, upvotes, createdAt }, index }) => ({ index, text, upvotes: upvotes.length, createdAt })) // index = stored position, the id upvotes address
                     .sort((a, b) => b.upvotes - a.upvotes)
                 : [],
               ...(slide.questionType === 'word-cloud' ? { tally: resultsVisible ? tallySlide(slide) : null } : {}),

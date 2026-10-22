@@ -14,13 +14,18 @@ export function answersFor(presentation, participantId) {
       const rating = (slide.ratings ?? []).find((entry) => entry.authorId === participantId);
       if (rating) mine.rating = rating.value;
     } else if (slide.questionType === 'word-cloud') {
-      const word = (slide.responses ?? []).find((entry) => entry.authorId === participantId);
-      if (word) mine.word = word.text;
+      // A participant sees their own word again unless a presenter hid or deleted it. A word
+      // still waiting for approval is returned flagged, so the client does not ask them to resend.
+      const word = (slide.responses ?? []).find((entry) => entry.authorId === participantId && ['visible', 'pending', undefined].includes(entry.status));
+      if (word) {
+        mine.word = word.text;
+        if (word.status === 'pending') mine.pending = true;
+      }
     } else if (slide.questionType === 'ranking') {
       const ranking = (slide.rankings ?? []).find((entry) => entry.authorId === participantId);
       if (ranking) mine.ranking = [...ranking.order];
     } else if (slide.questionType === 'open-ended') {
-      const upvoted = (slide.responses ?? []).flatMap((entry, i) => ((entry.upvotes ?? []).includes(participantId) ? [i] : []));
+      const upvoted = (slide.responses ?? []).flatMap((entry, i) => ((entry.upvotes ?? []).includes(participantId) && (entry.status ?? 'visible') === 'visible' ? [i] : []));
       if (upvoted.length) mine.upvotes = upvoted;
     }
     if (Object.keys(mine).length) answers[index] = mine;

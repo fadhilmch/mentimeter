@@ -13,6 +13,7 @@ import JoinPanel from '../components/JoinPanel.vue'
 import { useColorMode } from '../colorMode'
 import { slideStepForKey } from '../presenterKeys'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
+import ModerationPanel from '../components/ModerationPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -312,6 +313,13 @@ function end() {
             {{ showFullBoard ? 'Show top 5' : `Show all ${live.state.leaderboard.length}` }}
           </button>
         </div>
+
+        <ModerationPanel
+          v-if="state && (slide.questionType === 'open-ended' || slide.questionType === 'word-cloud')"
+          :token="auth.token"
+          :presentation-id="String(state.id)"
+          :slide-index="state.currentSlide"
+        />
 
         <div class="stage-nav">
           <button class="button" :disabled="isFirst" @click="go(-1)">← Previous</button>

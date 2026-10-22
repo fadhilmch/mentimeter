@@ -55,6 +55,8 @@ export interface PresentationState {
   currentSlide: number;
   votingOpen: boolean;
   resultsVisible: boolean;
+  /** 'approve' when the presenter holds new responses until approved. */
+  moderation?: 'off' | 'approve';
   slides: PublicSlide[];
   // Quiz scores: only sent after voting closes and results are visible.
   leaderboard?: LeaderboardEntry[] | null;

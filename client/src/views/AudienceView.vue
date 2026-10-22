@@ -33,11 +33,13 @@ const draft = ref('')
 // acknowledgment reuses it, so the server stores the comment once. Edited text gets a new id.
 const sendIds = new Map<string, string>()
 const wordDraft = ref('')
+// Words the presenter has not approved yet (only the sender is told).
+const myPendingWords = reactive<Record<number, boolean>>({})
 const myVotes = reactive<Record<number, number>>({})
 const myUpvotes = reactive<Record<string, boolean>>({})
 const myWords = reactive<Record<number, string>>({})
 const myRatings = reactive<Record<number, number>>({})
-interface MyAnswers { vote?: number; rating?: number; word?: string; ranking?: string[]; upvotes?: number[] }
+interface MyAnswers { vote?: number; rating?: number; word?: string; pending?: boolean; ranking?: string[]; upvotes?: number[] }
 const rankingDraft = ref<string[]>([])
 const submittedRankings = reactive<Record<number, string[]>>({})
 
@@ -127,6 +129,7 @@ async function restoreMyAnswers() {
       if (mine.vote !== undefined) myVotes[slideIndex] = mine.vote
       if (mine.rating !== undefined) myRatings[slideIndex] = mine.rating
       if (mine.word !== undefined) myWords[slideIndex] = mine.word
+      if (mine.pending) myPendingWords[slideIndex] = true
       if (mine.ranking) submittedRankings[slideIndex] = mine.ranking
       for (const responseIndex of mine.upvotes ?? []) myUpvotes[`${slideIndex}:${responseIndex}`] = true
     }
@@ -185,6 +188,8 @@ async function submitWord() {
   try {
     await live.submitWord(state.value.currentSlide, word)
     myWords[state.value.currentSlide] = word.toLowerCase()
+    if (state.value.moderation === 'approve') myPendingWords[state.value.currentSlide] = true
+    else delete myPendingWords[state.value.currentSlide]
     wordDraft.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
@@ -291,7 +296,7 @@ async function sendRanking() {
               </button>
             </form>
           </div>
-          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}"<template v-if="votingOpen"> - sending a new one replaces it</template>.</p>
+          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}"<template v-if="votingOpen"> - sending a new one replaces it</template>.<template v-if="myPendingWords[state.currentSlide]"> It will show once the presenter approves it.</template></p>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the cloud for now.</p>
           <div v-else-if="cloudWords.length" class="cloud-box" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>

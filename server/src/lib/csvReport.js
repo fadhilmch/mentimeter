@@ -1,4 +1,4 @@
-import { tallySlide } from './results.js';
+import { tallySlide, isPublicResponse } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
 
 /**
@@ -48,20 +48,24 @@ export function summaryCsv(presentation, now = new Date()) {
     } else if (slide.questionType === 'ranking') {
       slide.options.forEach((option, k) => rows.push([...base, option.text, 'borda_points', tally.points?.[k] ?? 0, '']));
     } else {
-      rows.push([...base, '', 'responses', tally.total ?? (slide.responses ?? []).length, '']);
+      rows.push([...base, '', 'responses', tally.total ?? (slide.responses ?? []).filter(isPublicResponse).length, '']);
     }
     rows.push([...base, '', 'answers_total', tally.total ?? '', '']);
   });
   return toCsv(header, rows);
 }
 
-/** Open-ended text with its upvote count and time. Author ids are never included. */
+/**
+ * Open-ended text with its upvote count and time. Author ids are never included.
+ * Inclusion rule: only responses the audience can currently see. Pending, hidden and deleted
+ * responses are left out, and so are they from every count and word-cloud total in the summary.
+ */
 export function responsesCsv(presentation, now = new Date()) {
   const header = ['presentation', 'exported_at_utc', 'slide', 'question', 'response', 'upvotes', 'submitted_at_utc'];
   const rows = [];
   (presentation.slides ?? []).forEach((slide, i) => {
     if (slide.questionType !== 'open-ended') return;
-    for (const r of slide.responses ?? []) {
+    for (const r of (slide.responses ?? []).filter(isPublicResponse)) {
       rows.push([presentation.title, iso(now), i + 1, slide.question, r.text, (r.upvotes ?? []).length, iso(r.createdAt)]);
     }
   });
