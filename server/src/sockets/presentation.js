@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { applyLiveActionByCode, liveActionSchema, publicState, liveChannel } from '../lib/live.js';
+import { guardAudienceAction } from '../lib/audience.js';
 import { publishState } from '../ably.js';
 import { setBroadcaster } from '../lib/broadcast.js';
 
@@ -41,12 +42,13 @@ export function registerPresentationSockets(io) {
       if (!joinedCode) return ack({ ok: false, message: 'Join a presentation first' });
       try {
         const action = liveActionSchema.parse({ type: payload?.type, ...payload });
+        guardAudienceAction({ accessCode: joinedCode, action, token: payload?.token, ip: socket.handshake?.address });
         const presentation = await applyLiveActionByCode(joinedCode, action);
         if (!presentation) return ack({ ok: false, message: 'Presentation is gone' });
         await broadcastState(io, joinedCode);
         return ack({ ok: true });
       } catch (err) {
-        return ack({ ok: false, message: err.message });
+        return ack({ ok: false, message: err.message, ...(err.code ? { code: err.code } : {}), ...(err.retryAfterSeconds ? { retryAfterSeconds: err.retryAfterSeconds } : {}) });
       }
     });
   });

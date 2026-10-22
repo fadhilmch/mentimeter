@@ -63,10 +63,12 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
     async send(action) {
       if (!channel) throw new Error('Join a presentation first');
       const accessCode = channel.name.replace('presentation:', '');
+      // The credential travels in a header, not in the stored body.
+      const { token, ...rest } = action as LiveAction & { token?: string };
       const res = await deps.fetch(`${base}/api/live/${accessCode}/action`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(action),
+        headers: { 'content-type': 'application/json', ...(token ? { 'x-participant-token': token } : {}) },
+        body: JSON.stringify(rest),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

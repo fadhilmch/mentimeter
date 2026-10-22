@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { createLiveTransport } from '../live';
 import type { LiveAction, LiveTransport, PresentationState } from '../types';
-import { participantId } from '../participant';
+import { participantId, participantToken, ensureCredential } from '../participant';
 
 export const useLiveStore = defineStore('live', {
   state: () => ({
@@ -31,6 +31,7 @@ export const useLiveStore = defineStore('live', {
         this.reconnects += 1;
       });
       try {
+        await ensureCredential(accessCode);
         this.state = await transport.join(accessCode);
         this.connected = true;
       } catch (err) {
@@ -41,7 +42,9 @@ export const useLiveStore = defineStore('live', {
     },
     async act(action: LiveAction) {
       if (!this.transport) throw new Error('Not connected');
-      await this.transport.send(action);
+      const code = this.state?.accessCode;
+      const token = code ? participantToken(code) : null;
+      await this.transport.send((token ? { ...action, token } : action) as LiveAction);
     },
     vote(slideIndex: number, optionIndex: number) {
       return this.act({ type: 'vote:cast', slideIndex, optionIndex, participantId: participantId() });
