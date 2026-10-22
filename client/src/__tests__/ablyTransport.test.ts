@@ -7,10 +7,12 @@ const state = { title: 'T' } as unknown as PresentationState
 
 function setup(overrides: { state?: () => Promise<Response> } = {}) {
   const subs: Array<(m: { data: unknown }) => void> = []
+  const ons: Record<string, (change: { resumed: boolean }) => void> = {}
   const channel = {
     name: '',
     subscribe: vi.fn(async (_event: string, fn: (m: { data: unknown }) => void) => { subs.push(fn) }),
     unsubscribe: vi.fn(),
+    on: vi.fn((event: string, fn: (change: { resumed: boolean }) => void) => { ons[event] = fn }),
   }
   let options: any
   const close = vi.fn()
@@ -26,7 +28,7 @@ function setup(overrides: { state?: () => Promise<Response> } = {}) {
     return json({})
   })
   const deps = { Realtime: FakeRealtime, fetch: fetchFn } as unknown as AblyDeps
-  return { deps, channel, subs, close, fetchFn, options: () => options }
+  return { deps, channel, subs, ons, close, fetchFn, options: () => options }
 }
 
 describe('Ably transport', () => {
@@ -88,5 +90,38 @@ describe('Ably transport', () => {
     await transport.join('123456')
     t.fetchFn.mockImplementationOnce(() => Promise.resolve({ ok: false, json: () => Promise.resolve({ message: 'Voting is closed' }) } as Response))
     await expect(transport.send({ type: 'vote:cast' } as never)).rejects.toThrow('Voting is closed')
+  })
+
+  it('reloads the current state when the channel re-attaches without resuming', async () => {
+    const t = setup()
+    const transport = createAblyTransport(t.deps)
+    const seen: unknown[] = []
+    transport.onState((s) => seen.push(s))
+    await transport.join('123456')
+    t.ons.attached({ resumed: false }) // first attach: nothing to recover
+    await Promise.resolve()
+    expect(seen).toEqual([])
+    t.ons.attached({ resumed: true }) // resumed: no gap
+    await Promise.resolve()
+    expect(seen).toEqual([])
+    t.ons.attached({ resumed: false }) // gap: reload
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seen).toEqual([state])
+  })
+
+  it('turns a stalled action into an unknown-outcome message and reloads the saved state', async () => {
+    const t = setup()
+    t.deps.timeoutMs = 20
+    const hang = (_url: string, init?: RequestInit) => new Promise<Response>((_res, rej) => {
+      init?.signal?.addEventListener('abort', () => rej(new DOMException('timed out', 'TimeoutError')))
+    })
+    const transport = createAblyTransport(t.deps)
+    await transport.join('123456')
+    const seen: unknown[] = []
+    transport.onState((s) => seen.push(s))
+    t.fetchFn.mockImplementationOnce(hang as never)
+    await expect(transport.send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'person-1' })).rejects.toThrow("couldn't confirm")
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seen).toEqual([state]) // the authoritative state was fetched, so the screen shows what was saved
   })
 })

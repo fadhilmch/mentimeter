@@ -7,11 +7,27 @@ const base = import.meta.env.VITE_API_URL ?? '';
 export interface AblyDeps {
   Realtime: new (options: Ably.ClientOptions) => Ably.Realtime;
   fetch: typeof fetch;
+  /** Request deadline in ms (default 10s), so a stalled network cannot leave a tap hanging forever. */
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 10_000;
+/** The outcome is unknown: it may have been saved. Never tell the player to just resend. */
+const NO_ANSWER = "We couldn't confirm that your answer arrived. Check the screen before sending it again.";
+
+/** fetch with a deadline: a timeout becomes the same plain message the socket transport uses. */
+async function fetchWithDeadline(deps: AblyDeps, url: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await deps.fetch(url, { ...init, signal: AbortSignal.timeout(deps.timeoutMs ?? DEFAULT_TIMEOUT_MS) });
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) throw new Error(NO_ANSWER);
+    throw err;
+  }
 }
 
 /** Fetches a subscribe-only token request. The server wraps it as `{ tokenRequest }`. */
-async function fetchTokenRequest(doFetch: typeof fetch, accessCode: string) {
-  const res = await doFetch(`${base}/api/live/${accessCode}/token`);
+async function fetchTokenRequest(deps: AblyDeps, accessCode: string) {
+  const res = await fetchWithDeadline(deps, `${base}/api/live/${accessCode}/token`);
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.tokenRequest) throw new Error(body.message ?? 'Could not join');
   return body.tokenRequest as Ably.TokenRequest;
@@ -34,14 +50,21 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
     channel = null;
   };
 
+  async function loadState(accessCode: string): Promise<PresentationState> {
+    const res = await fetchWithDeadline(deps, `${base}/api/live/${accessCode}/state`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.message ?? 'Could not load presentation');
+    return body.data as PresentationState;
+  }
+
   return {
     async join(accessCode) {
       close();
       try {
-        await fetchTokenRequest(deps.fetch, accessCode);
+        await fetchTokenRequest(deps, accessCode);
         client = new deps.Realtime({
           authCallback: (_params, cb) => {
-            fetchTokenRequest(deps.fetch, accessCode).then(
+            fetchTokenRequest(deps, accessCode).then(
               (tokenRequest) => cb(null, tokenRequest),
               (err) => cb(err instanceof Error ? err.message : String(err), null),
             );
@@ -51,10 +74,17 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
         // Subscribe before attaching so no state is missed, and so a handler
         // registered before join keeps working.
         await channel.subscribe('state', listener);
-        const stateRes = await deps.fetch(`${base}/api/live/${accessCode}/state`);
-        const stateBody = await stateRes.json().catch(() => ({}));
-        if (!stateRes.ok) throw new Error(stateBody.message ?? 'Could not load presentation');
-        return stateBody.data as PresentationState;
+        const initial = await loadState(accessCode);
+        // After a dropped connection Ably may re-attach without the missed messages. Reload the
+        // current state then, so a phone never keeps showing a slide the presenter already left.
+        let attachedOnce = false;
+        channel.on('attached', (change) => {
+          if (attachedOnce && !change.resumed) {
+            loadState(accessCode).then((fresh) => handler?.(fresh), () => { /* the next state message or reconnect retries */ });
+          }
+          attachedOnce = true;
+        });
+        return initial;
       } catch (err) {
         close();
         throw err;
@@ -65,11 +95,21 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
       const accessCode = channel.name.replace('presentation:', '');
       // The credential travels in a header, not in the stored body.
       const { token, ...rest } = action as LiveAction & { token?: string };
-      const res = await deps.fetch(`${base}/api/live/${accessCode}/action`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...(token ? { 'x-participant-token': token } : {}) },
-        body: JSON.stringify(rest),
-      });
+      let res: Response;
+      try {
+        res = await fetchWithDeadline(deps, `${base}/api/live/${accessCode}/action`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { 'x-participant-token': token } : {}) },
+          body: JSON.stringify(rest),
+        });
+      } catch (err) {
+        // Unknown outcome. Pull the authoritative state so the screen shows what was saved,
+        // then let the caller report the uncertainty (best effort: the resync itself may fail too).
+        if (err instanceof Error && err.message === NO_ANSWER) {
+          loadState(accessCode).then((fresh) => handler?.(fresh), () => {});
+        }
+        throw err;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message ?? 'Action failed');

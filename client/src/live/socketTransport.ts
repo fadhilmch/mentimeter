@@ -70,7 +70,7 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
     },
     async send(action: LiveAction) {
       if (dropped) await untilRejoined(); // otherwise emit immediately
-      const res = await emit<ActionAck>('live:action', action, 'No answer from the server. Your answer may not have been saved, try again.');
+      const res = await emit<ActionAck>('live:action', action, "We couldn't confirm that your answer arrived. Check the screen before sending it again.");
       if (!res.ok) throw new Error(res.message ?? 'Action failed');
     },
     onState(next) {
