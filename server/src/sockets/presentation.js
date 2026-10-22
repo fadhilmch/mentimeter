@@ -15,6 +15,16 @@ async function broadcastState(io, accessCode) {
   await publishState(accessCode, state);
 }
 
+// Connected clients in a room. This is not the number of people who answered:
+// the tally already reports unique submitters. Counts sockets on this process only.
+function roomSize(io, accessCode) {
+  return io.sockets.adapter.rooms.get(liveChannel(accessCode))?.size ?? 0;
+}
+
+function emitPresence(io, accessCode) {
+  io.to(liveChannel(accessCode)).emit('presence:update', { connected: roomSize(io, accessCode) });
+}
+
 /**
  * Live room protocol over Socket.IO (self-hosted transport).
  * One room per access code; mutations persist first, then a fresh snapshot is broadcast.
@@ -29,12 +39,25 @@ export function registerPresentationSockets(io) {
         const { accessCode } = joinSchema.parse(payload);
         const presentation = await Presentation.findOne({ accessCode });
         if (!presentation) return ack({ ok: false, message: 'No presentation with that code' });
-        if (joinedCode) socket.leave(liveChannel(joinedCode));
+        const previous = joinedCode;
+        if (previous) {
+          await socket.leave(liveChannel(previous));
+          emitPresence(io, previous);
+        }
         joinedCode = accessCode;
         await socket.join(liveChannel(accessCode));
-        return ack({ ok: true, state: publicState(presentation) });
+        emitPresence(io, accessCode);
+        return ack({ ok: true, state: publicState(presentation), presence: { connected: roomSize(io, accessCode) } });
       } catch (err) {
         return ack({ ok: false, message: err.message });
+      }
+    });
+
+    socket.on('disconnecting', () => {
+      if (joinedCode) {
+        const code = joinedCode;
+        // The socket is still in the room during 'disconnecting'; report the count without it.
+        io.to(liveChannel(code)).emit('presence:update', { connected: Math.max(0, roomSize(io, code) - 1) });
       }
     });
 

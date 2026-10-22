@@ -65,4 +65,25 @@ describe('live room protocol', () => {
     audience.close();
     presenter.close();
   }, 20000);
+
+  it('reports connected clients separately from submitters', async () => {
+    const signup = await request(app).post('/api/users/signup').send({ username: `p${Date.now()}`, password: 'super-secret-1' });
+    const created = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${signup.body.token}`)
+      .send({ title: 'Presence', slides: [{ questionType: 'multiple-choice', question: 'Q?', options: ['a', 'b'] }] });
+    const accessCode = created.body.data.accessCode;
+    const a = clientIo(`http://127.0.0.1:${port}`, { transports: ['websocket'] });
+    const b = clientIo(`http://127.0.0.1:${port}`, { transports: ['websocket'] });
+    const first = await emit(a, 'presentation:join', { accessCode });
+    expect(first.presence.connected).toBe(1);
+    const sawTwo = new Promise((resolve) => a.on('presence:update', (p) => p.connected === 2 && resolve(p)));
+    const second = await emit(b, 'presentation:join', { accessCode });
+    expect(second.presence.connected).toBe(2);
+    await sawTwo;
+    const sawOne = new Promise((resolve) => a.on('presence:update', (p) => p.connected === 1 && resolve(p)));
+    b.close();
+    await sawOne;
+    a.close();
+  });
 });
