@@ -205,3 +205,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 The interface uses [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) (SIL Open Font License 1.1, copy in `client/public/fonts/OFL.txt`), served from this app rather than a font CDN. Only Latin characters are included.
 
 Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set. CrowdFlow is an independent project and is not affiliated with or endorsed by Mentimeter.
+
+## Operations
+
+- `GET /api/health` is liveness (the process is up). `GET /api/ready` is readiness: it pings the database and returns 503 when it does not answer. Point load balancer or orchestrator checks at `/api/ready`.
+- `GET /api/presentations` returns metadata only (`title`, `accessCode`, `slideCount`, dates), newest first, paged with `?limit=` (default 24, max 100) and the `nextCursor` it returns. It never includes slides, answers or voter ids.

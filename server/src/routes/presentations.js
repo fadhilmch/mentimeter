@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -72,10 +73,42 @@ export const presentationsRouter = Router();
 
 const codeExists = async (code) => Boolean(await Presentation.exists({ accessCode: code }));
 
+const listQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(24),
+  // Opaque cursor from the previous page: "<createdAt ms>_<id>".
+  cursor: z.string().regex(/^\d+_[a-f0-9]{24}$/).optional(),
+});
+
+/**
+ * Dashboard listing: metadata only, paginated. Slides, answers and voter ids never leave the
+ * database here, so the response size depends on the page size and not on collected answers.
+ */
 presentationsRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const data = await Presentation.find({ owner: req.auth.userId }).sort('-createdAt');
-    return res.json({ data });
+    const parsed = listQuery.safeParse(req.query);
+    if (!parsed.success) return res.status(400).json({ message: 'Invalid paging parameters' });
+    const { limit, cursor } = parsed.data;
+    const owner = new mongoose.Types.ObjectId(req.auth.userId);
+    const match = { owner };
+    if (cursor) {
+      const [ms, id] = cursor.split('_');
+      const at = new Date(Number(ms));
+      const oid = new mongoose.Types.ObjectId(id);
+      match.$or = [{ createdAt: { $lt: at } }, { createdAt: at, _id: { $lt: oid } }];
+    }
+    const [rows, total] = await Promise.all([
+      Presentation.aggregate([
+        { $match: match },
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $limit: limit + 1 },
+        { $project: { title: 1, accessCode: 1, location: 1, theme: 1, createdAt: 1, updatedAt: 1, slideCount: { $size: { $ifNull: ['$slides', []] } } } },
+      ]),
+      Presentation.countDocuments({ owner }),
+    ]);
+    const page = rows.slice(0, limit);
+    const last = page[page.length - 1];
+    const nextCursor = rows.length > limit && last ? `${new Date(last.createdAt).getTime()}_${last._id}` : null;
+    return res.json({ data: page, total, nextCursor });
   } catch (err) {
     return next(err);
   }
