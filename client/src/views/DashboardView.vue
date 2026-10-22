@@ -94,6 +94,19 @@ async function useTemplate(key: string) {
   }
 }
 
+const sessionsOn = ref(false)
+api.features().then((f) => { sessionsOn.value = f.sessions }).catch(() => {})
+
+async function startSession(id: string) {
+  error.value = ''
+  try {
+    const res = await api.startSession(auth.token, id)
+    router.push({ name: 'present', params: { code: res.data.code } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not start a session.'
+  }
+}
+
 async function duplicate(id: string) {
   error.value = ''
   try {
@@ -158,6 +171,7 @@ async function createPresentation() {
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
+          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" @click="startSession(p._id)">Start new session</button>
           <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." @click="duplicate(p._id)">Duplicate</button>
         </div>
         <details class="export-menu">

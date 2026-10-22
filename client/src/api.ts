@@ -91,6 +91,9 @@ export const api = {
   duplicatePresentation: (token: string, id: string) =>
     call<{ data: Record<string, unknown> }>(`/api/presentations/${id}/duplicate`, { method: 'POST' }, token),
   getPresentation: (token: string, id: string) => call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, {}, token),
+  features: () => call<{ sessions: boolean }>('/api/features', {}),
+  startSession: (token: string, presentationId: string) =>
+    call<{ data: { id: string; code: string } }>(`/api/presentations/${presentationId}/sessions`, { method: 'POST' }, token),
   updatePresentation: (token: string, id: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token),
   deletePresentation: (token: string, id: string) =>
