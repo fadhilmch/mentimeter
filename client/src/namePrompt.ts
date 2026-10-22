@@ -3,11 +3,12 @@ export function deckHasQuiz(slides: { questionType: string }[] | undefined): boo
   return (slides ?? []).some((slide) => slide.questionType === 'quiz')
 }
 
-/** Offer the optional name prompt once: quiz decks only, and not if a name is saved or the prompt was dismissed. */
-export function shouldAskForName(
+/** Players must choose a nickname before their first quiz question, and only then (never on polls or plain decks).
+ *  A name saved on this device from an earlier quiz counts as chosen. */
+export function shouldPromptNow(
   slides: { questionType: string }[] | undefined,
+  currentSlide: number,
   savedNickname: string | null | undefined,
-  dismissed: boolean,
 ): boolean {
-  return deckHasQuiz(slides) && !savedNickname?.trim() && !dismissed
+  return slides?.[currentSlide]?.questionType === 'quiz' && !savedNickname?.trim()
 }

@@ -8,8 +8,8 @@ import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import { useColorMode } from '../colorMode'
-import { shouldAskForName } from '../namePrompt'
-import { aliasFor } from '../alias'
+import { shouldPromptNow } from '../namePrompt'
+import { aliasFor, randomNickname } from '../alias'
 import { setThenSave } from '../optimistic'
 import { participantId } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
@@ -68,16 +68,16 @@ const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const savedName = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const myName = computed(() => savedName.value.trim() || aliasFor(participantId()))
 const nameDraft = ref('')
-const nameDismissed = ref(false)
-const askName = computed(() => !!state.value && shouldAskForName(state.value.slides, savedName.value, nameDismissed.value))
+const askName = computed(() => !!state.value && shouldPromptNow(state.value.slides, state.value.currentSlide, savedName.value))
+function generateName() { nameDraft.value = randomNickname() }
 async function saveName() {
   const name = nameDraft.value.trim()
-  if (!name) { nameDismissed.value = true; return }
+  if (!name) return
   try {
     await live.identify(name)
-    savedName.value = name
+    savedName.value = name.slice(0, 24)
   } catch {
-    nameDismissed.value = true // the automatic alias stays; never block answering
+    // Not saved: the card stays so they can try again. Answering is never blocked.
   }
 }
 const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
@@ -226,18 +226,13 @@ async function sendRanking() {
     <template v-else>
       <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
       <form v-if="askName" class="name-card" @submit.prevent="saveName">
-        <label for="leaderboard-name">Pick a name for the leaderboard <span class="muted">(optional)</span></label>
-        <div class="name-row">
-          <ParticipantAvatar :name="nameDraft.trim() || myName" :size="36" />
-          <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
-        </div>
-        <div class="name-actions">
-          <button class="button" type="submit">Save name</button>
-          <button class="button ghost" type="button" @click="nameDismissed = true">Use assigned name</button>
-        </div>
-        <p class="name-hint">Your assigned name is <strong>{{ myName }}</strong>.</p>
+        <label for="leaderboard-name">Choose your nickname</label>
+        <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
+        <button class="button ghost pill" type="button" @click="generateName">&#10024; Generate nickname</button>
+        <p class="name-hint">Up to 24 characters. Shown on the leaderboard.</p>
+        <button class="button block" type="submit" :disabled="!nameDraft.trim()" :style="{ background: accent, color: onAccent }">Save nickname</button>
       </form>
-      <template v-if="slide">
+      <template v-if="slide && !askName">
         <div
           class="audience-slide"
           :class="{ 'has-image': slide.design?.imageUrl, [`layout-${slide.design?.imageLayout ?? 'beside'}`]: slide.design?.imageUrl }"
@@ -402,12 +397,8 @@ async function sendRanking() {
 }
 .name-card label { display: block; font-weight: 700; margin-bottom: var(--space-2); }
 .name-card .muted { color: color-mix(in srgb, var(--t-ink) 72%, transparent); font-weight: 500; }
-.name-row { display: flex; align-items: center; gap: 10px; }
-.name-row input { flex: 1; min-width: 0; }
-.name-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
-.name-hint { margin: var(--space-3) 0 0; font-size: var(--fs-sm); color: color-mix(in srgb, var(--t-ink) 72%, transparent); }
-.name-hint strong { color: var(--t-ink); }
-.name-actions .button.ghost { color: var(--t-ink); border: 1px solid var(--t-track); }
+.name-card input { width: 100%; }
+.name-card .pill { display: inline-flex; margin-top: var(--space-2); border: 1px solid var(--t-track); color: var(--t-ink); border-radius: var(--radius-pill); font-size: var(--fs-sm); }
 .cloud-box {
   margin-top: 18px;
   padding: 18px;
