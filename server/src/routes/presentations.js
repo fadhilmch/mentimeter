@@ -356,7 +356,11 @@ presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req
 presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, next) => {
   try {
     const action = presenterActionSchema.parse(req.body);
-    const presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    let presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    // With sessions on, the presenter screen addresses a run by the id in its state (a session id).
+    if (!presentation && process.env.SESSIONS_ENABLED === 'true' && mongoose.isValidObjectId(req.params.id)) {
+      presentation = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId, status: 'active' });
+    }
     if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
     applyLiveAction(presentation, action);
     const data = await presentation.save();

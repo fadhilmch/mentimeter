@@ -22,7 +22,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm --prefix server run dev:memory',
-    env: { PORT: String(PORT) },
+    env: { PORT: String(PORT), SESSIONS_ENABLED: process.env.E2E_SESSIONS === 'true' ? 'true' : 'false' },
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

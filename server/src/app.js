@@ -43,6 +43,7 @@ export function createApp() {
       return res.status(503).json({ status: 'unavailable' });
     }
   });
+  app.get('/api/features', (_req, res) => res.json({ sessions: process.env.SESSIONS_ENABLED === 'true' }));
   app.use('/api/users', authRouter);
   app.use('/api/presentations', presentationsRouter);
   app.use('/api/live', liveRouter);
