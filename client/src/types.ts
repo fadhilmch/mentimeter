@@ -79,6 +79,8 @@ export interface LiveTransport {
   onState(handler: (state: PresentationState) => void): void;
   /** Optional: called after a dropped connection is re-established and the room is rejoined. */
   onReconnect?(handler: () => void): void;
+  /** Connected-client count for the room. Only the Socket.IO transport has it (one server process). */
+  onPresence?(handler: (connected: number) => void): void;
   /** Optional: reports connected / reconnecting / offline the same way for every transport. */
   onConnection?(handler: (state: ConnectionState) => void): void;
   leave(): void;
