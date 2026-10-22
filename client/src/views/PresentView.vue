@@ -57,7 +57,13 @@ const isFirst = computed(() => (state.value?.currentSlide ?? 0) <= 0)
 const isLast = computed(() => !!state.value && state.value.currentSlide >= state.value.slides.length - 1)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const accent = computed(() => slide.value?.design?.accent ?? null)
-const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
+// Medal colours come from the theme palette. On the light stage they are mixed toward the ink so
+// the rank number stays readable (the bright palette colours are only 1.4-2.6:1 on white).
+const rankColor = (rank: number): string | undefined => {
+  if (rank < 1 || rank > 3) return undefined
+  const colour = pal.value[rank + 1]
+  return mode.value === 'light' ? `color-mix(in srgb, ${colour} 40%, var(--t-ink))` : colour
+}
 
 function optionsOf(): RankingOption[] {
   const s = slide.value
@@ -356,7 +362,7 @@ function end() {
   font-weight: 800;
   font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--t-ink) 55%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .lb-name {
   font-weight: 700;
