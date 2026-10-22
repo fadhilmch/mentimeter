@@ -4,10 +4,12 @@ import { applyLiveActionByCode, liveActionSchema, publicState, liveChannel } fro
 import { guardAudienceAction } from '../lib/audience.js';
 import { publishState } from '../ably.js';
 import { setBroadcaster } from '../lib/broadcast.js';
+import { createCoalescer } from '../lib/coalesce.js';
+import { logEvent } from '../lib/logEvent.js';
 
 const joinSchema = z.object({ accessCode: z.string().trim().min(1) });
 
-async function broadcastState(io, accessCode) {
+async function sendState(io, accessCode) {
   const presentation = await Presentation.findOne({ accessCode });
   if (!presentation) return;
   const state = publicState(presentation);
@@ -30,7 +32,11 @@ function emitPresence(io, accessCode) {
  * One room per access code; mutations persist first, then a fresh snapshot is broadcast.
  */
 export function registerPresentationSockets(io) {
-  setBroadcaster((accessCode) => broadcastState(io, accessCode));
+  // BROADCAST_COALESCE_MS=0 (default) sends one snapshot per change, as before. A positive value
+  // collapses bursts into a leading and a trailing snapshot per room.
+  const broadcastState = createCoalescer((accessCode) => sendState(io, accessCode), Number(process.env.BROADCAST_COALESCE_MS ?? 0));
+  const broadcastTo = (_io, accessCode) => broadcastState(accessCode);
+  setBroadcaster((accessCode) => broadcastState(accessCode));
   io.on('connection', (socket) => {
     let joinedCode = null;
 
@@ -68,9 +74,10 @@ export function registerPresentationSockets(io) {
         guardAudienceAction({ accessCode: joinedCode, action, token: payload?.token, ip: socket.handshake?.address });
         const presentation = await applyLiveActionByCode(joinedCode, action);
         if (!presentation) return ack({ ok: false, message: 'Presentation is gone' });
-        await broadcastState(io, joinedCode);
+        await broadcastTo(io, joinedCode);
         return ack({ ok: true });
       } catch (err) {
+        logEvent('warn', 'live.action.failed', { room: joinedCode, action: payload?.type, code: err.code ?? null, reason: String(err.message).slice(0, 120) });
         return ack({ ok: false, message: err.message, ...(err.code ? { code: err.code } : {}), ...(err.retryAfterSeconds ? { retryAfterSeconds: err.retryAfterSeconds } : {}) });
       }
     });
