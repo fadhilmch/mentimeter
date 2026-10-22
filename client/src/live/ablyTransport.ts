@@ -12,7 +12,8 @@ export interface AblyDeps {
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
-const NO_ANSWER = 'No answer from the server. Your answer may not have been saved, try again.';
+/** The outcome is unknown: it may have been saved. Never tell the player to just resend. */
+const NO_ANSWER = "We couldn't confirm that your answer arrived. Check the screen before sending it again.";
 
 /** fetch with a deadline: a timeout becomes the same plain message the socket transport uses. */
 async function fetchWithDeadline(deps: AblyDeps, url: string, init: RequestInit = {}): Promise<Response> {
@@ -92,11 +93,21 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
     async send(action) {
       if (!channel) throw new Error('Join a presentation first');
       const accessCode = channel.name.replace('presentation:', '');
-      const res = await fetchWithDeadline(deps, `${base}/api/live/${accessCode}/action`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(action),
-      });
+      let res: Response;
+      try {
+        res = await fetchWithDeadline(deps, `${base}/api/live/${accessCode}/action`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(action),
+        });
+      } catch (err) {
+        // Unknown outcome. Pull the authoritative state so the screen shows what was saved,
+        // then let the caller report the uncertainty (best effort: the resync itself may fail too).
+        if (err instanceof Error && err.message === NO_ANSWER) {
+          loadState(accessCode).then((fresh) => handler?.(fresh), () => {});
+        }
+        throw err;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message ?? 'Action failed');
