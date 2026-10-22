@@ -27,3 +27,9 @@ A deck, its answers, its participants and its join code are one document. Runnin
 
 ## Not decided yet
 Retention period for ended sessions, whether decks keep a "current session" pointer, and whether the audience page URL should include a session id.
+
+## Lifecycle routes (flagged off by default)
+
+With `SESSIONS_ENABLED=true`: `POST /api/presentations/:id/sessions` (start, or run again: new code, blank answers, snapshot of the deck), `GET /api/presentations/:id/sessions`, `POST /api/sessions/:sid/end`, `/archive`, `DELETE /api/sessions/:sid` (active sessions must be ended first). Owner only. Deck codes and active session codes never collide.
+
+Still not done: audience join and live actions against a session (answers still go to the deck), session-bound participant credentials, retention/expiry, UI. Turning the flag on in production is an owner decision, after the migration dry run.

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
+import { LiveSession } from '../models/liveSession.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { validate } from '../middleware/validate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
@@ -74,7 +75,8 @@ const updateSchema = z.object({
 
 export const presentationsRouter = Router();
 
-const codeExists = async (code) => Boolean(await Presentation.exists({ accessCode: code }));
+const codeExists = async (code) =>
+  Boolean((await Presentation.exists({ accessCode: code })) || (await LiveSession.exists({ code, status: 'active' })));
 
 const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(24),
