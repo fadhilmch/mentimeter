@@ -146,7 +146,7 @@ export function publicState(presentation) {
           : {
               responses: resultsVisible
                 ? slide.responses
-                    .map(({ text, upvotes, createdAt }) => ({ text, upvotes: upvotes.length, createdAt }))
+                    .map(({ text, upvotes, createdAt }, index) => ({ index, text, upvotes: upvotes.length, createdAt })) // index = stored position, the id upvotes address
                     .sort((a, b) => b.upvotes - a.upvotes)
                 : [],
               ...(slide.questionType === 'word-cloud' ? { tally: resultsVisible ? tallySlide(slide) : null } : {}),

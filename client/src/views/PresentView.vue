@@ -281,7 +281,7 @@ function end() {
 
         <template v-else-if="slide.responses">
           <div class="response-list">
-            <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
+            <div v-for="r in slide.responses" :key="r.index" class="response-item">
               <span>{{ r.text }}</span>
               <span class="upvote-count">▲ {{ r.upvotes }}</span>
             </div>
