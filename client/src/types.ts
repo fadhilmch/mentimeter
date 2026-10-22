@@ -38,6 +38,8 @@ export interface PublicSlide {
 }
 
 export interface LeaderboardEntry {
+  /** Opaque per-room player label; unlike `name` it is unique. */
+  key: string;
   name: string;
   score: number;
   rank: number;

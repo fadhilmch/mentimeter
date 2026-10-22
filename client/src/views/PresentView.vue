@@ -292,7 +292,7 @@ function end() {
             <span class="lb-count">{{ live.state.leaderboard.length }} player{{ live.state.leaderboard.length === 1 ? '' : 's' }}</span>
           </div>
           <ol class="lb-rows">
-            <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.name">
+            <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.key">
               <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
               <ParticipantAvatar :name="entry.name" :size="36" />
               <span class="lb-name">{{ entry.name }}</span>

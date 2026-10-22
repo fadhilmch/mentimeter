@@ -8,7 +8,7 @@ import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import { useColorMode } from '../colorMode'
-import { aliasFor } from '../alias'
+import { aliasFor, playerKey } from '../alias'
 import { setThenSave } from '../optimistic'
 import { participantId } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
@@ -65,7 +65,8 @@ const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 
 const votingOpen = computed(() => state.value?.votingOpen !== false && !ended.value)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const myName = computed(() => localStorage.getItem('livepoll.nickname')?.trim() || aliasFor(participantId()))
-const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
+const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
+const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.key === myKey.value) ?? null)
 
 // Start each slide's ranking with a clean slate.
 watch(
@@ -350,10 +351,10 @@ async function sendRanking() {
         <span class="lb-count">{{ state.leaderboard.length }} player{{ state.leaderboard.length === 1 ? '' : 's' }}</span>
       </div>
       <ol class="leaderboard-list">
-        <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
+        <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.key" :class="{ me: entry.key === myKey }">
           <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
           <ParticipantAvatar :name="entry.name" :size="32" />
-          <span class="lb-name">{{ entry.name }}<span v-if="entry.name === myName" class="you-chip">You</span></span>
+          <span class="lb-name">{{ entry.name }}<span v-if="entry.key === myKey" class="you-chip">You</span></span>
           <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
         </li>
       </ol>
