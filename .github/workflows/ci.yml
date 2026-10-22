@@ -37,3 +37,28 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  e2e:
+    # Critical presenter/audience flows in a real browser against the in-memory server.
+    # Uses no live credentials; real Ably is not exercised here (see CONTRIBUTING.md).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm ci --prefix client
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        timeout-minutes: 10
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-report
+          path: |
+            e2e-report
+            test-results
+          retention-days: 7
