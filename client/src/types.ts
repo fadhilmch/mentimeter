@@ -34,7 +34,7 @@ export interface PublicSlide {
   options?: string[] | RankingOption[];
   design?: SlideDesign;
   tally?: Tally | null;
-  responses?: { text: string; upvotes: number; createdAt: string }[];
+  responses?: { index: number; text: string; upvotes: number; createdAt: string }[];
 }
 
 export interface LeaderboardEntry {
