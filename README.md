@@ -210,3 +210,10 @@ Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026
 
 - `GET /api/health` is liveness (the process is up). `GET /api/ready` is readiness: it pings the database and returns 503 when it does not answer. Point load balancer or orchestrator checks at `/api/ready`.
 - `GET /api/presentations` returns metadata only (`title`, `accessCode`, `slideCount`, dates), newest first, paged with `?limit=` (default 24, max 100) and the `nextCursor` it returns. It never includes slides, answers or voter ids.
+## CSV export
+
+`GET /api/presentations/<id>/export.csv?kind=summary|responses|leaderboard` (owner only, also on the dashboard). It is a snapshot of the results at that moment, not a frozen report: live sessions are not yet separate from decks.
+- `summary`: one row per answer item (votes and percent, word counts, rating average and buckets, ranking points, quiz correct flag once revealed). No participant ids or names.
+- `responses`: written answers with upvotes and UTC time. No author ids.
+- `leaderboard`: quiz rank, name and score. Names are what players chose, so this is its own export.
+UTF-8 with a byte-order mark, UTC timestamps. Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading apostrophe so spreadsheets do not run them as formulas. The response is `private, no-store`. "Answers" means stored submissions, not connected clients and not distinct people. The file is built in memory, which is fine for a deck of at most 50 slides but is not streamed.
