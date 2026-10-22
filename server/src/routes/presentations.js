@@ -7,6 +7,7 @@ import { validate } from '../middleware/validate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { ensureSlideIds, hasUnidentifiedSlides, matchSlideUpdate, stampSlideIdsIfMissing } from '../lib/slideIdentity.js';
 import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { tallySlide } from '../lib/results.js';
 import { summaryCsv, responsesCsv, leaderboardCsv } from '../lib/csvReport.js';
 import { templates, templateList } from '../lib/templates.js';
 import { randomUUID } from 'node:crypto';
@@ -231,6 +232,33 @@ presentationsRouter.get('/:id/export.csv', authenticate, async (req, res, next) 
       'X-Content-Type-Options': 'nosniff',
     });
     return res.send(exporters[kind](data));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Owner-only JSON report: the same tallies as the live screen and the CSV, for the report view.
+ * It is a snapshot of the current results; per-session frozen reports need live sessions (docs/live-sessions.md).
+ */
+presentationsRouter.get('/:id/report', authenticate, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    const data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!data) return res.status(404).json({ message: 'Presentation not found' });
+    const slides = data.slides.map((slide, i) => {
+      const tally = tallySlide(slide);
+      const base = { index: i, questionType: slide.questionType, question: slide.question };
+      if (slide.questionType === 'multiple-choice' || slide.questionType === 'quiz') {
+        return { ...base, options: slide.options.map((o, k) => ({ text: o.text, count: tally.counts[k], percent: tally.percentages[k] })), total: tally.total, ...(slide.questionType === 'quiz' ? { correctOptionIndex: tally.correctOptionIndex } : {}) };
+      }
+      if (slide.questionType === 'rating' || slide.questionType === 'ranking' || slide.questionType === 'word-cloud') {
+        return { ...base, tally };
+      }
+      return { ...base, responseCount: slide.responses.length, topResponses: [...slide.responses].sort((a, b) => b.upvotes.length - a.upvotes.length).slice(0, 5).map((r) => ({ text: r.text, upvotes: r.upvotes.length })) };
+    });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ data: { title: data.title, generatedAt: new Date().toISOString(), scope: 'current results of this deck (not separated by session)', slides } });
   } catch (err) {
     return next(err);
   }

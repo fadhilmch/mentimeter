@@ -157,6 +157,7 @@ async function createPresentation() {
         </p>
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
+          <router-link class="button ghost" :to="{ name: 'report', params: { id: p._id } }">Report</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
           <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." @click="duplicate(p._id)">Duplicate</button>
         </div>
