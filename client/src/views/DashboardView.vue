@@ -12,13 +12,16 @@ interface PresentationSummary {
   title: string
   accessCode: string
   location?: string
-  slides: unknown[]
+  slideCount: number
   createdAt: string
 }
 
 const router = useRouter()
 const auth = useAuthStore()
 const presentations = ref<PresentationSummary[]>([])
+const total = ref(0)
+const nextCursor = ref<string | null>(null)
+const loadingMore = ref(false)
 const loading = ref(true)
 const error = ref('')
 const creating = ref(false)
@@ -39,10 +42,27 @@ async function deleteAccount() {
   }
 }
 
+async function loadMore() {
+  if (!nextCursor.value || loadingMore.value) return
+  loadingMore.value = true
+  try {
+    const res = await api.myPresentations(auth.token, nextCursor.value)
+    presentations.value = [...presentations.value, ...(res.data as PresentationSummary[])]
+    total.value = res.total
+    nextCursor.value = res.nextCursor
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not load more presentations.'
+  } finally {
+    loadingMore.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await api.myPresentations(auth.token)
     presentations.value = res.data as PresentationSummary[]
+    total.value = res.total
+    nextCursor.value = res.nextCursor
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load presentations.'
   } finally {
@@ -88,13 +108,16 @@ async function createPresentation() {
         </div>
         <h2>{{ p.title }}</h2>
         <p class="muted" style="margin:0;">
-          {{ p.slides.length }} slide{{ p.slides.length === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
+          {{ p.slideCount }} slide{{ p.slideCount === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
         </p>
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
         </div>
       </div>
+      <button v-if="nextCursor" class="button secondary" style="grid-column:1/-1;justify-self:center;" :disabled="loadingMore" @click="loadMore">
+        {{ loadingMore ? 'Loading…' : `Show more (${total - presentations.length} left)` }}
+      </button>
     </div>
 
     <div v-else class="card empty-state" style="margin-top:var(--space-5);">
@@ -106,7 +129,7 @@ async function createPresentation() {
     <details class="account-delete">
       <summary>Delete account</summary>
       <p class="muted">
-        This permanently deletes your account and all {{ presentations.length }} of your presentations,
+        This permanently deletes your account and all {{ total }} of your presentations,
         with their votes, answers and audience nicknames. It cannot be undone.
       </p>
       <form @submit.prevent="deleteAccount">

@@ -61,7 +61,8 @@ export const api = {
   me: (token: string) => call<{ user: PublicUser }>('/api/users/me', {}, token),
   claimLegacy: (token: string, username: string, password: string) =>
     call<{ user: PublicUser }>('/api/users/claim-legacy', { method: 'POST', body: JSON.stringify({ username, password }) }, token),
-  myPresentations: (token: string) => call<{ data: unknown[] }>('/api/presentations', {}, token),
+  myPresentations: (token: string, cursor?: string | null) =>
+    call<{ data: unknown[]; total: number; nextCursor: string | null }>(`/api/presentations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {}, token),
   createPresentation: (token: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>('/api/presentations', { method: 'POST', body: JSON.stringify(payload) }, token),
   getPresentation: (token: string, id: string) => call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, {}, token),

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import express from 'express';
+import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import { config } from './config.js';
@@ -29,7 +30,18 @@ export function createApp() {
   app.use(cors({ origin: config.clientOrigin === '*' ? true : config.clientOrigin.split(',') }));
   app.use(express.json({ limit: '256kb' }));
 
+  // Liveness: the process is up. Says nothing about the database.
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+  // Readiness: the database answers. Use this for load balancer or orchestrator checks.
+  app.get('/api/ready', async (req, res) => {
+    try {
+      if (mongoose.connection.readyState !== 1) throw new Error('not connected');
+      await mongoose.connection.db.admin().ping();
+      return res.json({ status: 'ready' });
+    } catch {
+      return res.status(503).json({ status: 'unavailable' });
+    }
+  });
   app.use('/api/users', authRouter);
   app.use('/api/presentations', presentationsRouter);
   app.use('/api/live', liveRouter);
