@@ -16,14 +16,20 @@ export function setTokenRefresher(fn: (() => Promise<string | undefined>) | unde
 
 async function call<T>(path: string, options: RequestInit = {}, givenToken?: string): Promise<T> {
   const token = givenToken && tokenRefresher ? ((await tokenRefresher().catch(() => undefined)) ?? givenToken) : givenToken;
-  const res = await fetch(`${base}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...options,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // The browser only says "Failed to fetch". Say what it means for the person using the app.
+    throw new ApiError(0, { message: "Couldn't reach the server. Check your connection and try again." });
+  }
   const body = await res.json().catch(() => ({}));
   if (res.status === 401 && givenToken) onUnauthorized?.();
   if (!res.ok) throw new ApiError(res.status, body);

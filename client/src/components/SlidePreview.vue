@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getTheme, themeVars } from '../themes'
+import { useColorMode } from '../colorMode'
 
 export interface PreviewSlide {
   question: string
@@ -13,9 +14,10 @@ export interface PreviewSlide {
 const props = defineProps<{ slide: PreviewSlide; themeId: string }>()
 
 const theme = computed(() => getTheme(props.themeId))
-const style = computed(() => themeVars(theme.value))
+const { mode } = useColorMode()
+const style = computed(() => themeVars(theme.value, mode.value))
 const pal = computed(() => theme.value.pal)
-const accent = computed(() => props.slide.design?.accent ?? theme.value.acc)
+const accent = computed(() => props.slide.design?.accent ?? themeVars(theme.value, mode.value)['--t-acc'])
 const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].includes(props.slide.questionType))
 </script>
 
@@ -92,7 +94,7 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
   flex-shrink: 0;
 }
 .sp-count {
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   flex-shrink: 0;
 }
 .sp-track {
@@ -102,7 +104,7 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
 }
 .sp-foot {
   margin: var(--space-3) 0 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   font-size: var(--fs-sm);
 }
 .sp-head.has-image:not(.behind) {
