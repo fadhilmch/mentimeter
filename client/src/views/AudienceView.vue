@@ -233,8 +233,9 @@ async function sendRanking() {
         </div>
         <div class="name-actions">
           <button class="button" type="submit">Save name</button>
-          <button class="button ghost" type="button" @click="nameDismissed = true">Keep {{ myName }}</button>
+          <button class="button ghost" type="button" @click="nameDismissed = true">Use assigned name</button>
         </div>
+        <p class="name-hint">Your assigned name is <strong>{{ myName }}</strong>.</p>
       </form>
       <template v-if="slide">
         <div
@@ -404,6 +405,8 @@ async function sendRanking() {
 .name-row { display: flex; align-items: center; gap: 10px; }
 .name-row input { flex: 1; min-width: 0; }
 .name-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.name-hint { margin: var(--space-3) 0 0; font-size: var(--fs-sm); color: color-mix(in srgb, var(--t-ink) 72%, transparent); }
+.name-hint strong { color: var(--t-ink); }
 .name-actions .button.ghost { color: var(--t-ink); border: 1px solid var(--t-track); }
 .cloud-box {
   margin-top: 18px;
