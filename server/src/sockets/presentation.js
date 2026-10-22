@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Presentation } from '../models/presentation.js';
+import { findLiveByCode } from '../lib/liveTarget.js';
 import { applyLiveActionByCode, liveActionSchema, publicState, liveChannel } from '../lib/live.js';
 import { guardAudienceAction } from '../lib/audience.js';
 import { publishState } from '../ably.js';
@@ -8,7 +8,7 @@ import { setBroadcaster } from '../lib/broadcast.js';
 const joinSchema = z.object({ accessCode: z.string().trim().min(1) });
 
 async function broadcastState(io, accessCode) {
-  const presentation = await Presentation.findOne({ accessCode });
+  const presentation = await findLiveByCode(accessCode);
   if (!presentation) return;
   const state = publicState(presentation);
   io.to(liveChannel(accessCode)).emit('presentation:state', state);
@@ -27,7 +27,7 @@ export function registerPresentationSockets(io) {
     socket.on('presentation:join', async (payload, ack = () => {}) => {
       try {
         const { accessCode } = joinSchema.parse(payload);
-        const presentation = await Presentation.findOne({ accessCode });
+        const presentation = await findLiveByCode(accessCode);
         if (!presentation) return ack({ ok: false, message: 'No presentation with that code' });
         if (joinedCode) socket.leave(liveChannel(joinedCode));
         joinedCode = accessCode;

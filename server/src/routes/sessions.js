@@ -6,6 +6,8 @@ import { LiveSession } from '../models/liveSession.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { config } from '../config.js';
+import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { broadcastState } from '../lib/broadcast.js';
 
 /**
  * Owner session lifecycle. Mounted only when SESSIONS_ENABLED=true (see app.js), so production
@@ -118,6 +120,36 @@ sessionsRouter.delete('/sessions/:sid', authenticate, async (req, res, next) => 
     if (s.status === 'active') return res.status(409).json({ message: 'End the session before deleting it' });
     await s.deleteOne();
     return res.status(204).end();
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Presenter controls for one session (slide, voting, results, resets), same actions as the deck route.
+sessionsRouter.post('/sessions/:sid/live-actions', authenticate, async (req, res, next) => {
+  try {
+    const action = presenterActionSchema.parse(req.body);
+    const s = await ownedSession(req);
+    if (!s) return res.status(404).json({ message: 'Session not found' });
+    if (s.status !== 'active') return res.status(409).json({ message: 'This session has ended' });
+    applyLiveAction(s, action);
+    const data = await s.save();
+    const state = publicState(data);
+    await broadcastState(data.code, state);
+    return res.json({ ok: true, state });
+  } catch (err) {
+    if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid action', issues: err.issues });
+    if (err instanceof RangeError || err instanceof TypeError) return res.status(400).json({ message: err.message });
+    return next(err);
+  }
+});
+
+// Current results of a session (owner only). Frozen once it has ended.
+sessionsRouter.get('/sessions/:sid/state', authenticate, async (req, res, next) => {
+  try {
+    const s = await ownedSession(req);
+    if (!s) return res.status(404).json({ message: 'Session not found' });
+    return res.json({ data: publicState(s), status: s.status });
   } catch (err) {
     return next(err);
   }

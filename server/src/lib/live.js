@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Presentation } from '../models/presentation.js';
+import { findLiveByCode } from './liveTarget.js';
 import { castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
 import { LiveError } from './audience.js';
@@ -172,7 +172,7 @@ export const liveChannel = (accessCode) => `presentation:${accessCode}`;
 export async function applyLiveActionByCode(accessCode, action, { maxAttempts = 8 } = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     // Fresh document each attempt: retries re-apply onto the latest state.
-    const presentation = await Presentation.findOne({ accessCode });
+    const presentation = await findLiveByCode(accessCode);
     if (!presentation) return null;
     try {
       applyLiveAction(presentation, action);

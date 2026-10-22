@@ -40,3 +40,28 @@ describe('session lifecycle (flag on)', () => {
     expect((await request(app).post(`/api/sessions/${s.id}/end`)).status).toBe(401);
   });
 });
+
+describe('audience answers go to the session, not the deck', () => {
+  it('keeps each run separate and freezes an ended run', async () => {
+    const { applyLiveActionByCode } = await import('../src/lib/live.js');
+    const run1 = (await as(owner, request(app).post(`/api/presentations/${deck._id}/sessions`))).body.data;
+    const run2 = (await as(owner, request(app).post(`/api/presentations/${deck._id}/sessions`))).body.data;
+    await applyLiveActionByCode(run1.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'p-aaaaaa' });
+    await applyLiveActionByCode(run1.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-bbbbbb' });
+    await applyLiveActionByCode(run2.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-cccccc' });
+    const s1 = (await as(owner, request(app).get(`/api/sessions/${run1.id}/state`))).body.data;
+    const s2 = (await as(owner, request(app).get(`/api/sessions/${run2.id}/state`))).body.data;
+    expect(s1.slides[0].tally.total).toBe(2);
+    expect(s2.slides[0].tally.total).toBe(1);
+    const deckNow = (await request(app).get(`/api/live/${deck.accessCode}/state`)).body.data;
+    expect(deckNow.slides[0].tally.total).toBe(0); // the deck itself is untouched
+
+    // Presenter control is per session; ending releases the code and rejects further control.
+    const toggled = await as(owner, request(app).post(`/api/sessions/${run1.id}/live-actions`)).send({ type: 'results:set', visible: true });
+    expect(toggled.status).toBe(200);
+    await as(owner, request(app).post(`/api/sessions/${run1.id}/end`));
+    expect((await as(owner, request(app).post(`/api/sessions/${run1.id}/live-actions`)).send({ type: 'voting:set', open: true })).status).toBe(409);
+    const afterEnd = (await as(owner, request(app).get(`/api/sessions/${run1.id}/state`))).body.data;
+    expect(afterEnd.slides[0].tally.total).toBe(2); // answers are kept
+  });
+});
