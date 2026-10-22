@@ -27,6 +27,11 @@ export function applyLiveAction(presentation, action) {
   if (mutatesAnswers && presentation.votingOpen === false) {
     throw new TypeError('Voting is closed for this presentation');
   }
+  // The presenter paces the session: answers only count for the question on screen. A late or
+  // replayed answer for another slide is refused, never applied to a different question.
+  if (mutatesAnswers && action.slideIndex !== presentation.currentSlide) {
+    throw new TypeError('That question is no longer on screen');
+  }
   switch (action.type) {
     case 'vote:reset':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');

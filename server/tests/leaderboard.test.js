@@ -145,7 +145,8 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-1' })).toThrow(
       'This question has already been revealed',
     );
-    // The still-sealed future question accepts votes normally.
+    // Once the presenter moves on, the sealed next question accepts votes normally.
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 1 });
     expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 1, optionIndex: 0, participantId: 'p-1' })).not.toThrow();
   });
 
