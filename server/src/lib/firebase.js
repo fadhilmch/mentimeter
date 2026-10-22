@@ -28,9 +28,42 @@ function adminAuth() {
   return getAuth();
 }
 
+/**
+ * Whether the Admin API can answer revocation questions (a service account, or the local emulator).
+ */
+export function canCheckRevocation() {
+  return canDeleteFirebaseUsers();
+}
+
+const LOOKUP_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:lookup';
+
+/**
+ * Keyless revocation check. Firebase's public accounts:lookup accepts the user's own ID token plus the public
+ * web API key. It reports when the account's tokens became valid (`validSince`, moved forward by sign-out
+ * everywhere or a password reset) and whether the account is disabled or gone. A token issued before
+ * `validSince`, or for a missing or disabled account, or when the lookup fails, is rejected. The comparison is the
+ * Admin SDK's own: `auth_time` against the account's tokens-valid-after time (base-auth.js, verifyDecodedJWTNotRevokedOrDisabled).
+ */
+export async function assertNotRevokedKeyless(token, authTime) {
+  const { webApiKey } = config.firebase;
+  if (!webApiKey) throw new Error('FIREBASE_API_KEY is required to check token revocation without a service account');
+  const res = await fetch(`${LOOKUP_URL}?key=${encodeURIComponent(webApiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ idToken: token }),
+  });
+  if (!res.ok) throw Object.assign(new Error('Token is no longer valid'), { code: 'auth/id-token-revoked' });
+  const user = (await res.json()).users?.[0];
+  if (!user || user.disabled || !Number.isFinite(Number(authTime)) || Number(user.validSince ?? 0) > Number(authTime)) {
+    throw Object.assign(new Error('Token is no longer valid'), { code: 'auth/id-token-revoked' });
+  }
+}
+
 /** Verifies a Firebase ID token. `checkRevoked` adds a network lookup, so only sensitive routes use it. */
 export async function verifyFirebaseToken(token, { checkRevoked = false } = {}) {
-  const decoded = await adminAuth().verifyIdToken(token, checkRevoked);
+  const useAdminCheck = checkRevoked && canCheckRevocation();
+  const decoded = await adminAuth().verifyIdToken(token, useAdminCheck);
+  if (checkRevoked && !useAdminCheck) await assertNotRevokedKeyless(token, decoded.auth_time);
   return {
     uid: decoded.uid,
     email: decoded.email ? String(decoded.email).toLowerCase() : undefined,

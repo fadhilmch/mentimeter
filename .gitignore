@@ -8,3 +8,4 @@ coverage/
 *.log
 e2e-report/
 test-results/
+.vercel

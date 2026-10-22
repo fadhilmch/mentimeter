@@ -17,6 +17,8 @@ export const config = {
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID ?? '',
     serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT ?? '',
+    // The public web API key (the same one the browser uses). Lets the server check revocation without a service account.
+    webApiKey: process.env.FIREBASE_API_KEY ?? '',
     // How recently the user must have typed their password to delete the account.
     recentSignInSeconds: Number(process.env.FIREBASE_RECENT_SIGN_IN_SECONDS ?? 300),
   },

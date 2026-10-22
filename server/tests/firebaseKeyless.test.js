@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { canDeleteFirebaseUsers, deleteFirebaseUser, setFirebaseAuthForTests } from '../src/lib/firebase.js';
+import { canCheckRevocation, canDeleteFirebaseUsers, deleteFirebaseUser, setFirebaseAuthForTests, verifyFirebaseToken } from '../src/lib/firebase.js';
 import { config } from '../src/config.js';
 
 describe('Firebase login removal without a service account', () => {
@@ -30,5 +30,19 @@ describe('Firebase login removal without a service account', () => {
   it('treats an already-deleted login as removed', async () => {
     setFirebaseAuthForTests({ deleteUser: async () => { throw Object.assign(new Error('gone'), { code: 'auth/user-not-found' }); } });
     expect(await deleteFirebaseUser('uid1')).toBe(true);
+  });
+
+  it('does not use the Admin revocation lookup without a credential', () => {
+    config.firebase.serviceAccountJson = '';
+    delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    expect(canCheckRevocation()).toBe(false);
+  });
+
+  it('asks for the revocation check when an admin client is available', async () => {
+    const seen = [];
+    setFirebaseAuthForTests({ verifyIdToken: async (_t, revoked) => { seen.push(revoked); return { uid: 'u1' }; } });
+    await verifyFirebaseToken('t', { checkRevoked: true });
+    await verifyFirebaseToken('t');
+    expect(seen).toEqual([true, false]);
   });
 });
