@@ -91,6 +91,9 @@ export const api = {
   duplicatePresentation: (token: string, id: string) =>
     call<{ data: Record<string, unknown> }>(`/api/presentations/${id}/duplicate`, { method: 'POST' }, token),
   getPresentation: (token: string, id: string) => call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, {}, token),
+  sessionAction: (token: string, sid: string, action: 'end' | 'archive') =>
+    call<{ data: unknown }>(`/api/sessions/${sid}/${action}`, { method: 'POST' }, token),
+  deleteSession: (token: string, sid: string) => call<unknown>(`/api/sessions/${sid}`, { method: 'DELETE' }, token),
   getSessionReport: (token: string, sid: string) => call<{ data: Record<string, unknown> }>(`/api/sessions/${sid}/report`, {}, token),
   listSessions: (token: string, presentationId: string) =>
     call<{ data: { id: string; code: string; status: string; startedAt: string; endedAt: string | null }[] }>(`/api/presentations/${presentationId}/sessions`, {}, token),

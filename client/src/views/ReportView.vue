@@ -49,6 +49,17 @@ async function load() {
   }
 }
 
+async function sessionAction(sid: string, action: 'end' | 'archive' | 'delete') {
+  if (action === 'delete' && !window.confirm('Delete this session and all its answers for good?')) return
+  try {
+    if (action === 'delete') await api.deleteSession(auth.token, sid)
+    else await api.sessionAction(auth.token, sid, action)
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not change the session.'
+  }
+}
+
 onMounted(load)
 // The same component serves the deck report and a session report, so reload when the route changes.
 watch(() => route.fullPath, load)
@@ -68,6 +79,9 @@ watch(() => route.fullPath, load)
             <router-link :to="{ name: 'session-report', params: { sid: s.id } }" style="color:var(--accent-strong);">
               {{ new Date(s.startedAt).toLocaleString() }} (code {{ s.code }}, {{ s.status }})
             </router-link>
+            <button v-if="s.status === 'active'" class="button ghost" @click="sessionAction(s.id, 'end')">End</button>
+            <button v-if="s.status === 'ended'" class="button ghost" @click="sessionAction(s.id, 'archive')">Archive</button>
+            <button v-if="s.status !== 'active'" class="button ghost" @click="sessionAction(s.id, 'delete')">Delete</button>
           </li>
         </ul>
       </section>
