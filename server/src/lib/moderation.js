@@ -71,7 +71,7 @@ export function moderationQueue(presentation) {
  * The change runs against the latest stored state each attempt, so a moderation action racing
  * with an upvote or a duplicate submit can neither undo a delete nor touch a different response.
  */
-async function withOwnedPresentation(presentationId, ownerId, mutate, maxAttempts = 6) {
+async function withOwnedPresentation(presentationId, ownerId, mutate, maxAttempts = 12) {
   if (!mongoose.isValidObjectId(presentationId)) throw new ModerationError('Presentation not found', 404);
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     let presentation = await Presentation.findOne({ _id: presentationId, owner: ownerId });
@@ -87,6 +87,9 @@ async function withOwnedPresentation(presentationId, ownerId, mutate, maxAttempt
       return { presentation, result };
     } catch (err) {
       if (err.name !== 'VersionError' || attempt === maxAttempts - 1) throw err;
+      // Jittered, growing backoff. Audience actions are queued per code and keep writing the same
+      // document, so an immediate retry tends to lose the race again. A moderator's action must not.
+      await new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 30 * (attempt + 1)));
     }
   }
   throw new ModerationError('Could not apply the change, try again', 409);

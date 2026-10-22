@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { clearCollections, setupTestApp, teardownTestApp } from './helpers.js';
 import { Presentation } from '../src/models/presentation.js';
@@ -136,11 +136,12 @@ describe('moderation', () => {
     const doc = await Presentation.findById(id);
     const sid = doc.slides[0].id;
     const [r0, r1] = doc.slides[0].responses.map((r) => r.id);
-    await Promise.all([
+    const [deleted] = await Promise.all([
       moderate(id, t, sid, r0, 'delete'),
       ...Array.from({ length: 6 }, (_, i) => act(code, { type: 'response:upvote', slideIndex: 0, responseIndex: 1, participantId: `p-voter${i}` })),
       ...Array.from({ length: 4 }, (_, i) => act(code, { type: 'response:upvote', slideIndex: 0, responseIndex: 0, participantId: `p-late${i}` })),
     ]);
+    expect(deleted.status).toBe(200);
     const after = await Presentation.findById(id);
     const [a, b] = after.slides[0].responses;
     expect(a.id).toBe(r0);
@@ -149,6 +150,35 @@ describe('moderation', () => {
     expect(a.upvotes).toEqual([]);
     expect(b.id).toBe(r1);
     expect(b.upvotes).toHaveLength(6);
+  });
+
+  it('a delete survives more version conflicts than the old retry limit', async () => {
+    const { t, id, code } = await setup();
+    await say(code, 'p-aaaaaa', 'one');
+    const doc = await Presentation.findById(id);
+    const sid = doc.slides[0].id;
+    const rid = doc.slides[0].responses[0].id;
+    const realSave = Presentation.prototype.save;
+    let conflicts = 0;
+    const spy = vi.spyOn(Presentation.prototype, 'save').mockImplementation(function save(...args) {
+      if (conflicts < 8) {
+        conflicts += 1;
+        const err = new Error('conflict');
+        err.name = 'VersionError';
+        return Promise.reject(err);
+      }
+      return realSave.apply(this, args);
+    });
+    try {
+      const res = await moderate(id, t, sid, rid, 'delete');
+      expect(res.status).toBe(200);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(conflicts).toBe(8);
+    const after = await Presentation.findById(id);
+    expect(after.slides[0].responses[0].status).toBe('deleted');
+    expect(after.slides[0].responses[0].text).toBe('');
   });
 
   it('own pending word is returned to its author flagged, hidden is not', async () => {
