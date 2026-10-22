@@ -74,15 +74,18 @@ const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const savedName = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const nameDraft = ref('')
 const askName = computed(() => !!state.value && shouldPromptNow(state.value.slides, state.value.currentSlide, savedName.value))
-function generateName() { nameDraft.value = randomNickname() }
+const nameError = ref('')
+function generateName() { nameDraft.value = randomNickname(); nameError.value = '' }
 async function saveName() {
   const name = nameDraft.value.trim()
   if (!name) return
+  nameError.value = ''
   try {
     await live.identify(name)
     savedName.value = name.slice(0, 24)
   } catch {
-    // Not saved: the card stays so they can try again. Answering is never blocked.
+    // Not saved: the card stays so they can try again.
+    nameError.value = "Couldn't save your nickname. Check your connection and try again."
   }
 }
 const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
@@ -234,9 +237,10 @@ async function sendRanking() {
       <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
       <form v-if="askName" class="name-card" @submit.prevent="saveName">
         <label for="leaderboard-name">Choose your nickname</label>
-        <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
+        <input id="leaderboard-name" v-model="nameDraft" @input="nameError = ''" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
         <button class="button ghost pill" type="button" @click="generateName">&#10024; Generate nickname</button>
         <p class="name-hint">Up to 24 characters. Shown on the leaderboard.</p>
+        <p v-if="nameError" class="error-text" role="alert">{{ nameError }}</p>
         <button class="button block" type="submit" :disabled="!nameDraft.trim()" :style="{ background: accent, color: onAccent }">Save nickname</button>
       </form>
       <template v-if="slide && !askName">
@@ -405,6 +409,8 @@ async function sendRanking() {
 .name-card label { display: block; font-weight: 700; margin-bottom: var(--space-2); }
 .name-card .muted { color: color-mix(in srgb, var(--t-ink) 72%, transparent); font-weight: 500; }
 .name-card input { width: 100%; }
+/* The shared error colour is only 3.9:1 on the card; mix toward the ink so the message stays readable in both modes. */
+.name-card .error-text { color: color-mix(in srgb, var(--danger) 55%, var(--t-ink)); font-size: var(--fs-sm); }
 .name-card .pill { display: inline-flex; margin-top: var(--space-2); border: 1px solid var(--t-track); color: var(--t-ink); border-radius: var(--radius-pill); font-size: var(--fs-sm); }
 .cloud-box {
   margin-top: 18px;
