@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -28,15 +28,30 @@ const report = ref<Report | null>(null)
 const error = ref('')
 const loading = ref(true)
 
-onMounted(async () => {
+const sessions = ref<{ id: string; code: string; status: string; startedAt: string; endedAt: string | null }[]>([])
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  sessions.value = []
   try {
-    report.value = (await api.getReport(auth.token, String(route.params.id))).data as unknown as Report
+    if (typeof route.params.sid === 'string') {
+      report.value = (await api.getSessionReport(auth.token, String(route.params.sid))).data as unknown as Report
+    } else {
+      report.value = (await api.getReport(auth.token, String(route.params.id))).data as unknown as Report
+      // Past runs, when sessions are on. Quietly absent otherwise.
+      api.listSessions(auth.token, String(route.params.id)).then((r) => { sessions.value = r.data }).catch(() => {})
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load the report.'
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
+// The same component serves the deck report and a session report, so reload when the route changes.
+watch(() => route.fullPath, load)
 </script>
 
 <template>
@@ -46,6 +61,16 @@ onMounted(async () => {
     <template v-else-if="report">
       <h1>{{ report.title }}: report</h1>
       <p class="muted">{{ report.scope }}. Generated {{ new Date(report.generatedAt).toLocaleString() }}.</p>
+      <section v-if="sessions.length" class="card" style="margin-top:var(--space-4);" aria-label="Sessions">
+        <h2>Sessions</h2>
+        <ul>
+          <li v-for="s in sessions" :key="s.id">
+            <router-link :to="{ name: 'session-report', params: { sid: s.id } }" style="color:var(--accent-strong);">
+              {{ new Date(s.startedAt).toLocaleString() }} (code {{ s.code }}, {{ s.status }})
+            </router-link>
+          </li>
+        </ul>
+      </section>
       <section v-for="s in report.slides" :key="s.index" class="card" style="margin-top:var(--space-4);">
         <h2>{{ s.index + 1 }}. {{ s.question }}</h2>
         <table v-if="s.options">

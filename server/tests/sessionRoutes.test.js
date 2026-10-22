@@ -65,3 +65,20 @@ describe('audience answers go to the session, not the deck', () => {
     expect(afterEnd.slides[0].tally.total).toBe(2); // answers are kept
   });
 });
+
+describe('session report', () => {
+  it('is per run, and final once the run has ended', async () => {
+    const { applyLiveActionByCode } = await import('../src/lib/live.js');
+    const run = (await as(owner, request(app).post(`/api/presentations/${deck._id}/sessions`))).body.data;
+    await applyLiveActionByCode(run.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'p-report1' });
+    const live = (await as(owner, request(app).get(`/api/sessions/${run.id}/report`))).body.data;
+    expect(live.scope).toMatch(/still running/);
+    expect(live.slides[0].options[0].count).toBe(1);
+    await as(owner, request(app).post(`/api/sessions/${run.id}/end`));
+    await expect(applyLiveActionByCode(run.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-report2' })).resolves.not.toThrow();
+    const done = (await as(owner, request(app).get(`/api/sessions/${run.id}/report`))).body.data;
+    expect(done.scope).toMatch(/final/);
+    expect(done.slides[0].options.map((o) => o.count)).toEqual([1, 0]); // a late vote did not change the ended run
+    expect((await as(other, request(app).get(`/api/sessions/${run.id}/report`))).status).toBe(404);
+  });
+});

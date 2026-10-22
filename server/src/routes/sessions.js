@@ -7,6 +7,7 @@ import { authenticate } from '../middleware/authenticate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { config } from '../config.js';
 import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { reportSlides } from '../lib/report.js';
 import { broadcastState } from '../lib/broadcast.js';
 
 /**
@@ -150,6 +151,31 @@ sessionsRouter.get('/sessions/:sid/state', authenticate, async (req, res, next) 
     const s = await ownedSession(req);
     if (!s) return res.status(404).json({ message: 'Session not found' });
     return res.json({ data: publicState(s), status: s.status });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Report for one run. While the run is active it is live; once ended it is final (the run no longer
+ * accepts answers), and generatedAt/endedAt say when. Separate from the deck and from other runs.
+ */
+sessionsRouter.get('/sessions/:sid/report', authenticate, async (req, res, next) => {
+  try {
+    const s = await ownedSession(req);
+    if (!s) return res.status(404).json({ message: 'Session not found' });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({
+      data: {
+        title: s.title,
+        generatedAt: new Date().toISOString(),
+        scope: s.status === 'active' ? 'this session so far (still running)' : 'this session, final (ended and no longer accepting answers)',
+        status: s.status,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt ?? null,
+        slides: reportSlides(s.slides),
+      },
+    });
   } catch (err) {
     return next(err);
   }

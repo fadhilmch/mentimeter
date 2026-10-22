@@ -24,6 +24,7 @@ export const router = createRouter({
     { path: '/finish-setup', name: 'finish-setup', component: FinishSetupView, meta: { title: 'Finish setting up' } },
     { path: '/move-account', name: 'move-account', component: MoveAccountView, meta: { title: 'Move your account' } },
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { title: 'My presentations', requiresAuth: true } },
+    { path: '/report/session/:sid', name: 'session-report', component: () => import('./views/ReportView.vue'), meta: { title: 'Session report', requiresAuth: true } },
     { path: '/report/:id', name: 'report', component: () => import('./views/ReportView.vue'), meta: { title: 'Report', requiresAuth: true } },
     { path: '/edit/:id', name: 'edit', component: EditView, meta: { title: 'Edit presentation', requiresAuth: true } },
     { path: '/present/:code', name: 'present', component: PresentView, meta: { title: 'Presenting', bare: true } },
