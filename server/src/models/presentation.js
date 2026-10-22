@@ -12,7 +12,12 @@ const optionSchema = new mongoose.Schema(
 
 const responseSchema = new mongoose.Schema(
   {
-    text: { type: String, required: true, trim: true, maxlength: 280 },
+    // Stable identity so moderation and upvotes address one response even as the list changes.
+    id: { type: String },
+    // Cleared when a presenter deletes the response (the slot stays so stored positions never shift).
+    text: { type: String, required: function requiredUnlessDeleted() { return this.status !== 'deleted'; }, trim: true, maxlength: 280 },
+    // Moderation state. A missing value means 'visible' (all data from before moderation).
+    status: { type: String, enum: ['visible', 'pending', 'hidden', 'deleted'], default: 'visible' },
     authorId: { type: String, required: true },
     // Client-chosen id of the send, so a retry after a lost acknowledgment is not stored twice.
     clientId: { type: String },
@@ -49,7 +54,7 @@ const designSchema = new mongoose.Schema(
   { _id: false },
 );
 
-const slideSchema = new mongoose.Schema(
+export const slideSchema = new mongoose.Schema(
   {
     // Stable identity stamped on save; lets edits keep votes/responses attached to the right slide.
     id: { type: String },
@@ -74,6 +79,14 @@ const slideSchema = new mongoose.Schema(
   { _id: false },
 );
 
+export const participantSchema = new mongoose.Schema(
+  {
+    participantId: { type: String, required: true },
+    nickname: { type: String, trim: true, maxlength: 24 },
+  },
+  { _id: false },
+);
+
 const presentationSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 120 },
@@ -83,13 +96,14 @@ const presentationSchema = new mongoose.Schema(
     theme: { type: String, enum: ['iris', 'apricot', 'plum', 'cobalt'], default: 'iris' },
     slides: { type: [slideSchema], default: [] },
     // Leaderboard names: optional nickname per stable anonymous participant id.
-    participants: {
+    participants: { type: [participantSchema], default: [] },
+    // 'off' shows new responses at once (the default). 'approve' holds them until the owner approves.
+    moderationMode: { type: String, enum: ['off', 'approve'], default: 'off' },
+    // Owner, action and time only. Never the response text.
+    moderationLog: {
       type: [
         new mongoose.Schema(
-          {
-            participantId: { type: String, required: true },
-            nickname: { type: String, trim: true, maxlength: 24 },
-          },
+          { owner: { type: String, required: true }, action: { type: String, required: true }, slideId: { type: String }, responseId: { type: String }, at: { type: Date, default: Date.now } },
           { _id: false },
         ),
       ],
@@ -102,8 +116,16 @@ const presentationSchema = new mongoose.Schema(
     // actions do not touch it, so the editor can detect concurrent structural
     // edits without conflicting with live audience activity.
     structureRevision: { type: Number, default: 0 },
+    // Bumped on every successful change to the live state (answers, slide, voting, resets).
+    // Clients use it to ignore a snapshot that arrives after a newer one.
+    liveRevision: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
+
+// Atomic $inc, so two writers cannot both stamp the same stale value + 1.
+presentationSchema.pre('save', function bumpLiveRevision() {
+  if (!this.isNew && this.isModified()) this.$inc('liveRevision', 1);
+});
 
 export const Presentation = mongoose.model('Presentation', presentationSchema);

@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { summarizeConflict } from '../conflictSummary'
+import { EditHistory } from '../editHistory'
+import { clearDraft, loadDraft, saveDraft } from '../draftStore'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, ApiError } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { THEMES } from '../themes'
 import SlidePreview from '../components/SlidePreview.vue'
+import { copySlide } from '../slideCopy'
 
 type SlideType = 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz'
 
@@ -39,7 +43,7 @@ interface LoadedSlide {
 
 const TYPE_META: { type: SlideType; label: string; hint: string; hasOptions: boolean }[] = [
   { type: 'multiple-choice', label: 'Multiple choice', hint: '', hasOptions: true },
-  { type: 'quiz', label: 'Quiz', hint: 'Like multiple choice, but you mark the correct answer. Revealed when results show.', hasOptions: true },
+  { type: 'quiz', label: 'Quiz', hint: 'Like multiple choice, but you mark the correct answer. Revealed when you close voting.', hasOptions: true },
   { type: 'word-cloud', label: 'Word cloud', hint: 'The audience sends single words; repeated words grow bigger.', hasOptions: false },
   { type: 'rating', label: 'Rating', hint: 'The audience rates 1-10; the stage shows the average and spread.', hasOptions: false },
   { type: 'ranking', label: 'Ranking', hint: 'The audience orders your options; points build the final ranking.', hasOptions: true },
@@ -60,6 +64,13 @@ interface LoadedPresentation {
   slides: LoadedSlide[]
 }
 
+interface DraftData {
+  title: string
+  location: string
+  themeId: string
+  slides: EditableSlide[]
+}
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -76,11 +87,49 @@ const saving = ref(false)
 const savedAt = ref('')
 const error = ref('')
 const conflicted = ref(false)
+const conflictLines = ref<string[]>([])
+let conflictTheirs: LoadedPresentation | null = null
 const showValidation = ref(false)
 const dirty = ref(false)
 const ready = ref(false)
 const activeSlide = ref(0)
 const copied = ref(false)
+const history = new EditHistory()
+const historyTick = ref(0) // bumps so the buttons re-read canUndo/canRedo
+let restoring = false
+const canUndo = computed(() => (historyTick.value, history.canUndo))
+const canRedo = computed(() => (historyTick.value, history.canRedo))
+const snapshot = () => JSON.stringify({ title: title.value, location: location.value, themeId: themeId.value, slides: slides.value })
+
+function applySnapshot(json: string) {
+  const d = JSON.parse(json) as DraftData
+  restoring = true
+  title.value = d.title
+  location.value = d.location
+  themeId.value = d.themeId
+  slides.value = d.slides
+  if (activeSlide.value >= d.slides.length) activeSlide.value = Math.max(0, d.slides.length - 1)
+  historyTick.value += 1
+  void nextTick(() => { restoring = false })
+}
+function undo() {
+  const s = history.undo()
+  if (s) applySnapshot(s)
+}
+function redo() {
+  const s = history.redo()
+  if (s) applySnapshot(s)
+}
+function onHistoryKey(event: KeyboardEvent) {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return
+  const el = event.target as HTMLElement | null
+  // Inside a text field the browser's own undo handles typing.
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+  event.preventDefault()
+  if (event.shiftKey) redo()
+  else undo()
+}
+const pendingDraft = ref<ReturnType<typeof loadDraft<DraftData>>>(null)
 
 const titleError = computed(() => (title.value.trim() ? '' : 'Give the presentation a title.'))
 
@@ -115,6 +164,34 @@ function applyLoaded(p: LoadedPresentation) {
   }))
   if (!slides.value.length) addSlide('multiple-choice')
   dirty.value = false
+  restoring = true
+  void nextTick(() => { restoring = false; history.reset(snapshot()); historyTick.value += 1 })
+}
+
+async function keepMine() {
+  if (!conflictTheirs) return
+  structureRevision.value = conflictTheirs.structureRevision ?? 0
+  conflicted.value = false
+  conflictLines.value = []
+  error.value = ''
+  await save()
+}
+
+function useTheirs() {
+  if (!conflictTheirs) return
+  // Keep my edits as a local draft so nothing is lost; the banner offers to restore them.
+  saveDraft<DraftData>(id, conflictTheirs.structureRevision ?? 0, {
+    title: title.value,
+    location: location.value,
+    themeId: themeId.value,
+    slides: JSON.parse(JSON.stringify(slides.value)),
+  })
+  applyLoaded(conflictTheirs)
+  pendingDraft.value = loadDraft<DraftData>(id)
+  conflicted.value = false
+  conflictLines.value = []
+  error.value = ''
+  conflictTheirs = null
 }
 
 async function reload() {
@@ -133,14 +210,52 @@ onMounted(async () => {
     loading.value = false
     ready.value = true
   }
+  const draft = loadDraft<DraftData>(id)
+  if (draft && draft.basedOnRevision === structureRevision.value && JSON.stringify(draft.data.slides) !== JSON.stringify(slides.value)) {
+    pendingDraft.value = draft
+  } else if (draft) {
+    clearDraft(id)
+  }
   window.addEventListener('beforeunload', warnUnsaved)
+  window.addEventListener('keydown', onHistoryKey)
 })
 
-onBeforeUnmount(() => window.removeEventListener('beforeunload', warnUnsaved))
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', warnUnsaved)
+  window.removeEventListener('keydown', onHistoryKey)
+})
 
 watch([title, location, themeId, slides], () => {
-  if (ready.value) dirty.value = true
+  if (!ready.value) return
+  dirty.value = true
+  if (!restoring) {
+    history.record(snapshot())
+    historyTick.value += 1
+  }
+  if (!pendingDraft.value) {
+    saveDraft<DraftData>(id, structureRevision.value, {
+      title: title.value,
+      location: location.value,
+      themeId: themeId.value,
+      slides: JSON.parse(JSON.stringify(slides.value)),
+    })
+  }
 }, { deep: true })
+
+function restoreDraft() {
+  const d = pendingDraft.value
+  if (!d) return
+  title.value = d.data.title
+  location.value = d.data.location
+  themeId.value = d.data.themeId
+  slides.value = d.data.slides
+  pendingDraft.value = null
+}
+
+function discardDraft() {
+  clearDraft(id)
+  pendingDraft.value = null
+}
 
 function warnUnsaved(event: BeforeUnloadEvent) {
   if (dirty.value) event.preventDefault()
@@ -158,6 +273,12 @@ function addSlide(type: SlideType) {
     design: {},
   })
   activeSlide.value = slides.value.length - 1
+}
+
+function duplicateSlide(index: number) {
+  const copy = copySlide(slides.value[index])
+  slides.value.splice(index + 1, 0, copy)
+  activeSlide.value = index + 1
 }
 
 function removeSlide(index: number) {
@@ -271,6 +392,7 @@ async function attemptSave(alreadyRetried = false) {
   try {
     const res = await api.updatePresentation(auth.token, id, savePayload())
     applyLoaded(res.data as unknown as LoadedPresentation)
+    clearDraft(id)
     savedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 409) {
@@ -320,7 +442,16 @@ async function attemptSave(alreadyRetried = false) {
     }
     if (code === 'conflict') {
       conflicted.value = true
-      error.value = 'These slides were changed elsewhere. Reload to see the latest version before saving.'
+      error.value = 'These slides were changed elsewhere. Choose which version to keep.'
+      try {
+        conflictTheirs = (await api.getPresentation(auth.token, id)).data as unknown as LoadedPresentation
+        conflictLines.value = summarizeConflict(
+          { title: title.value, slides: slides.value },
+          { title: conflictTheirs.title, slides: conflictTheirs.slides.map((sl) => ({ ...sl, options: sl.options ?? [] })) },
+        )
+      } catch {
+        conflictLines.value = []
+      }
       return
     }
     error.value = err.message
@@ -332,6 +463,7 @@ async function remove() {
   try {
     await api.deletePresentation(auth.token, id)
     dirty.value = false
+    clearDraft(id)
     router.push({ name: 'dashboard' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not delete.'
@@ -347,6 +479,11 @@ async function remove() {
       <div class="skel skel-card" style="height:120px;"></div>
     </div>
     <template v-else>
+      <div v-if="pendingDraft" class="error-banner" role="status" data-testid="draft-banner">
+        Unsaved changes from {{ new Date(pendingDraft.savedAt).toLocaleString() }} were found in this browser.
+        <button class="button ghost" @click="restoreDraft">Restore</button>
+        <button class="button ghost" @click="discardDraft">Discard</button>
+      </div>
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:var(--space-4); flex-wrap:wrap;">
         <div>
           <span v-if="accessCode" class="code-chip" style="font-weight:800; letter-spacing:0.18em; background:var(--accent-soft); color:var(--accent-strong); padding:5px var(--space-3); border-radius:var(--radius-sm);">{{ accessCode }}</span>
@@ -354,6 +491,8 @@ async function remove() {
           <h1 style="margin-top:10px;">Edit presentation</h1>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
+          <button class="button ghost" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl+Z)" @click="undo">Undo</button>
+          <button class="button ghost" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" @click="redo">Redo</button>
           <span v-if="savedAt" class="muted">Saved {{ savedAt }}</span>
           <router-link class="button ghost" :to="{ name: 'present', params: { code: accessCode } }">Present</router-link>
           <button class="button danger" @click="remove">Delete</button>
@@ -363,8 +502,14 @@ async function remove() {
 
       <p v-if="error" class="error-banner" role="alert">
         {{ error }}
-        <button v-if="conflicted" class="button ghost" style="margin-left:var(--space-2);" @click="reload">Reload</button>
+        <button v-if="conflicted && !conflictLines.length" class="button ghost" style="margin-left:var(--space-2);" @click="reload">Reload</button>
       </p>
+      <div v-if="conflicted && conflictLines.length" class="card" role="group" aria-label="Resolve conflict" data-testid="conflict-panel">
+        <h2>What changed</h2>
+        <ul><li v-for="(line, i) in conflictLines" :key="i">{{ line }}</li></ul>
+        <button class="button" @click="keepMine">Keep my version (replaces the saved one)</button>
+        <button class="button ghost" @click="useTheirs">Use the saved version (my edits stay as a draft)</button>
+      </div>
 
       <div class="card" style="margin-top:20px;">
         <label class="field">
@@ -414,6 +559,7 @@ async function remove() {
             <span style="display:flex; gap:6px;">
               <button class="icon-button" title="Move slide up" :aria-label="`Move slide ${i + 1} up`" :disabled="i === 0" @click="moveSlide(i, -1)">↑</button>
               <button class="icon-button" title="Move slide down" :aria-label="`Move slide ${i + 1} down`" :disabled="i === slides.length - 1" @click="moveSlide(i, 1)">↓</button>
+              <button class="icon-button" title="Duplicate slide" :aria-label="`Duplicate slide ${i + 1}`" @click="duplicateSlide(i)">⧉</button>
               <button class="icon-button" title="Remove slide" :aria-label="`Remove slide ${i + 1}`" @click="removeSlide(i)">✕</button>
             </span>
           </div>
@@ -436,7 +582,7 @@ async function remove() {
               <button class="icon-button" title="Remove option" :aria-label="`Remove option ${oi + 1}`" @click="removeOption(slide, oi)">✕</button>
             </div>
             <button class="button ghost" @click="addOption(slide)">+ Add option</button>
-            <p v-if="slide.questionType === 'quiz'" class="muted" style="margin:6px 0 0;">The correct answer is revealed on stage when results show. Players stay anonymous - the stage shows how many got it right, no named leaderboard.</p>
+            <p v-if="slide.questionType === 'quiz'" class="muted" style="margin:6px 0 0;">The correct answer is revealed when you close voting. After that the stage shows how many got it right and a leaderboard of the names players chose.</p>
           </template>
           <p v-if="typeHint(slide.questionType) && slide.questionType !== 'quiz'" class="muted" style="margin:0;">{{ typeHint(slide.questionType) }}</p>
 

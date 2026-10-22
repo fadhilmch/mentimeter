@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
+import { api, downloadCsv } from '../api'
 import { getTheme } from '../themes'
 import logoUrl from '../assets/logo-mark.svg'
 import { useAuthStore } from '../stores/auth'
@@ -12,13 +12,16 @@ interface PresentationSummary {
   title: string
   accessCode: string
   location?: string
-  slides: unknown[]
+  slideCount: number
   createdAt: string
 }
 
 const router = useRouter()
 const auth = useAuthStore()
 const presentations = ref<PresentationSummary[]>([])
+const total = ref(0)
+const nextCursor = ref<string | null>(null)
+const loadingMore = ref(false)
 const loading = ref(true)
 const error = ref('')
 const creating = ref(false)
@@ -39,16 +42,80 @@ async function deleteAccount() {
   }
 }
 
+async function loadMore() {
+  if (!nextCursor.value || loadingMore.value) return
+  loadingMore.value = true
+  try {
+    const res = await api.myPresentations(auth.token, nextCursor.value)
+    presentations.value = [...presentations.value, ...(res.data as PresentationSummary[])]
+    total.value = res.total
+    nextCursor.value = res.nextCursor
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not load more presentations.'
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+async function exportCsv(id: string, kind: 'summary' | 'responses' | 'leaderboard') {
+  error.value = ''
+  try {
+    await downloadCsv(auth.token, id, kind)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not download the file.'
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await api.myPresentations(auth.token)
     presentations.value = res.data as PresentationSummary[]
+    total.value = res.total
+    nextCursor.value = res.nextCursor
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load presentations.'
   } finally {
     loading.value = false
   }
 })
+
+const templateList = ref<{ key: string; name: string; description: string; slideCount: number }[]>([])
+api.templates(auth.token).then((r) => { templateList.value = r.data }).catch(() => { /* templates are optional */ })
+
+async function useTemplate(key: string) {
+  creating.value = true
+  error.value = ''
+  try {
+    const res = await api.createFromTemplate(auth.token, key)
+    router.push({ name: 'edit', params: { id: String(res.data._id) } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not create from template.'
+    creating.value = false
+  }
+}
+
+const sessionsOn = ref(false)
+api.features().then((f) => { sessionsOn.value = f.sessions }).catch(() => {})
+
+async function startSession(id: string) {
+  error.value = ''
+  try {
+    const res = await api.startSession(auth.token, id)
+    router.push({ name: 'present', params: { code: res.data.code } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not start a session.'
+  }
+}
+
+async function duplicate(id: string) {
+  error.value = ''
+  try {
+    const res = await api.duplicatePresentation(auth.token, id)
+    router.push({ name: 'edit', params: { id: String(res.data._id) } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not duplicate the presentation.'
+  }
+}
 
 async function createPresentation() {
   creating.value = true
@@ -75,6 +142,17 @@ async function createPresentation() {
       </button>
     </div>
 
+    <section v-if="templateList.length" class="templates" aria-label="Start from a template">
+      <h2 class="templates-title">Start from a template</h2>
+      <div class="templates-row">
+        <button v-for="t in templateList" :key="t.key" class="card template-card" :disabled="creating" @click="useTemplate(t.key)">
+          <strong>{{ t.name }}</strong>
+          <span class="muted">{{ t.description }}</span>
+          <span class="muted">{{ t.slideCount }} slides</span>
+        </button>
+      </div>
+    </section>
+
     <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
     <div v-if="loading" class="presentation-grid" aria-label="Loading presentations">
       <div v-for="i in 3" :key="i" class="skel skel-card"></div>
@@ -88,13 +166,27 @@ async function createPresentation() {
         </div>
         <h2>{{ p.title }}</h2>
         <p class="muted" style="margin:0;">
-          {{ p.slides.length }} slide{{ p.slides.length === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
+          {{ p.slideCount }} slide{{ p.slideCount === 1 ? '' : 's' }}<span v-if="p.location"> · {{ p.location }}</span>
         </p>
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
+          <router-link class="button ghost" :to="{ name: 'report', params: { id: p._id } }">Report</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
+          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" @click="startSession(p._id)">Start new session</button>
+          <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." @click="duplicate(p._id)">Duplicate</button>
         </div>
+        <details class="export-menu">
+          <summary class="muted">Download results (CSV)</summary>
+          <div class="export-options">
+            <button class="button ghost" @click="exportCsv(p._id, 'summary')">Results summary</button>
+            <button class="button ghost" @click="exportCsv(p._id, 'responses')">Written responses</button>
+            <button class="button ghost" title="Includes the names players chose" @click="exportCsv(p._id, 'leaderboard')">Quiz scores with names</button>
+          </div>
+        </details>
       </div>
+      <button v-if="nextCursor" class="button secondary" style="grid-column:1/-1;justify-self:center;" :disabled="loadingMore" @click="loadMore">
+        {{ loadingMore ? 'Loading…' : `Show more (${total - presentations.length} left)` }}
+      </button>
     </div>
 
     <div v-else class="card empty-state" style="margin-top:var(--space-5);">
@@ -106,7 +198,7 @@ async function createPresentation() {
     <details class="account-delete">
       <summary>Delete account</summary>
       <p class="muted">
-        This permanently deletes your account and all {{ presentations.length }} of your presentations,
+        This permanently deletes your account and all {{ total }} of your presentations,
         with their votes, answers and audience nicknames. It cannot be undone.
       </p>
       <form @submit.prevent="deleteAccount">
@@ -124,6 +216,14 @@ async function createPresentation() {
 </template>
 
 <style scoped>
+.export-menu { margin-top: var(--space-3, 12px); font-size: 0.875rem; }
+.export-menu summary { cursor: pointer; }
+.export-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.templates { margin: var(--space-4, 16px) 0; }
+.templates-title { font-size: 1rem; margin: 0 0 8px; }
+.templates-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.template-card { display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.template-card:disabled { opacity: 0.6; cursor: default; }
 .account-delete { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); max-width: 420px; }
 .account-delete summary { cursor: pointer; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 600; padding: var(--space-2) 0; }
 .account-delete form { display: grid; gap: var(--space-3); margin-top: var(--space-3); }

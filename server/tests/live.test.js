@@ -181,3 +181,15 @@ describe('presenter live controls', () => {
     expect(other.status).toBe(404);
   });
 });
+
+describe('public state option ids', () => {
+  it('exposes stable option ids parallel to options for choice slides', async () => {
+    const { publicState } = await import('../src/lib/live.js');
+    const state = publicState({
+      _id: 'x', title: 't', accessCode: '111111', currentSlide: 0, votingOpen: true, resultsVisible: true,
+      slides: [{ id: 's1', questionType: 'multiple-choice', question: 'Q', options: [{ id: 'o1', text: 'a', votes: [] }, { id: 'o2', text: 'b', votes: [] }], votes: [], responses: [], answers: [], ratings: [], rankings: [] }],
+    });
+    expect(state.slides[0].options).toEqual(['a', 'b']);
+    expect(state.slides[0].optionIds).toEqual(['o1', 'o2']);
+  });
+});

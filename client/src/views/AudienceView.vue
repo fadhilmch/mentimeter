@@ -3,6 +3,7 @@ import { isPresentationGone } from '../live/errors'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import ConnectionBanner from '../components/ConnectionBanner.vue'
 import { getTheme, readableOn, themeVars } from '../themes'
 import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
@@ -11,7 +12,7 @@ import { useColorMode } from '../colorMode'
 import { shouldPromptNow } from '../namePrompt'
 import { playerKey, randomNickname } from '../alias'
 import { setThenSave } from '../optimistic'
-import { participantId } from '../participant'
+import { participantId, participantToken } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import type { RankingOption } from '../types'
 
@@ -33,11 +34,13 @@ const draft = ref('')
 // acknowledgment reuses it, so the server stores the comment once. Edited text gets a new id.
 const sendIds = new Map<string, string>()
 const wordDraft = ref('')
+// Words the presenter has not approved yet (only the sender is told).
+const myPendingWords = reactive<Record<number, boolean>>({})
 const myVotes = reactive<Record<number, number>>({})
 const myUpvotes = reactive<Record<string, boolean>>({})
 const myWords = reactive<Record<number, string>>({})
 const myRatings = reactive<Record<number, number>>({})
-interface MyAnswers { vote?: number; rating?: number; word?: string; ranking?: string[]; upvotes?: number[] }
+interface MyAnswers { vote?: number; rating?: number; word?: string; pending?: boolean; ranking?: string[]; upvotes?: number[]; upvoteIds?: string[] }
 const rankingDraft = ref<string[]>([])
 const submittedRankings = reactive<Record<number, string[]>>({})
 
@@ -82,7 +85,8 @@ async function saveName() {
     await live.identify(name)
     savedName.value = name.slice(0, 24)
   } catch {
-    // Not saved: the card stays so they can try again. Answering is never blocked.
+    // Not saved: the card stays so they can try again.
+    window.alert("Couldn't save your nickname. Check your connection and try again.")
   }
 }
 const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
@@ -117,7 +121,7 @@ const cloudWords = computed(() => {
 async function restoreMyAnswers() {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/live/${code}/me`, {
-      headers: { 'x-participant-id': participantId() },
+      headers: { 'x-participant-id': participantId(), ...(participantToken(code) ? { 'x-participant-token': participantToken(code)! } : {}) },
     })
     if (!res.ok) return
     const { data } = (await res.json()) as { data: Record<string, MyAnswers> }
@@ -126,8 +130,9 @@ async function restoreMyAnswers() {
       if (mine.vote !== undefined) myVotes[slideIndex] = mine.vote
       if (mine.rating !== undefined) myRatings[slideIndex] = mine.rating
       if (mine.word !== undefined) myWords[slideIndex] = mine.word
+      if (mine.pending) myPendingWords[slideIndex] = true
       if (mine.ranking) submittedRankings[slideIndex] = mine.ranking
-      for (const responseIndex of mine.upvotes ?? []) myUpvotes[`${slideIndex}:${responseIndex}`] = true
+      for (const ref of mine.upvoteIds ?? mine.upvotes ?? []) myUpvotes[`${slideIndex}:${ref}`] = true
     }
     rankingDraft.value = [...(submittedRankings[state.value?.currentSlide ?? -1] ?? [])]
   } catch {
@@ -163,14 +168,14 @@ async function submitResponse() {
   }
 }
 
-async function upvote(responseIndex: number) {
+async function upvote(target: { id?: string; index: number }) {
   if (!state.value) return
-  const key = `${state.value.currentSlide}:${responseIndex}`
+  const key = `${state.value.currentSlide}:${target.id ?? target.index}`
   error.value = ''
   const want = !myUpvotes[key]
   myUpvotes[key] = want
   try {
-    await live.upvote(state.value.currentSlide, responseIndex, want)
+    await live.upvote(state.value.currentSlide, target, want)
   } catch (err) {
     myUpvotes[key] = !myUpvotes[key]
     error.value = err instanceof Error ? err.message : 'Upvote failed.'
@@ -184,6 +189,8 @@ async function submitWord() {
   try {
     await live.submitWord(state.value.currentSlide, word)
     myWords[state.value.currentSlide] = word.toLowerCase()
+    if (state.value.moderation === 'approve') myPendingWords[state.value.currentSlide] = true
+    else delete myPendingWords[state.value.currentSlide]
     wordDraft.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
@@ -227,6 +234,7 @@ async function sendRanking() {
       <div class="stage-actions"><ColorModeToggle /></div>
     </header>
   <div class="audience-page">
+    <ConnectionBanner role="audience" />
     <p v-if="ended" class="error-banner" role="alert">This presentation has ended or was deleted. Answers can no longer be sent.</p>
     <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
     <p v-if="!state" class="connecting">Connecting…</p>
@@ -290,7 +298,7 @@ async function sendRanking() {
               </button>
             </form>
           </div>
-          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}"<template v-if="votingOpen"> - sending a new one replaces it</template>.</p>
+          <p v-if="myWords[state.currentSlide]" class="muted">Your word: "{{ myWords[state.currentSlide] }}"<template v-if="votingOpen"> - sending a new one replaces it</template>.<template v-if="myPendingWords[state.currentSlide]"> It will show once the presenter approves it.</template></p>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the cloud for now.</p>
           <div v-else-if="cloudWords.length" class="cloud-box" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
@@ -361,9 +369,9 @@ async function sendRanking() {
           </div>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the results for now.</p>
           <div v-else-if="slide.responses?.length" class="response-list" style="margin-top:18px;">
-            <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
+            <div v-for="r in slide.responses" :key="r.id ?? r.index" class="response-item">
               <span>{{ r.text }}</span>
-              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${i}`] }" :disabled="!votingOpen" @click="upvote(i)">
+              <button class="upvote-button" :class="{ on: myUpvotes[`${state.currentSlide}:${r.id ?? r.index}`] }" :disabled="!votingOpen" @click="upvote(r)">
                 ▲ {{ r.upvotes }}
               </button>
             </div>

@@ -69,11 +69,11 @@ describe('Socket transport', () => {
     await p
   })
 
-  it('stops waiting when the server never acknowledges an answer, and says it may not be saved', async () => {
+  it('stops waiting when the server never acknowledges an answer, and says the outcome is unconfirmed', async () => {
     vi.useFakeTimers()
     const f = fakeSocket()
     const t = await joined(f)
-    const p = expect(t.send(rate)).rejects.toThrow('may not have been saved')
+    const p = expect(t.send(rate)).rejects.toThrow("couldn't confirm")
     await vi.advanceTimersByTimeAsync(ACK_TIMEOUT_MS)
     await p
   })
@@ -148,5 +148,21 @@ describe('Socket transport', () => {
     t.leave()
     f.fire('connect')
     expect(f.pending).toHaveLength(1)
+  })
+})
+
+describe('Socket transport connection states', () => {
+  it('reports reconnecting on a drop and connected once the room is rejoined', async () => {
+    const f = fakeSocket()
+    const t = await joined(f)
+    const seen: string[] = []
+    t.onConnection?.((s) => seen.push(s))
+    f.fire('disconnect')
+    expect(seen).toEqual(['reconnecting'])
+    f.fire('connect')
+    f.reply({ ok: true, state })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(seen).toEqual(['reconnecting', 'connected'])
   })
 })

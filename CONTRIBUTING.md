@@ -35,3 +35,10 @@ The product was developed under the working title `LivePoll`, and some internal 
 ## Reporting bugs
 
 Open an issue with steps to reproduce, what you expected, what happened, and your browser and Node.js versions.
+
+## Running the tests
+
+- `npm test` runs the server and client unit/integration suites.
+- `npm run test:e2e` runs the browser critical-flow tests (Playwright). Build the client first (`npm run build`) and install a browser once with `npx playwright install chromium`, or point `E2E_CHROME` at an installed Chrome. The tests start the in-memory server themselves and use the seeded demo presenter.
+- What the browser tests cover: comment upvotes after re-sorting, presenter slide changes reaching phones, refusing answers for a slide that left the screen, a revealed quiz staying locked through an editor save, the quiz nickname flow with two same-name players, and a 320px width check.
+- What they do not cover: real Ably (the in-memory server uses Socket.IO), real devices, screen readers, load, and the deployed site. Check real Ably with a manual smoke test on a deployed environment using your own credentials; never put credentials in CI or tests.

@@ -6,3 +6,5 @@ coverage/
 !.env.example
 .DS_Store
 *.log
+e2e-report/
+test-results/

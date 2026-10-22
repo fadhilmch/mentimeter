@@ -129,13 +129,28 @@ describe('quiz answer reveal gating in publicState', () => {
     ]);
   });
 
-  it('keeps future quiz answers sealed when voting closes mid-quiz', () => {
+  it('keeps future quiz answers sealed when voting closes mid-quiz (even when future slides are sent)', () => {
+    process.env.PROJECT_FUTURE_SLIDES = 'false';
+    try {
+      const p = quizPresentation();
+      applyLiveAction(p, { type: 'voting:set', open: false });
+      const future = publicState(p).slides[1].tally;
+      expect('correctOptionIndex' in future).toBe(false);
+      expect('correctCount' in future).toBe(false);
+    } finally {
+      delete process.env.PROJECT_FUTURE_SLIDES;
+    }
+  });
+
+  it('does not send future slides to phones, only their id and type', () => {
     const p = quizPresentation();
-    applyLiveAction(p, { type: 'voting:set', open: false });
     const state = publicState(p);
-    const future = state.slides[1].tally;
-    expect('correctOptionIndex' in future).toBe(false);
-    expect('correctCount' in future).toBe(false);
+    expect(state.slides.length).toBe(p.slides.length);
+    expect(state.slides[0].question).not.toBe('');
+    expect(state.slides[1]).toEqual({ id: p.slides[1].id, questionType: p.slides[1].questionType, question: '', future: true });
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 1 });
+    expect(publicState(p).slides[1].question).toBe(p.slides[1].question); // revealed on arrival
+    expect(publicState(p).slides[0].question).toBe(p.slides[0].question); // past slides stay
   });
 
   it('freezes a revealed question: votes stay rejected after reopening', () => {
@@ -145,7 +160,8 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-1' })).toThrow(
       'This question has already been revealed',
     );
-    // The still-sealed future question accepts votes normally.
+    // Once the presenter moves on, the sealed next question accepts votes normally.
+    applyLiveAction(p, { type: 'slide:change', slideIndex: 1 });
     expect(() => applyLiveAction(p, { type: 'vote:cast', slideIndex: 1, optionIndex: 0, participantId: 'p-1' })).not.toThrow();
   });
 

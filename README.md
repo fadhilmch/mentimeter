@@ -17,7 +17,9 @@ The app's base colours are the logo's: indigo `#5757DB` (primary actions, select
 - **6-digit join codes and QR**: audience joins from any browser, no signup. The presenter header's join chip opens a QR code (dark on white, readable in either color mode) that links to `/p/<code>` on the origin the presenter is using, plus the code and a copyable link.
 - **Light and dark mode**: a toggle in every header; the choice is saved per browser and defaults to the system setting. Presenter and audience screens keep the presentation's chosen palette in both modes.
 - **Live everywhere**: presenter screen, audience phones, and results stay in sync in real time.
-- **One vote per person**: a stable anonymous participant id keeps polls honest; upvotes toggle. After a refresh, `GET /api/live/<code>/me` (participant id in the `x-participant-id` header) returns that person's own answers so their selection shows again.
+- **One vote per browser, not per human**: joining is anonymous. The server issues each browser a credential scoped to that presentation (`POST /api/live/<code>/credential`, valid 30 days, refreshed on every join) and checks it on every answer, so one browser cannot answer as another participant or on another presentation. It cannot prove a unique person: clearing browser storage or using another browser creates a new participant. Upvotes toggle. After a refresh, `GET /api/live/<code>/me` (credential in the `x-participant-token` header) returns that person's own answers.
+- **Abuse limits** (HTTP and Socket.IO share them): per participant 20 answers per 10 s and 6 nickname changes per minute, plus a per-IP backstop of 1200 actions per minute so a classroom behind one network is not blocked. Over the limit returns 429 (`rate_limited`, with `Retry-After`). Tune with `LIVE_ANSWERS_PER_10S`, `LIVE_IDENTIFY_PER_MIN`, `LIVE_ACTIONS_PER_IP_PER_MIN`, `LIVE_CREDENTIALS_PER_IP_PER_MIN`. Counters are in memory per server instance, so on serverless they are a best-effort brake per warm instance, not a global cap. These defaults are proposals, not measured against real classrooms.
+- **Rollout**: clients without a credential still work (old id-only path). Set `REQUIRE_PARTICIPANT_TOKEN=true` to require one once clients have updated.
 - **Presenter accounts**: signup/login (JWT), create/edit/delete presentations, keep already-cast votes when editing slides.
 - **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
 - **Quiz leaderboard**: players on a deck that has a quiz slide choose a nickname before their first quiz question (type one or tap Generate nickname for a short adjective + animal; no Skip; plain presentations never ask; a name saved on the device is reused), earn +1 per correct answer - the final answer counts, changes are allowed until voting closes - and the top 5 plus your own rank appear on stage and audience once voting closes. Answers and scores stay hidden while voting is open.
@@ -184,7 +186,7 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 
 ## Roadmap / open decisions
 
-- Account recovery: there is no password reset yet (accounts hold no email). Decision pending.
+- Account recovery depends on the sign-in mode. With the built-in username and password login there is no password reset (accounts hold no email), so a forgotten password cannot be recovered: keep it in a password manager, or turn on Firebase sign-in, which sends password-reset email (see the Firebase section above). Whether to add email to built-in accounts is an open decision.
 - Footer contact details: the footer shows only the licence and a GitHub link until an owner contact is chosen.
 - Optional per-presentation audience authentication
 
@@ -203,3 +205,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 The interface uses [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) (SIL Open Font License 1.1, copy in `client/public/fonts/OFL.txt`), served from this app rather than a font CDN. Only Latin characters are included.
 
 Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026 with a modern stack, preserving the original feature set. CrowdFlow is an independent project and is not affiliated with or endorsed by Mentimeter.
+
+## Operations
+
+- `GET /api/health` is liveness (the process is up). `GET /api/ready` is readiness: it pings the database and returns 503 when it does not answer. Point load balancer or orchestrator checks at `/api/ready`.
+- `GET /api/presentations` returns metadata only (`title`, `accessCode`, `slideCount`, dates), newest first, paged with `?limit=` (default 24, max 100) and the `nextCursor` it returns. It never includes slides, answers or voter ids.
+## CSV export
+
+`GET /api/presentations/<id>/export.csv?kind=summary|responses|leaderboard` (owner only, also on the dashboard). It is a snapshot of the results at that moment, not a frozen report: live sessions are not yet separate from decks.
+- `summary`: one row per answer item (votes and percent, word counts, rating average and buckets, ranking points, quiz correct flag once revealed). No participant ids or names.
+- `responses`: written answers with upvotes and UTC time. No author ids.
+- `leaderboard`: quiz rank, name and score. Names are what players chose, so this is its own export.
+UTF-8 with a byte-order mark, UTC timestamps. Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading apostrophe so spreadsheets do not run them as formulas. The response is `private, no-store`. "Answers" means stored submissions, not connected clients and not distinct people. The file is built in memory, which is fine for a deck of at most 50 slides but is not streamed.

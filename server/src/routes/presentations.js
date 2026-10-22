@@ -1,13 +1,21 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
+import { LiveSession } from '../models/liveSession.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { validate } from '../middleware/validate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { ensureSlideIds, hasUnidentifiedSlides, matchSlideUpdate, stampSlideIdsIfMissing } from '../lib/slideIdentity.js';
 import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { tallySlide } from '../lib/results.js';
+import { reportSlides } from '../lib/report.js';
+import { summaryCsv, responsesCsv, leaderboardCsv } from '../lib/csvReport.js';
+import { templates, templateList } from '../lib/templates.js';
+import { randomUUID } from 'node:crypto';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
+import { loadModerationQueue, setModerationMode, moderateResponse, moderationActionSchema, moderationModeSchema, ModerationError } from '../lib/moderation.js';
 
 // Options arrive either as legacy plain strings or as { id?, text } objects.
 const optionInputSchema = z.union([
@@ -70,12 +78,108 @@ const updateSchema = z.object({
 
 export const presentationsRouter = Router();
 
-const codeExists = async (code) => Boolean(await Presentation.exists({ accessCode: code }));
+const codeExists = async (code) =>
+  Boolean((await Presentation.exists({ accessCode: code })) || (await LiveSession.exists({ code, status: 'active' })));
 
+const listQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(24),
+  // Opaque cursor from the previous page: "<createdAt ms>_<id>".
+  cursor: z.string().regex(/^\d+_[a-f0-9]{24}$/).optional(),
+});
+
+/**
+ * Dashboard listing: metadata only, paginated. Slides, answers and voter ids never leave the
+ * database here, so the response size depends on the page size and not on collected answers.
+ */
 presentationsRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const data = await Presentation.find({ owner: req.auth.userId }).sort('-createdAt');
-    return res.json({ data });
+    const parsed = listQuery.safeParse(req.query);
+    if (!parsed.success) return res.status(400).json({ message: 'Invalid paging parameters' });
+    const { limit, cursor } = parsed.data;
+    const owner = new mongoose.Types.ObjectId(req.auth.userId);
+    const match = { owner };
+    if (cursor) {
+      const [ms, id] = cursor.split('_');
+      const at = new Date(Number(ms));
+      const oid = new mongoose.Types.ObjectId(id);
+      match.$or = [{ createdAt: { $lt: at } }, { createdAt: at, _id: { $lt: oid } }];
+    }
+    const [rows, total] = await Promise.all([
+      Presentation.aggregate([
+        { $match: match },
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $limit: limit + 1 },
+        { $project: { title: 1, accessCode: 1, location: 1, theme: 1, createdAt: 1, updatedAt: 1, slideCount: { $size: { $ifNull: ['$slides', []] } } } },
+      ]),
+      Presentation.countDocuments({ owner }),
+    ]);
+    const page = rows.slice(0, limit);
+    const last = page[page.length - 1];
+    const nextCursor = rows.length > limit && last ? `${new Date(last.createdAt).getTime()}_${last._id}` : null;
+    return res.json({ data: page, total, nextCursor });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/** Starter decks. Choose one with POST /from-template/:key. */
+presentationsRouter.get('/templates', authenticate, (req, res) => res.json({ data: templateList() }));
+
+presentationsRouter.post('/from-template/:key', authenticate, async (req, res, next) => {
+  try {
+    const template = templates.find((t) => t.key === req.params.key);
+    if (!template) return res.status(404).json({ message: 'No template with that name' });
+    const accessCode = await generateUniqueAccessCode(codeExists, config.accessCode);
+    const slides = template.slides.map((slide) => {
+      const options = slide.options.map((text) => ({ id: randomUUID(), text, votes: [] }));
+      return {
+        id: randomUUID(),
+        questionType: slide.questionType,
+        question: slide.question,
+        options,
+        responses: [],
+        ratings: [],
+        rankings: [],
+        ...(slide.correctIndex !== undefined ? { correctOptionId: options[slide.correctIndex].id } : {}),
+      };
+    });
+    const data = await Presentation.create({ title: template.name, slides, accessCode, owner: req.auth.userId });
+    return res.status(201).json({ data });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Copies the structure only: fresh deck, slide and option ids, correct answers remapped, design kept.
+ * No votes, responses, participants, revealed state or join code are copied.
+ */
+presentationsRouter.post('/:id/duplicate', authenticate, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    const source = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!source) return res.status(404).json({ message: 'Presentation not found' });
+    const accessCode = await generateUniqueAccessCode(codeExists, config.accessCode);
+    const slides = source.slides.map((slide) => {
+      const options = slide.options.map((option) => ({ id: randomUUID(), text: option.text, votes: [] }));
+      const correctAt = slide.options.findIndex((option) => option.id && option.id === slide.correctOptionId);
+      const design = slide.design?.toObject ? slide.design.toObject() : slide.design;
+      return {
+        id: randomUUID(),
+        questionType: slide.questionType,
+        question: slide.question,
+        options,
+        responses: [],
+        ratings: [],
+        rankings: [],
+        revealed: false,
+        ...(correctAt >= 0 ? { correctOptionId: options[correctAt].id } : {}),
+        ...(design ? { design } : {}),
+      };
+    });
+    const title = `Copy of ${source.title}`.slice(0, 120);
+    const data = await Presentation.create({ title, location: source.location, theme: source.theme, slides, accessCode, owner: req.auth.userId });
+    return res.status(201).json({ data });
   } catch (err) {
     return next(err);
   }
@@ -106,6 +210,51 @@ presentationsRouter.get('/code/:accessCode', async (req, res, next) => {
     const data = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!data) return res.status(404).json({ message: 'No presentation with that code' });
     return res.json({ data: publicState(data) });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Owner-only CSV of the results as they stand now (a snapshot, not a frozen historical report:
+ * sessions are not separated from decks yet). kind=summary is aggregate; responses adds open-ended
+ * text; leaderboard adds player names and scores and is a deliberate separate choice.
+ */
+const exporters = { summary: summaryCsv, responses: responsesCsv, leaderboard: leaderboardCsv };
+presentationsRouter.get('/:id/export.csv', authenticate, async (req, res, next) => {
+  try {
+    const kind = String(req.query.kind ?? 'summary');
+    if (!Object.hasOwn(exporters, kind)) return res.status(400).json({ message: 'kind must be summary, responses or leaderboard' });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    let data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    // A run's results export by its session id (sessions on only), ended runs included.
+    if (!data && process.env.SESSIONS_ENABLED === 'true') data = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!data) return res.status(404).json({ message: 'Presentation not found' });
+    const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'presentation';
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${slug}-${kind}.csv"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return res.send(exporters[kind](data));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Owner-only JSON report: the same tallies as the live screen and the CSV, for the report view.
+ * It is a snapshot of the current results; per-session frozen reports need live sessions (docs/live-sessions.md).
+ */
+presentationsRouter.get('/:id/report', authenticate, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    const data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!data) return res.status(404).json({ message: 'Presentation not found' });
+    const slides = reportSlides(data.slides);
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ data: { title: data.title, generatedAt: new Date().toISOString(), scope: 'current results of this deck (not separated by session)', slides } });
   } catch (err) {
     return next(err);
   }
@@ -200,16 +349,63 @@ presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req
 presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, next) => {
   try {
     const action = presenterActionSchema.parse(req.body);
-    const presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    let presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    // With sessions on, the presenter screen addresses a run by the id in its state (a session id).
+    if (!presentation && process.env.SESSIONS_ENABLED === 'true' && mongoose.isValidObjectId(req.params.id)) {
+      presentation = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId, status: 'active' });
+    }
     if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
     applyLiveAction(presentation, action);
     const data = await presentation.save();
-    await broadcastState(data.accessCode);
-    return res.json({ ok: true, state: publicState(data) });
+    const state = publicState(data);
+    await broadcastState(data.accessCode, state);
+    return res.json({ ok: true, state });
   } catch (err) {
     if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid action', issues: err.issues });
     if (err instanceof RangeError || err instanceof TypeError) return res.status(400).json({ message: err.message });
     return next(err);
+  }
+});
+
+/**
+ * Moderation of open-ended responses and word-cloud words. Owner-scoped; audience credentials
+ * never reach these routes. Every change is saved, then pushed to both live transports.
+ */
+function moderationError(err, res, next) {
+  if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid request' });
+  if (err instanceof ModerationError) return res.status(err.status).json({ message: err.message });
+  return next(err);
+}
+
+presentationsRouter.get('/:id/moderation', authenticate, async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId) });
+  } catch (err) {
+    return moderationError(err, res, next);
+  }
+});
+
+presentationsRouter.post('/:id/moderation/mode', authenticate, async (req, res, next) => {
+  try {
+    const { mode } = moderationModeSchema.parse(req.body);
+    const { presentation } = await setModerationMode(req.params.id, req.auth.userId, mode);
+    await broadcastState(presentation.accessCode, publicState(presentation));
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId), state: publicState(presentation) });
+  } catch (err) {
+    return moderationError(err, res, next);
+  }
+});
+
+presentationsRouter.post('/:id/moderation/:slideId/:responseId', authenticate, async (req, res, next) => {
+  try {
+    const { action } = moderationActionSchema.parse(req.body);
+    const { presentation } = await moderateResponse(req.params.id, req.auth.userId, { slideId: req.params.slideId, responseId: req.params.responseId, action });
+    const state = publicState(presentation);
+    await broadcastState(presentation.accessCode, state);
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId), state });
+  } catch (err) {
+    return moderationError(err, res, next);
   }
 });
 

@@ -65,4 +65,55 @@ describe('live room protocol', () => {
     audience.close();
     presenter.close();
   }, 20000);
+
+  it('reports connected clients separately from submitters', async () => {
+    const signup = await request(app).post('/api/users/signup').send({ username: `p${Date.now()}`, password: 'super-secret-1' });
+    const created = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${signup.body.token}`)
+      .send({ title: 'Presence', slides: [{ questionType: 'multiple-choice', question: 'Q?', options: ['a', 'b'] }] });
+    const accessCode = created.body.data.accessCode;
+    const a = clientIo(`http://127.0.0.1:${port}`, { transports: ['websocket'] });
+    const b = clientIo(`http://127.0.0.1:${port}`, { transports: ['websocket'] });
+    const first = await emit(a, 'presentation:join', { accessCode });
+    expect(first.presence.connected).toBe(1);
+    const sawTwo = new Promise((resolve) => a.on('presence:update', (p) => p.connected === 2 && resolve(p)));
+    const second = await emit(b, 'presentation:join', { accessCode });
+    expect(second.presence.connected).toBe(2);
+    await sawTwo;
+    const sawOne = new Promise((resolve) => a.on('presence:update', (p) => p.connected === 1 && resolve(p)));
+    b.close();
+    await sawOne;
+    a.close();
+  });
+});
+
+describe('reconnect', () => {
+  it('a client that was offline gets the newer state, with a higher revision, when it rejoins', async () => {
+    const signup = await request(app).post('/api/users/signup').send({ username: `rc${Date.now()}`, password: 'super-secret-1' });
+    const created = await request(app)
+      .post('/api/presentations')
+      .set('authorization', `Bearer ${signup.body.token}`)
+      .send({ title: 'Reconnect', slides: [{ questionType: 'multiple-choice', question: 'Q?', options: ['a', 'b'] }] });
+    const accessCode = created.body.data.accessCode;
+    const url = `http://127.0.0.1:${port}`;
+
+    const flaky = clientIo(url, { transports: ['websocket'] });
+    const first = await emit(flaky, 'presentation:join', { accessCode });
+    flaky.close(); // goes offline
+
+    const other = clientIo(url, { transports: ['websocket'] });
+    await emit(other, 'presentation:join', { accessCode });
+    for (const p of ['p-reco01', 'p-reco02']) {
+      expect((await emit(other, 'live:action', { type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: p })).ok).toBe(true);
+    }
+
+    const back = clientIo(url, { transports: ['websocket'] });
+    const second = await emit(back, 'presentation:join', { accessCode });
+    expect(second.ok).toBe(true);
+    expect(second.state.revision).toBeGreaterThan(first.state.revision);
+    expect(second.state.slides[0].tally.total).toBe(2);
+    other.close();
+    back.close();
+  });
 });

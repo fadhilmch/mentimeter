@@ -2,10 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import ConnectionBanner from '../components/ConnectionBanner.vue'
 import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
-import type { RankingOption } from '../types'
+import type { RankingOption, PresentationState } from '../types'
 import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
@@ -13,6 +14,7 @@ import JoinPanel from '../components/JoinPanel.vue'
 import { useColorMode } from '../colorMode'
 import { slideStepForKey } from '../presenterKeys'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
+import ModerationPanel from '../components/ModerationPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,6 +105,7 @@ function go(delta: number) {
   // Slide control is presenter-only: it goes through the authenticated route.
   api
     .presenterAction(auth.token, String(state.value.id), { type: 'slide:change', slideIndex: next })
+    .then((res) => live.applyState(res.state as PresentationState))
     .catch((err) => {
       error.value = err instanceof Error ? err.message : 'Could not change slide.'
     })
@@ -113,7 +116,9 @@ async function presenterAction(action: Record<string, unknown>, label: string) {
   busy.value = label
   error.value = ''
   try {
-    await api.presenterAction(auth.token, String(state.value.id), action)
+    const res = await api.presenterAction(auth.token, String(state.value.id), action)
+    // The response carries the authoritative state; the revision stops it overwriting a newer broadcast.
+    live.applyState(res.state as PresentationState)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'That did not work.'
   } finally {
@@ -175,6 +180,7 @@ function end() {
         <span>JOIN {{ code }}</span>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3M21 14v.01M14 21h.01M17.5 21H21v-3.5" /></svg>
       </button>
+      <span v-if="live.presence !== null" class="muted" data-testid="presence" title="Connected to this room right now, including this screen. Not the number of people who answered.">{{ live.presence }} connected</span>
       <div class="stage-actions">
         <ColorModeToggle />
         <button class="button ghost end-button" @click="end">End</button>
@@ -183,6 +189,7 @@ function end() {
     <JoinPanel v-if="showJoin" :code="code" @close="showJoin = false" />
 
     <div class="stage-body">
+    <ConnectionBanner role="presenter" />
       <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">
@@ -281,7 +288,7 @@ function end() {
 
         <template v-else-if="slide.responses">
           <div class="response-list">
-            <div v-for="(r, i) in slide.responses" :key="i" class="response-item">
+            <div v-for="r in slide.responses" :key="r.id ?? r.index" class="response-item">
               <span>{{ r.text }}</span>
               <span class="upvote-count">▲ {{ r.upvotes }}</span>
             </div>
@@ -309,6 +316,13 @@ function end() {
             {{ showFullBoard ? 'Show top 5' : `Show all ${live.state.leaderboard.length}` }}
           </button>
         </div>
+
+        <ModerationPanel
+          v-if="state && (slide.questionType === 'open-ended' || slide.questionType === 'word-cloud')"
+          :token="auth.token"
+          :presentation-id="String(state.id)"
+          :slide-index="state.currentSlide"
+        />
 
         <div class="stage-nav">
           <button class="button" :disabled="isFirst" @click="go(-1)">← Previous</button>

@@ -34,7 +34,7 @@ export interface PublicSlide {
   options?: string[] | RankingOption[];
   design?: SlideDesign;
   tally?: Tally | null;
-  responses?: { text: string; upvotes: number; createdAt: string }[];
+  responses?: { id?: string; index: number; text: string; upvotes: number; createdAt: string }[];
 }
 
 export interface LeaderboardEntry {
@@ -49,10 +49,14 @@ export interface PresentationState {
   id: string;
   title: string;
   accessCode: string;
+  /** Increases with every change to the live state; older snapshots are ignored. */
+  revision?: number;
   theme?: 'iris' | 'apricot' | 'plum' | 'cobalt';
   currentSlide: number;
   votingOpen: boolean;
   resultsVisible: boolean;
+  /** 'approve' when the presenter holds new responses until approved. */
+  moderation?: 'off' | 'approve';
   slides: PublicSlide[];
   // Quiz scores: only sent after voting closes and results are visible.
   leaderboard?: LeaderboardEntry[] | null;
@@ -61,11 +65,13 @@ export interface PresentationState {
 export type LiveAction =
   | { type: 'vote:cast'; slideIndex: number; optionIndex: number; participantId: string }
   | { type: 'response:add'; slideIndex: number; text: string; participantId: string; clientId?: string }
-  | { type: 'response:upvote'; slideIndex: number; responseIndex: number; participantId: string; on?: boolean }
+  | { type: 'response:upvote'; slideIndex: number; responseIndex?: number; responseId?: string; participantId: string; on?: boolean }
   | { type: 'word:submit'; slideIndex: number; text: string; participantId: string }
   | { type: 'rating:cast'; slideIndex: number; value: number; participantId: string }
   | { type: 'ranking:submit'; slideIndex: number; order: string[]; participantId: string }
   | { type: 'participant:identify'; participantId: string; nickname: string };
+
+export type ConnectionState = 'connected' | 'reconnecting' | 'offline';
 
 export interface LiveTransport {
   join(accessCode: string): Promise<PresentationState>;
@@ -73,5 +79,9 @@ export interface LiveTransport {
   onState(handler: (state: PresentationState) => void): void;
   /** Optional: called after a dropped connection is re-established and the room is rejoined. */
   onReconnect?(handler: () => void): void;
+  /** Connected-client count for the room. Only the Socket.IO transport has it (one server process). */
+  onPresence?(handler: (connected: number) => void): void;
+  /** Optional: reports connected / reconnecting / offline the same way for every transport. */
+  onConnection?(handler: (state: ConnectionState) => void): void;
   leave(): void;
 }
