@@ -147,6 +147,6 @@ table { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 caption { text-align: left; padding-bottom: 4px; }
 .bar-cell { width: 40%; }
-.bar { display: block; height: 10px; min-width: 2px; border-radius: var(--radius-pill); background: var(--accent); }
+.bar { display: block; height: 10px; border-radius: var(--radius-pill); background: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
