@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { clearDraft, loadDraft, saveDraft } from '../draftStore'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, ApiError } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -61,6 +62,13 @@ interface LoadedPresentation {
   slides: LoadedSlide[]
 }
 
+interface DraftData {
+  title: string
+  location: string
+  themeId: string
+  slides: EditableSlide[]
+}
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -82,6 +90,7 @@ const dirty = ref(false)
 const ready = ref(false)
 const activeSlide = ref(0)
 const copied = ref(false)
+const pendingDraft = ref<ReturnType<typeof loadDraft<DraftData>>>(null)
 
 const titleError = computed(() => (title.value.trim() ? '' : 'Give the presentation a title.'))
 
@@ -134,14 +143,44 @@ onMounted(async () => {
     loading.value = false
     ready.value = true
   }
+  const draft = loadDraft<DraftData>(id)
+  if (draft && draft.basedOnRevision === structureRevision.value && JSON.stringify(draft.data.slides) !== JSON.stringify(slides.value)) {
+    pendingDraft.value = draft
+  } else if (draft) {
+    clearDraft(id)
+  }
   window.addEventListener('beforeunload', warnUnsaved)
 })
 
 onBeforeUnmount(() => window.removeEventListener('beforeunload', warnUnsaved))
 
 watch([title, location, themeId, slides], () => {
-  if (ready.value) dirty.value = true
+  if (!ready.value) return
+  dirty.value = true
+  if (!pendingDraft.value) {
+    saveDraft<DraftData>(id, structureRevision.value, {
+      title: title.value,
+      location: location.value,
+      themeId: themeId.value,
+      slides: JSON.parse(JSON.stringify(slides.value)),
+    })
+  }
 }, { deep: true })
+
+function restoreDraft() {
+  const d = pendingDraft.value
+  if (!d) return
+  title.value = d.data.title
+  location.value = d.data.location
+  themeId.value = d.data.themeId
+  slides.value = d.data.slides
+  pendingDraft.value = null
+}
+
+function discardDraft() {
+  clearDraft(id)
+  pendingDraft.value = null
+}
 
 function warnUnsaved(event: BeforeUnloadEvent) {
   if (dirty.value) event.preventDefault()
@@ -278,6 +317,7 @@ async function attemptSave(alreadyRetried = false) {
   try {
     const res = await api.updatePresentation(auth.token, id, savePayload())
     applyLoaded(res.data as unknown as LoadedPresentation)
+    clearDraft(id)
     savedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 409) {
@@ -339,6 +379,7 @@ async function remove() {
   try {
     await api.deletePresentation(auth.token, id)
     dirty.value = false
+    clearDraft(id)
     router.push({ name: 'dashboard' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not delete.'
@@ -354,6 +395,11 @@ async function remove() {
       <div class="skel skel-card" style="height:120px;"></div>
     </div>
     <template v-else>
+      <div v-if="pendingDraft" class="error-banner" role="status" data-testid="draft-banner">
+        Unsaved changes from {{ new Date(pendingDraft.savedAt).toLocaleString() }} were found in this browser.
+        <button class="button ghost" @click="restoreDraft">Restore</button>
+        <button class="button ghost" @click="discardDraft">Discard</button>
+      </div>
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:var(--space-4); flex-wrap:wrap;">
         <div>
           <span v-if="accessCode" class="code-chip" style="font-weight:800; letter-spacing:0.18em; background:var(--accent-soft); color:var(--accent-strong); padding:5px var(--space-3); border-radius:var(--radius-sm);">{{ accessCode }}</span>
