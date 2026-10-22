@@ -71,11 +71,15 @@ export type LiveAction =
   | { type: 'ranking:submit'; slideIndex: number; order: string[]; participantId: string }
   | { type: 'participant:identify'; participantId: string; nickname: string };
 
+export type ConnectionState = 'connected' | 'reconnecting' | 'offline';
+
 export interface LiveTransport {
   join(accessCode: string): Promise<PresentationState>;
   send(action: LiveAction): Promise<void>;
   onState(handler: (state: PresentationState) => void): void;
   /** Optional: called after a dropped connection is re-established and the room is rejoined. */
   onReconnect?(handler: () => void): void;
+  /** Optional: reports connected / reconnecting / offline the same way for every transport. */
+  onConnection?(handler: (state: ConnectionState) => void): void;
   leave(): void;
 }

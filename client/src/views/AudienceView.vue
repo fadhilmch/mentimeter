@@ -3,6 +3,7 @@ import { isPresentationGone } from '../live/errors'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import ConnectionBanner from '../components/ConnectionBanner.vue'
 import { getTheme, readableOn, themeVars } from '../themes'
 import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
@@ -233,6 +234,7 @@ async function sendRanking() {
       <div class="stage-actions"><ColorModeToggle /></div>
     </header>
   <div class="audience-page">
+    <ConnectionBanner role="audience" />
     <p v-if="ended" class="error-banner" role="alert">This presentation has ended or was deleted. Answers can no longer be sent.</p>
     <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
     <p v-if="!state" class="connecting">Connecting…</p>

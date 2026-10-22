@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { createLiveTransport } from '../live';
-import type { LiveAction, LiveTransport, PresentationState } from '../types';
+import type { ConnectionState, LiveAction, LiveTransport, PresentationState } from '../types';
 import { participantId, participantToken, ensureCredential } from '../participant';
 
 export const useLiveStore = defineStore('live', {
@@ -9,10 +9,18 @@ export const useLiveStore = defineStore('live', {
     state: null as PresentationState | null,
     error: '',
     connected: false,
+    /** What the transport reports after the first join: connected, reconnecting or offline. */
+    connection: 'connected' as ConnectionState,
+    /** The browser itself reports no network. */
+    browserOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
     /** Counts successful reconnects, so a view can drop an error that the reconnect has resolved. */
     reconnects: 0,
   }),
   getters: {
+    /** One value for the banner: browser offline wins, then whatever the transport says. */
+    connectionStatus(state): ConnectionState {
+      return state.browserOffline ? 'offline' : state.connection;
+    },
     currentSlide(state) {
       if (!state.state) return null;
       return state.state.slides[state.state.currentSlide] ?? null;
@@ -25,6 +33,10 @@ export const useLiveStore = defineStore('live', {
       const transport = createLiveTransport();
       this.transport = transport;
       transport.onState((state) => this.applyState(state));
+      this.connection = 'connected';
+      transport.onConnection?.((next) => {
+        this.connection = next;
+      });
       transport.onReconnect?.(() => {
         this.reconnects += 1;
       });
@@ -80,6 +92,9 @@ export const useLiveStore = defineStore('live', {
       // Keep it on the device only once the server has it, so a failed save never counts as chosen.
       if (cleaned) localStorage.setItem('livepoll.nickname', cleaned);
       else localStorage.removeItem('livepoll.nickname');
+    },
+    setBrowserOnline(online: boolean) {
+      this.browserOffline = !online;
     },
     leave() {
       this.transport?.leave();

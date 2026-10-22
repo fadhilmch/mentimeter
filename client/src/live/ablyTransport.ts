@@ -1,5 +1,5 @@
 import * as Ably from 'ably';
-import type { LiveAction, LiveTransport, PresentationState } from '../types';
+import type { ConnectionState, LiveAction, LiveTransport, PresentationState } from '../types';
 
 const base = import.meta.env.VITE_API_URL ?? '';
 
@@ -41,6 +41,7 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
   let client: Ably.Realtime | null = null;
   let channel: Ably.RealtimeChannel | null = null;
   let handler: ((state: PresentationState) => void) | null = null;
+  let connection: ((state: ConnectionState) => void) | null = null;
   const listener = (message: Ably.InboundMessage) => handler?.(message.data as PresentationState);
 
   const close = () => {
@@ -69,6 +70,13 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
               (err) => cb(err instanceof Error ? err.message : String(err), null),
             );
           },
+        });
+        // Same three states as the socket transport. Ably retries by itself while 'disconnected',
+        // and gives up for a while when 'suspended'.
+        client.connection?.on((change: { current: string }) => {
+          if (change.current === 'connected') connection?.('connected');
+          else if (change.current === 'connecting' || change.current === 'disconnected') connection?.('reconnecting');
+          else if (change.current === 'suspended' || change.current === 'failed') connection?.('offline');
         });
         channel = client.channels.get(`presentation:${accessCode}`);
         // Subscribe before attaching so no state is missed, and so a handler
@@ -118,8 +126,12 @@ export function createAblyTransport(deps: AblyDeps = { Realtime: Ably.Realtime, 
     onState(next) {
       handler = next;
     },
+    onConnection(next) {
+      connection = next;
+    },
     leave() {
       handler = null;
+      connection = null;
       close();
     },
   };

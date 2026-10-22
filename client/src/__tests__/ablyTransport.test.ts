@@ -125,3 +125,20 @@ describe('Ably transport', () => {
     expect(seen).toEqual([state]) // the authoritative state was fetched, so the screen shows what was saved
   })
 })
+
+describe('Ably transport connection states', () => {
+  it('maps SDK connection states to connected / reconnecting / offline', async () => {
+    let onChange: ((c: { current: string }) => void) | undefined
+    const t = setup()
+    const Base = t.deps.Realtime as unknown as new (o: unknown) => object
+    class WithConnection extends Base {
+      connection = { on: (fn: (c: { current: string }) => void) => { onChange = fn } }
+    }
+    const transport = createAblyTransport({ ...t.deps, Realtime: WithConnection as unknown as AblyDeps['Realtime'] })
+    const seen: string[] = []
+    transport.onConnection?.((s) => seen.push(s))
+    await transport.join('123456')
+    for (const current of ['connecting', 'connected', 'disconnected', 'suspended', 'closed']) onChange?.({ current })
+    expect(seen).toEqual(['reconnecting', 'connected', 'reconnecting', 'offline'])
+  })
+})
