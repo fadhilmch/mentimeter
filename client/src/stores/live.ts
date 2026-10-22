@@ -24,21 +24,31 @@ export const useLiveStore = defineStore('live', {
       this.leave();
       const transport = createLiveTransport();
       this.transport = transport;
-      transport.onState((state) => {
-        this.state = state;
-      });
+      transport.onState((state) => this.applyState(state));
       transport.onReconnect?.(() => {
         this.reconnects += 1;
       });
       try {
         await ensureCredential(accessCode);
-        this.state = await transport.join(accessCode);
+        this.state = null;
+        this.applyState(await transport.join(accessCode));
         this.connected = true;
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Could not join';
         this.connected = false;
         throw err;
       }
+    },
+    /**
+     * Takes a snapshot unless it is older than what is already on screen. Broadcasts, resync
+     * fetches and presenter HTTP responses can arrive out of order; the screen never goes backwards.
+     * Returns whether the snapshot was applied.
+     */
+    applyState(next: PresentationState): boolean {
+      const have = this.state?.revision;
+      if (typeof have === 'number' && typeof next.revision === 'number' && next.revision < have) return false;
+      this.state = next;
+      return true;
     },
     async act(action: LiveAction) {
       if (!this.transport) throw new Error('Not connected');

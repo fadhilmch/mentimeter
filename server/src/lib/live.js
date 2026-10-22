@@ -120,6 +120,7 @@ export function publicState(presentation) {
     title: presentation.title,
     accessCode: presentation.accessCode,
     theme: presentation.theme,
+    revision: presentation.liveRevision ?? 0,
     currentSlide: presentation.currentSlide,
     votingOpen: presentation.votingOpen !== false,
     resultsVisible,

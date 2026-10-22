@@ -49,6 +49,8 @@ export interface PresentationState {
   id: string;
   title: string;
   accessCode: string;
+  /** Increases with every change to the live state; older snapshots are ignored. */
+  revision?: number;
   theme?: 'iris' | 'apricot' | 'plum' | 'cobalt';
   currentSlide: number;
   votingOpen: boolean;

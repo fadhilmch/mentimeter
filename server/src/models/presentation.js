@@ -102,8 +102,16 @@ const presentationSchema = new mongoose.Schema(
     // actions do not touch it, so the editor can detect concurrent structural
     // edits without conflicting with live audience activity.
     structureRevision: { type: Number, default: 0 },
+    // Bumped on every successful change to the live state (answers, slide, voting, resets).
+    // Clients use it to ignore a snapshot that arrives after a newer one.
+    liveRevision: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
+
+// Atomic $inc, so two writers cannot both stamp the same stale value + 1.
+presentationSchema.pre('save', function bumpLiveRevision() {
+  if (!this.isNew && this.isModified()) this.$inc('liveRevision', 1);
+});
 
 export const Presentation = mongoose.model('Presentation', presentationSchema);
