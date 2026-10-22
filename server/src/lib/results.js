@@ -1,3 +1,10 @@
+const envNumber = (name, fallback) => (process.env[name] ? Number(process.env[name]) : fallback);
+/** Submission volume caps for open-ended slides. Tunable per deployment; counted per stored response. */
+export const responseCaps = () => ({
+  perParticipant: envNumber('LIVE_MAX_RESPONSES_PER_PARTICIPANT', 10),
+  perSlide: envNumber('LIVE_MAX_RESPONSES_PER_SLIDE', 500),
+});
+
 /** One vote per participant per slide: casting again moves the vote. */
 export function castVote(slide, optionIndex, participantId) {
   if (slide.questionType !== 'multiple-choice' && slide.questionType !== 'quiz') {
@@ -117,6 +124,11 @@ export function addResponse(slide, text, participantId, clientId) {
   if (cleaned.length === 0) throw new TypeError('Response text must not be empty');
   if (cleaned.length > 280) throw new RangeError('Response text is limited to 280 characters');
   if (clientId && slide.responses.some((entry) => entry.authorId === participantId && entry.clientId === clientId)) return slide;
+  const caps = responseCaps();
+  if (slide.responses.length >= caps.perSlide) throw new RangeError('This question has reached its limit of responses');
+  if (slide.responses.filter((entry) => entry.authorId === participantId).length >= caps.perParticipant) {
+    throw new RangeError(`You can send up to ${caps.perParticipant} responses to one question`);
+  }
   slide.responses.push({ text: cleaned, upvotes: [], authorId: participantId, ...(clientId ? { clientId } : {}) });
   return slide;
 }
