@@ -12,7 +12,12 @@ const optionSchema = new mongoose.Schema(
 
 const responseSchema = new mongoose.Schema(
   {
-    text: { type: String, required: true, trim: true, maxlength: 280 },
+    // Stable identity so moderation and upvotes address one response even as the list changes.
+    id: { type: String },
+    // Cleared when a presenter deletes the response (the slot stays so stored positions never shift).
+    text: { type: String, required: function requiredUnlessDeleted() { return this.status !== 'deleted'; }, trim: true, maxlength: 280 },
+    // Moderation state. A missing value means 'visible' (all data from before moderation).
+    status: { type: String, enum: ['visible', 'pending', 'hidden', 'deleted'], default: 'visible' },
     authorId: { type: String, required: true },
     // Client-chosen id of the send, so a retry after a lost acknowledgment is not stored twice.
     clientId: { type: String },
@@ -90,6 +95,18 @@ const presentationSchema = new mongoose.Schema(
             participantId: { type: String, required: true },
             nickname: { type: String, trim: true, maxlength: 24 },
           },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    // 'off' shows new responses at once (the default). 'approve' holds them until the owner approves.
+    moderationMode: { type: String, enum: ['off', 'approve'], default: 'off' },
+    // Owner, action and time only. Never the response text.
+    moderationLog: {
+      type: [
+        new mongoose.Schema(
+          { owner: { type: String, required: true }, action: { type: String, required: true }, slideId: { type: String }, responseId: { type: String }, at: { type: Date, default: Date.now } },
           { _id: false },
         ),
       ],

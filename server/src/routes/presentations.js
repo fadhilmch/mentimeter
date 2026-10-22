@@ -12,6 +12,7 @@ import { templates, templateList } from '../lib/templates.js';
 import { randomUUID } from 'node:crypto';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
+import { loadModerationQueue, setModerationMode, moderateResponse, moderationActionSchema, moderationModeSchema, ModerationError } from '../lib/moderation.js';
 
 // Options arrive either as legacy plain strings or as { id?, text } objects.
 const optionInputSchema = z.union([
@@ -336,6 +337,48 @@ presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, nex
     if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid action', issues: err.issues });
     if (err instanceof RangeError || err instanceof TypeError) return res.status(400).json({ message: err.message });
     return next(err);
+  }
+});
+
+/**
+ * Moderation of open-ended responses and word-cloud words. Owner-scoped; audience credentials
+ * never reach these routes. Every change is saved, then pushed to both live transports.
+ */
+function moderationError(err, res, next) {
+  if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid request' });
+  if (err instanceof ModerationError) return res.status(err.status).json({ message: err.message });
+  return next(err);
+}
+
+presentationsRouter.get('/:id/moderation', authenticate, async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId) });
+  } catch (err) {
+    return moderationError(err, res, next);
+  }
+});
+
+presentationsRouter.post('/:id/moderation/mode', authenticate, async (req, res, next) => {
+  try {
+    const { mode } = moderationModeSchema.parse(req.body);
+    const { presentation } = await setModerationMode(req.params.id, req.auth.userId, mode);
+    await broadcastState(presentation.accessCode, publicState(presentation));
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId), state: publicState(presentation) });
+  } catch (err) {
+    return moderationError(err, res, next);
+  }
+});
+
+presentationsRouter.post('/:id/moderation/:slideId/:responseId', authenticate, async (req, res, next) => {
+  try {
+    const { action } = moderationActionSchema.parse(req.body);
+    const { presentation } = await moderateResponse(req.params.id, req.auth.userId, { slideId: req.params.slideId, responseId: req.params.responseId, action });
+    const state = publicState(presentation);
+    await broadcastState(presentation.accessCode, state);
+    return res.json({ data: await loadModerationQueue(req.params.id, req.auth.userId), state });
+  } catch (err) {
+    return moderationError(err, res, next);
   }
 });
 

@@ -1,3 +1,8 @@
+import { randomUUID } from 'node:crypto';
+
+/** Responses the audience may see and that count in tallies and exports. No status means visible. */
+export const isPublicResponse = (response) => (response.status ?? 'visible') === 'visible';
+
 /** One vote per participant per slide: casting again moves the vote. */
 export function castVote(slide, optionIndex, participantId) {
   if (slide.questionType !== 'multiple-choice' && slide.questionType !== 'quiz') {
@@ -33,14 +38,15 @@ export function tallySlide(slide) {
     // Counts per normalized word; the stage sizes words by count.
     // A Map, not an object: words like "constructor" or "__proto__" are valid input.
     const counts = new Map();
-    for (const response of slide.responses ?? []) {
+    const publicResponses = (slide.responses ?? []).filter(isPublicResponse);
+    for (const response of publicResponses) {
       const word = response.text.toLowerCase();
       counts.set(word, (counts.get(word) ?? 0) + 1);
     }
     const words = [...counts]
       .map(([text, count]) => ({ text, count }))
       .sort((a, b) => b.count - a.count || a.text.localeCompare(b.text));
-    return { total: slide.responses?.length ?? 0, words };
+    return { total: publicResponses.length, words };
   }
   if (slide.questionType === 'rating') {
     const ratings = slide.ratings ?? [];
@@ -62,11 +68,11 @@ export function tallySlide(slide) {
     }
     return { total: slide.rankings?.length ?? 0, points };
   }
-  return { total: slide.responses?.length ?? 0 };
+  return { total: (slide.responses ?? []).filter(isPublicResponse).length };
 }
 
 /** One word per participant on word-cloud slides: submitting again replaces the word. */
-export function submitWord(slide, text, participantId) {
+export function submitWord(slide, text, participantId, status = 'visible') {
   if (slide.questionType !== 'word-cloud') {
     throw new TypeError('Words only apply to word-cloud slides');
   }
@@ -75,7 +81,7 @@ export function submitWord(slide, text, participantId) {
   if (cleaned.length > 40) throw new RangeError('A word is limited to 40 characters');
   if (/\s/.test(cleaned)) throw new TypeError('One word only - no spaces');
   slide.responses = (slide.responses ?? []).filter((entry) => entry.authorId !== participantId);
-  slide.responses.push({ text: cleaned, upvotes: [], authorId: participantId });
+  slide.responses.push({ id: randomUUID(), text: cleaned, upvotes: [], authorId: participantId, status });
   return slide;
 }
 
@@ -109,7 +115,7 @@ export function submitRanking(slide, order, participantId) {
 }
 
 /** A retry carrying the same clientId from the same participant is the same answer: stored once. */
-export function addResponse(slide, text, participantId, clientId) {
+export function addResponse(slide, text, participantId, clientId, status = 'visible') {
   if (slide.questionType !== 'open-ended') {
     throw new TypeError('Responses only apply to open-ended slides');
   }
@@ -117,7 +123,7 @@ export function addResponse(slide, text, participantId, clientId) {
   if (cleaned.length === 0) throw new TypeError('Response text must not be empty');
   if (cleaned.length > 280) throw new RangeError('Response text is limited to 280 characters');
   if (clientId && slide.responses.some((entry) => entry.authorId === participantId && entry.clientId === clientId)) return slide;
-  slide.responses.push({ text: cleaned, upvotes: [], authorId: participantId, ...(clientId ? { clientId } : {}) });
+  slide.responses.push({ id: randomUUID(), text: cleaned, upvotes: [], authorId: participantId, status, ...(clientId ? { clientId } : {}) });
   return slide;
 }
 
@@ -127,6 +133,8 @@ export function toggleUpvote(slide, responseIndex, participantId, on) {
     throw new RangeError('Response index out of range');
   }
   const response = slide.responses[responseIndex];
+  // Pending, hidden and deleted responses cannot be upvoted, and the vote is never moved to another response.
+  if (!isPublicResponse(response)) throw new RangeError('Response index out of range');
   if (response.authorId === participantId) {
     throw new TypeError('Authors cannot upvote their own response');
   }
