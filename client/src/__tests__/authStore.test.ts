@@ -227,4 +227,26 @@ describe('finishing setup and deleting', () => {
     await auth.deleteAccount('password-1')
     expect(calls).toContain('DELETE /api/users/me'); expect(fb.state.signedOut).toBe(1); expect(auth.pendingProfile).toBe(false)
   })
+  it('removes its own login when the server has no service account', async () => {
+    fb.state.currentUser = fb.user('carol'); script[me] = [noProfile]; script['DELETE /api/users/me'] = [{ status: 200, body: { ok: true, deletedPresentations: 0, firebaseLoginRemoved: false } }]
+    const auth = await store()
+    await auth.init()
+    await auth.deleteAccount('password-1')
+    expect(fb.state.deleted).toEqual(['carol']); expect(fb.state.signedOut).toBe(1)
+  })
+  it('says plainly when the data is gone but the login could not be removed', async () => {
+    fb.state.currentUser = fb.user('carol'); script[me] = [noProfile]; script['DELETE /api/users/me'] = [{ status: 200, body: { ok: true, deletedPresentations: 0, firebaseLoginRemoved: false } }]
+    fb.state.deleteFails = true
+    const auth = await store()
+    await auth.init()
+    await expect(auth.deleteAccount('password-1')).rejects.toThrow(/login could not be removed/)
+    expect(fb.state.signedOut).toBe(0)
+  })
+  it('does not delete again when the server already removed the login', async () => {
+    fb.state.currentUser = fb.user('carol'); script[me] = [noProfile]; script['DELETE /api/users/me'] = [{ status: 200, body: { ok: true, deletedPresentations: 0, firebaseLoginRemoved: true } }]
+    const auth = await store()
+    await auth.init()
+    await auth.deleteAccount('password-1')
+    expect(fb.state.deleted).toEqual([]); expect(fb.state.signedOut).toBe(1)
+  })
 })
