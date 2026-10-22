@@ -54,7 +54,7 @@ const designSchema = new mongoose.Schema(
   { _id: false },
 );
 
-const slideSchema = new mongoose.Schema(
+export const slideSchema = new mongoose.Schema(
   {
     // Stable identity stamped on save; lets edits keep votes/responses attached to the right slide.
     id: { type: String },
@@ -79,6 +79,14 @@ const slideSchema = new mongoose.Schema(
   { _id: false },
 );
 
+export const participantSchema = new mongoose.Schema(
+  {
+    participantId: { type: String, required: true },
+    nickname: { type: String, trim: true, maxlength: 24 },
+  },
+  { _id: false },
+);
+
 const presentationSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 120 },
@@ -88,18 +96,7 @@ const presentationSchema = new mongoose.Schema(
     theme: { type: String, enum: ['iris', 'apricot', 'plum', 'cobalt'], default: 'iris' },
     slides: { type: [slideSchema], default: [] },
     // Leaderboard names: optional nickname per stable anonymous participant id.
-    participants: {
-      type: [
-        new mongoose.Schema(
-          {
-            participantId: { type: String, required: true },
-            nickname: { type: String, trim: true, maxlength: 24 },
-          },
-          { _id: false },
-        ),
-      ],
-      default: [],
-    },
+    participants: { type: [participantSchema], default: [] },
     // 'off' shows new responses at once (the default). 'approve' holds them until the owner approves.
     moderationMode: { type: String, enum: ['off', 'approve'], default: 'off' },
     // Owner, action and time only. Never the response text.

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Presentation } from '../models/presentation.js';
+import { findLiveByCode, liveExistsByCode } from '../lib/liveTarget.js';
 import { applyLiveActionByCode, liveActionSchema, publicState } from '../lib/live.js';
 import { answersFor } from '../lib/answers.js';
 import { guardAudienceAction, signParticipantToken, verifyParticipantToken, limitCredentialIssue } from '../lib/audience.js';
@@ -16,7 +16,7 @@ export const liveRouter = Router();
 liveRouter.get('/:accessCode/token', async (req, res, next) => {
   try {
     if (!getAblyRest()) return res.status(501).json({ message: 'Ably transport is not configured' });
-    const presentation = await Presentation.exists({ accessCode: req.params.accessCode });
+    const presentation = await liveExistsByCode(req.params.accessCode);
     if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
     const tokenRequest = await createSubscriberToken(req.params.accessCode, req.query.clientId ?? 'anonymous');
     return res.json({ tokenRequest });
@@ -28,7 +28,7 @@ liveRouter.get('/:accessCode/token', async (req, res, next) => {
 
 liveRouter.get('/:accessCode/state', async (req, res, next) => {
   try {
-    const presentation = await Presentation.findOne({ accessCode: req.params.accessCode });
+    const presentation = await findLiveByCode(req.params.accessCode);
     if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
     return res.json({ data: publicState(presentation) });
   } catch (err) {
@@ -47,7 +47,7 @@ liveRouter.post('/:accessCode/credential', async (req, res, next) => {
   try {
     limitCredentialIssue(req.ip);
     const { participantId, token } = credentialBody.parse(req.body ?? {});
-    const exists = await Presentation.exists({ accessCode: req.params.accessCode });
+    const exists = await liveExistsByCode(req.params.accessCode);
     if (!exists) return res.status(404).json({ message: 'No presentation with that code' });
     let id;
     if (token) {
@@ -77,7 +77,7 @@ liveRouter.get('/:accessCode/me', async (req, res, next) => {
     if (!participantId || participantId.length < 6 || participantId.length > 64) {
       return res.status(400).json({ message: 'x-participant-id header is required' });
     }
-    const presentation = await Presentation.findOne({ accessCode: req.params.accessCode });
+    const presentation = await findLiveByCode(req.params.accessCode);
     if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
     res.set("Cache-Control", "private, no-store");
     res.vary("x-participant-id");
@@ -110,7 +110,7 @@ liveRouter.post('/:accessCode/action', async (req, res, next) => {
     if (err.code === 'participant_mismatch') return res.status(403).json({ message: err.message, code: err.code });
     if (err.code === 'slide_not_active') {
       // Hand back the fresh state so the client can show what is on screen now.
-      const fresh = await Presentation.findOne({ accessCode: req.params.accessCode });
+      const fresh = await findLiveByCode(req.params.accessCode);
       return res.status(409).json({ message: err.message, code: err.code, ...(fresh ? { state: publicState(fresh) } : {}) });
     }
     if (err instanceof RangeError || err instanceof TypeError) {

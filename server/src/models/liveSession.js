@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { slideSchema, participantSchema } from './presentation.js';
 
 /**
  * PREVIEW. A run of a deck: its own code, its own answers, its own state.
@@ -16,8 +17,8 @@ const liveSessionSchema = new mongoose.Schema(
     deckRevision: { type: Number, default: 0 },
     title: { type: String, required: true },
     theme: { type: String },
-    slides: { type: [mongoose.Schema.Types.Mixed], default: [] },
-    participants: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    slides: { type: [slideSchema], default: [] },
+    participants: { type: [participantSchema], default: [] },
     code: { type: String, required: true },
     status: { type: String, enum: ['active', 'ended', 'archived'], default: 'active' },
     startedAt: { type: Date, default: Date.now },
@@ -32,6 +33,15 @@ const liveSessionSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+// Lets the shared live logic treat a session like a deck (publicState reads accessCode).
+liveSessionSchema.virtual('accessCode').get(function accessCode() {
+  return this.code;
+});
+
+liveSessionSchema.pre('save', function bumpLiveRevision() {
+  if (!this.isNew && this.isModified()) this.$inc('liveRevision', 1);
+});
 
 // A code belongs to one running session at a time. Ended sessions release it.
 liveSessionSchema.index({ code: 1 }, { unique: true, partialFilterExpression: { status: 'active' } });

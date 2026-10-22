@@ -27,3 +27,17 @@ A deck, its answers, its participants and its join code are one document. Runnin
 
 ## Not decided yet
 Retention period for ended sessions, whether decks keep a "current session" pointer, and whether the audience page URL should include a session id.
+
+## Lifecycle routes (flagged off by default)
+
+With `SESSIONS_ENABLED=true`: `POST /api/presentations/:id/sessions` (start, or run again: new code, blank answers, snapshot of the deck), `GET /api/presentations/:id/sessions`, `POST /api/sessions/:sid/end`, `/archive`, `DELETE /api/sessions/:sid` (active sessions must be ended first). Owner only. Deck codes and active session codes never collide.
+
+Still not done: audience join and live actions against a session (answers still go to the deck), session-bound participant credentials, retention/expiry, UI. Turning the flag on in production is an owner decision, after the migration dry run.
+
+## Answers, credentials and retention (still flagged off)
+
+With `SESSIONS_ENABLED=true` a join code points at its active session first, then at the deck, so audience votes, comments, ratings and rankings go to the session (Socket.IO and the HTTP/Ably routes share the lookup). The deck's own answers are untouched. Participant credentials are signed per join code, so each session's code gives it its own credentials, and a credential from one run does not work in another. Presenter controls for a run: `POST /api/sessions/:sid/live-actions`; `GET /api/sessions/:sid/state` stays readable after the run ends (frozen answers).
+
+Retention: `node server/scripts/purge-sessions.js --days N [--apply]` removes ended or archived sessions older than N days (dry run by default). Nothing runs it automatically. The retention period is the owner's decision.
+
+Not done: the presenter and audience web screens still address the deck, so the client has no way to start a session or present one yet.

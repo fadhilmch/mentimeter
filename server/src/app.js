@@ -9,6 +9,7 @@ import { firebaseEnabled, firebaseConnectSources } from './lib/firebase.js';
 import { authRouter } from './routes/auth.js';
 import { presentationsRouter } from './routes/presentations.js';
 import { liveRouter } from './routes/live.js';
+import { sessionsRouter } from './routes/sessions.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
@@ -45,6 +46,8 @@ export function createApp() {
   app.use('/api/users', authRouter);
   app.use('/api/presentations', presentationsRouter);
   app.use('/api/live', liveRouter);
+  // Off unless explicitly enabled: see docs/live-sessions.md.
+  if (process.env.SESSIONS_ENABLED === 'true') app.use('/api', sessionsRouter);
 
   // Self-hosted single-port mode: serve the built client when present.
   const clientDist = process.env.CLIENT_DIST
