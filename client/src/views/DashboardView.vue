@@ -79,6 +79,31 @@ onMounted(async () => {
   }
 })
 
+const templateList = ref<{ key: string; name: string; description: string; slideCount: number }[]>([])
+api.templates(auth.token).then((r) => { templateList.value = r.data }).catch(() => { /* templates are optional */ })
+
+async function useTemplate(key: string) {
+  creating.value = true
+  error.value = ''
+  try {
+    const res = await api.createFromTemplate(auth.token, key)
+    router.push({ name: 'edit', params: { id: String(res.data._id) } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not create from template.'
+    creating.value = false
+  }
+}
+
+async function duplicate(id: string) {
+  error.value = ''
+  try {
+    const res = await api.duplicatePresentation(auth.token, id)
+    router.push({ name: 'edit', params: { id: String(res.data._id) } })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not duplicate the presentation.'
+  }
+}
+
 async function createPresentation() {
   creating.value = true
   error.value = ''
@@ -104,6 +129,17 @@ async function createPresentation() {
       </button>
     </div>
 
+    <section v-if="templateList.length" class="templates" aria-label="Start from a template">
+      <h2 class="templates-title">Start from a template</h2>
+      <div class="templates-row">
+        <button v-for="t in templateList" :key="t.key" class="card template-card" :disabled="creating" @click="useTemplate(t.key)">
+          <strong>{{ t.name }}</strong>
+          <span class="muted">{{ t.description }}</span>
+          <span class="muted">{{ t.slideCount }} slides</span>
+        </button>
+      </div>
+    </section>
+
     <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
     <div v-if="loading" class="presentation-grid" aria-label="Loading presentations">
       <div v-for="i in 3" :key="i" class="skel skel-card"></div>
@@ -122,6 +158,7 @@ async function createPresentation() {
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
+          <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." @click="duplicate(p._id)">Duplicate</button>
         </div>
         <details class="export-menu">
           <summary class="muted">Download results (CSV)</summary>
@@ -167,6 +204,11 @@ async function createPresentation() {
 .export-menu { margin-top: var(--space-3, 12px); font-size: 0.875rem; }
 .export-menu summary { cursor: pointer; }
 .export-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.templates { margin: var(--space-4, 16px) 0; }
+.templates-title { font-size: 1rem; margin: 0 0 8px; }
+.templates-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.template-card { display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.template-card:disabled { opacity: 0.6; cursor: default; }
 .account-delete { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); max-width: 420px; }
 .account-delete summary { cursor: pointer; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 600; padding: var(--space-2) 0; }
 .account-delete form { display: grid; gap: var(--space-3); margin-top: var(--space-3); }

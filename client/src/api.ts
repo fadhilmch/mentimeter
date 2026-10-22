@@ -85,6 +85,11 @@ export const api = {
     call<{ data: unknown[]; total: number; nextCursor: string | null }>(`/api/presentations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {}, token),
   createPresentation: (token: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>('/api/presentations', { method: 'POST', body: JSON.stringify(payload) }, token),
+  templates: (token: string) => call<{ data: { key: string; name: string; description: string; slideCount: number }[] }>('/api/presentations/templates', {}, token),
+  createFromTemplate: (token: string, key: string) =>
+    call<{ data: Record<string, unknown> }>(`/api/presentations/from-template/${key}`, { method: 'POST' }, token),
+  duplicatePresentation: (token: string, id: string) =>
+    call<{ data: Record<string, unknown> }>(`/api/presentations/${id}/duplicate`, { method: 'POST' }, token),
   getPresentation: (token: string, id: string) => call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, {}, token),
   updatePresentation: (token: string, id: string, payload: unknown) =>
     call<{ data: Record<string, unknown> }>(`/api/presentations/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token),

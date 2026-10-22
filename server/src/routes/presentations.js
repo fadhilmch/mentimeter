@@ -8,6 +8,8 @@ import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { ensureSlideIds, hasUnidentifiedSlides, matchSlideUpdate, stampSlideIdsIfMissing } from '../lib/slideIdentity.js';
 import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
 import { summaryCsv, responsesCsv, leaderboardCsv } from '../lib/csvReport.js';
+import { templates, templateList } from '../lib/templates.js';
+import { randomUUID } from 'node:crypto';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
 
@@ -110,6 +112,69 @@ presentationsRouter.get('/', authenticate, async (req, res, next) => {
     const last = page[page.length - 1];
     const nextCursor = rows.length > limit && last ? `${new Date(last.createdAt).getTime()}_${last._id}` : null;
     return res.json({ data: page, total, nextCursor });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/** Starter decks. Choose one with POST /from-template/:key. */
+presentationsRouter.get('/templates', authenticate, (req, res) => res.json({ data: templateList() }));
+
+presentationsRouter.post('/from-template/:key', authenticate, async (req, res, next) => {
+  try {
+    const template = templates.find((t) => t.key === req.params.key);
+    if (!template) return res.status(404).json({ message: 'No template with that name' });
+    const accessCode = await generateUniqueAccessCode(codeExists, config.accessCode);
+    const slides = template.slides.map((slide) => {
+      const options = slide.options.map((text) => ({ id: randomUUID(), text, votes: [] }));
+      return {
+        id: randomUUID(),
+        questionType: slide.questionType,
+        question: slide.question,
+        options,
+        responses: [],
+        ratings: [],
+        rankings: [],
+        ...(slide.correctIndex !== undefined ? { correctOptionId: options[slide.correctIndex].id } : {}),
+      };
+    });
+    const data = await Presentation.create({ title: template.name, slides, accessCode, owner: req.auth.userId });
+    return res.status(201).json({ data });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Copies the structure only: fresh deck, slide and option ids, correct answers remapped, design kept.
+ * No votes, responses, participants, revealed state or join code are copied.
+ */
+presentationsRouter.post('/:id/duplicate', authenticate, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    const source = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!source) return res.status(404).json({ message: 'Presentation not found' });
+    const accessCode = await generateUniqueAccessCode(codeExists, config.accessCode);
+    const slides = source.slides.map((slide) => {
+      const options = slide.options.map((option) => ({ id: randomUUID(), text: option.text, votes: [] }));
+      const correctAt = slide.options.findIndex((option) => option.id && option.id === slide.correctOptionId);
+      const design = slide.design?.toObject ? slide.design.toObject() : slide.design;
+      return {
+        id: randomUUID(),
+        questionType: slide.questionType,
+        question: slide.question,
+        options,
+        responses: [],
+        ratings: [],
+        rankings: [],
+        revealed: false,
+        ...(correctAt >= 0 ? { correctOptionId: options[correctAt].id } : {}),
+        ...(design ? { design } : {}),
+      };
+    });
+    const title = `Copy of ${source.title}`.slice(0, 120);
+    const data = await Presentation.create({ title, location: source.location, theme: source.theme, slides, accessCode, owner: req.auth.userId });
+    return res.status(201).json({ data });
   } catch (err) {
     return next(err);
   }
