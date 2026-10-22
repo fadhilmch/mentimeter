@@ -5,7 +5,7 @@ import { useLiveStore } from '../stores/live'
 import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
-import type { RankingOption } from '../types'
+import type { RankingOption, PresentationState } from '../types'
 import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
@@ -103,6 +103,7 @@ function go(delta: number) {
   // Slide control is presenter-only: it goes through the authenticated route.
   api
     .presenterAction(auth.token, String(state.value.id), { type: 'slide:change', slideIndex: next })
+    .then((res) => live.applyState(res.state as PresentationState))
     .catch((err) => {
       error.value = err instanceof Error ? err.message : 'Could not change slide.'
     })
@@ -113,7 +114,9 @@ async function presenterAction(action: Record<string, unknown>, label: string) {
   busy.value = label
   error.value = ''
   try {
-    await api.presenterAction(auth.token, String(state.value.id), action)
+    const res = await api.presenterAction(auth.token, String(state.value.id), action)
+    // The response carries the authoritative state; the revision stops it overwriting a newer broadcast.
+    live.applyState(res.state as PresentationState)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'That did not work.'
   } finally {
