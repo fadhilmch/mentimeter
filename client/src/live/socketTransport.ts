@@ -4,7 +4,7 @@ import type { ConnectionState, LiveAction, LiveTransport, PresentationState } fr
 /** How long to wait for the server to acknowledge before giving up, so the UI never waits forever. */
 export const ACK_TIMEOUT_MS = 10_000;
 
-type JoinAck = { ok: boolean; state?: PresentationState; message?: string };
+type JoinAck = { ok: boolean; state?: PresentationState; message?: string; presence?: { connected: number } };
 type ActionAck = { ok: boolean; message?: string };
 
 /** Just the Socket.IO surface this transport uses, so tests can pass a fake. */
@@ -18,6 +18,8 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
   let handler: ((state: PresentationState) => void) | null = null;
   let reconnected: (() => void) | null = null;
   let connection: ((state: ConnectionState) => void) | null = null;
+  let presence: ((connected: number) => void) | null = null;
+  socket.on('presence:update', (p: { connected: number }) => presence?.(p.connected));
 
   const emit = <T>(event: string, payload: unknown, noReply: string) =>
     new Promise<T>((resolve, reject) => {
@@ -68,6 +70,7 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
       const res = await emit<JoinAck>('presentation:join', { accessCode: code }, 'Could not reach the server. Check your connection and try again.');
       if (!res.ok || !res.state) throw new Error(res.message ?? 'Could not join');
       accessCode = code;
+      if (res.presence) presence?.(res.presence.connected);
       return res.state;
     },
     async send(action: LiveAction) {
@@ -81,6 +84,9 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
     },
     onReconnect(next) {
       reconnected = next;
+    },
+    onPresence(next) {
+      presence = next;
     },
     onConnection(next) {
       connection = next;

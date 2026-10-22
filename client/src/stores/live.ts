@@ -11,6 +11,7 @@ export const useLiveStore = defineStore('live', {
     connected: false,
     /** What the transport reports after the first join: connected, reconnecting or offline. */
     connection: 'connected' as ConnectionState,
+    presence: null as number | null,
     /** The browser itself reports no network. */
     browserOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
     /** Counts successful reconnects, so a view can drop an error that the reconnect has resolved. */
@@ -37,6 +38,9 @@ export const useLiveStore = defineStore('live', {
       transport.onConnection?.((next) => {
         this.connection = next;
       });
+      transport.onPresence?.((connected) => {
+        this.presence = connected
+      })
       transport.onReconnect?.(() => {
         this.reconnects += 1;
       });
