@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { createDeck, joinAudience, openEnded } from './helpers'
+import { closeAudiences, createDeck, joinAudience, openEnded } from './helpers'
+
+test.afterEach(closeAudiences)
 
 test.describe('presenter moderation', () => {
   test('held responses stay off the audience screen until approved', async ({ browser, request }) => {
