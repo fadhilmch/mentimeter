@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { summarizeConflict } from '../conflictSummary'
 import { EditHistory } from '../editHistory'
 import { clearDraft, loadDraft, saveDraft } from '../draftStore'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
@@ -86,6 +87,8 @@ const saving = ref(false)
 const savedAt = ref('')
 const error = ref('')
 const conflicted = ref(false)
+const conflictLines = ref<string[]>([])
+let conflictTheirs: LoadedPresentation | null = null
 const showValidation = ref(false)
 const dirty = ref(false)
 const ready = ref(false)
@@ -163,6 +166,32 @@ function applyLoaded(p: LoadedPresentation) {
   dirty.value = false
   restoring = true
   void nextTick(() => { restoring = false; history.reset(snapshot()); historyTick.value += 1 })
+}
+
+async function keepMine() {
+  if (!conflictTheirs) return
+  structureRevision.value = conflictTheirs.structureRevision ?? 0
+  conflicted.value = false
+  conflictLines.value = []
+  error.value = ''
+  await save()
+}
+
+function useTheirs() {
+  if (!conflictTheirs) return
+  // Keep my edits as a local draft so nothing is lost; the banner offers to restore them.
+  saveDraft<DraftData>(id, conflictTheirs.structureRevision ?? 0, {
+    title: title.value,
+    location: location.value,
+    themeId: themeId.value,
+    slides: JSON.parse(JSON.stringify(slides.value)),
+  })
+  applyLoaded(conflictTheirs)
+  pendingDraft.value = loadDraft<DraftData>(id)
+  conflicted.value = false
+  conflictLines.value = []
+  error.value = ''
+  conflictTheirs = null
 }
 
 async function reload() {
@@ -413,7 +442,16 @@ async function attemptSave(alreadyRetried = false) {
     }
     if (code === 'conflict') {
       conflicted.value = true
-      error.value = 'These slides were changed elsewhere. Reload to see the latest version before saving.'
+      error.value = 'These slides were changed elsewhere. Choose which version to keep.'
+      try {
+        conflictTheirs = (await api.getPresentation(auth.token, id)).data as unknown as LoadedPresentation
+        conflictLines.value = summarizeConflict(
+          { title: title.value, slides: slides.value },
+          { title: conflictTheirs.title, slides: conflictTheirs.slides.map((sl) => ({ ...sl, options: sl.options ?? [] })) },
+        )
+      } catch {
+        conflictLines.value = []
+      }
       return
     }
     error.value = err.message
@@ -464,8 +502,14 @@ async function remove() {
 
       <p v-if="error" class="error-banner" role="alert">
         {{ error }}
-        <button v-if="conflicted" class="button ghost" style="margin-left:var(--space-2);" @click="reload">Reload</button>
+        <button v-if="conflicted && !conflictLines.length" class="button ghost" style="margin-left:var(--space-2);" @click="reload">Reload</button>
       </p>
+      <div v-if="conflicted && conflictLines.length" class="card" role="group" aria-label="Resolve conflict" data-testid="conflict-panel">
+        <h2>What changed</h2>
+        <ul><li v-for="(line, i) in conflictLines" :key="i">{{ line }}</li></ul>
+        <button class="button" @click="keepMine">Keep my version (replaces the saved one)</button>
+        <button class="button ghost" @click="useTheirs">Use the saved version (my edits stay as a draft)</button>
+      </div>
 
       <div class="card" style="margin-top:20px;">
         <label class="field">
