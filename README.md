@@ -186,7 +186,7 @@ Business logic (code generation, tally math, vote/upvote rules) lives in pure fu
 
 ## Roadmap / open decisions
 
-- Account recovery: there is no password reset yet (accounts hold no email). Decision pending.
+- Account recovery depends on the sign-in mode. With the built-in username and password login there is no password reset (accounts hold no email), so a forgotten password cannot be recovered: keep it in a password manager, or turn on Firebase sign-in, which sends password-reset email (see the Firebase section above). Whether to add email to built-in accounts is an open decision.
 - Footer contact details: the footer shows only the licence and a GitHub link until an owner contact is chosen.
 - Optional per-presentation audience authentication
 

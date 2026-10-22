@@ -5,6 +5,7 @@ import { api, ApiError } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { THEMES } from '../themes'
 import SlidePreview from '../components/SlidePreview.vue'
+import { copySlide } from '../slideCopy'
 
 type SlideType = 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz'
 
@@ -39,7 +40,7 @@ interface LoadedSlide {
 
 const TYPE_META: { type: SlideType; label: string; hint: string; hasOptions: boolean }[] = [
   { type: 'multiple-choice', label: 'Multiple choice', hint: '', hasOptions: true },
-  { type: 'quiz', label: 'Quiz', hint: 'Like multiple choice, but you mark the correct answer. Revealed when results show.', hasOptions: true },
+  { type: 'quiz', label: 'Quiz', hint: 'Like multiple choice, but you mark the correct answer. Revealed when you close voting.', hasOptions: true },
   { type: 'word-cloud', label: 'Word cloud', hint: 'The audience sends single words; repeated words grow bigger.', hasOptions: false },
   { type: 'rating', label: 'Rating', hint: 'The audience rates 1-10; the stage shows the average and spread.', hasOptions: false },
   { type: 'ranking', label: 'Ranking', hint: 'The audience orders your options; points build the final ranking.', hasOptions: true },
@@ -158,6 +159,12 @@ function addSlide(type: SlideType) {
     design: {},
   })
   activeSlide.value = slides.value.length - 1
+}
+
+function duplicateSlide(index: number) {
+  const copy = copySlide(slides.value[index])
+  slides.value.splice(index + 1, 0, copy)
+  activeSlide.value = index + 1
 }
 
 function removeSlide(index: number) {
@@ -414,6 +421,7 @@ async function remove() {
             <span style="display:flex; gap:6px;">
               <button class="icon-button" title="Move slide up" :aria-label="`Move slide ${i + 1} up`" :disabled="i === 0" @click="moveSlide(i, -1)">↑</button>
               <button class="icon-button" title="Move slide down" :aria-label="`Move slide ${i + 1} down`" :disabled="i === slides.length - 1" @click="moveSlide(i, 1)">↓</button>
+              <button class="icon-button" title="Duplicate slide" :aria-label="`Duplicate slide ${i + 1}`" @click="duplicateSlide(i)">⧉</button>
               <button class="icon-button" title="Remove slide" :aria-label="`Remove slide ${i + 1}`" @click="removeSlide(i)">✕</button>
             </span>
           </div>
@@ -436,7 +444,7 @@ async function remove() {
               <button class="icon-button" title="Remove option" :aria-label="`Remove option ${oi + 1}`" @click="removeOption(slide, oi)">✕</button>
             </div>
             <button class="button ghost" @click="addOption(slide)">+ Add option</button>
-            <p v-if="slide.questionType === 'quiz'" class="muted" style="margin:6px 0 0;">The correct answer is revealed on stage when results show. Players stay anonymous - the stage shows how many got it right, no named leaderboard.</p>
+            <p v-if="slide.questionType === 'quiz'" class="muted" style="margin:6px 0 0;">The correct answer is revealed when you close voting. After that the stage shows how many got it right and a leaderboard of the names players chose.</p>
           </template>
           <p v-if="typeHint(slide.questionType) && slide.questionType !== 'quiz'" class="muted" style="margin:0;">{{ typeHint(slide.questionType) }}</p>
 
