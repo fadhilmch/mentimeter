@@ -53,23 +53,23 @@ describe('moderation', () => {
 
   it('hide is reversible and delete clears the text', async () => {
     const { t, id, code } = await setup();
-    await say(code, 'p-aaaaaa', 'rude');
+    await say(code, 'p-aaaaaa', 'zzrudezz');
     await Presentation.findById(id); // ids are stamped on add
     const doc = await Presentation.findById(id);
     const rid = doc.slides[0].responses[0].id;
     const sid = doc.slides[0].id;
     await moderate(id, t, sid, rid, 'hide');
-    expect(JSON.stringify(await pub(code))).not.toContain('rude');
+    expect(JSON.stringify(await pub(code))).not.toContain('zzrudezz');
     expect((await queue(id, t)).body.data.items[0].status).toBe('hidden');
     await moderate(id, t, sid, rid, 'restore');
-    expect(JSON.stringify(await pub(code))).toContain('rude');
+    expect(JSON.stringify(await pub(code))).toContain('zzrudezz');
     await moderate(id, t, sid, rid, 'delete');
-    expect(JSON.stringify(await pub(code))).not.toContain('rude');
+    expect(JSON.stringify(await pub(code))).not.toContain('zzrudezz');
     expect((await queue(id, t)).body.data.items).toHaveLength(0);
     const stored = await Presentation.findById(id);
     expect(stored.slides[0].responses[0].text).toBe('');
     expect((await moderate(id, t, sid, rid, 'restore')).status).toBe(409);
-    expect(JSON.stringify(stored.moderationLog)).not.toContain('rude');
+    expect(JSON.stringify(stored.moderationLog)).not.toContain('zzrudezz');
     expect(stored.moderationLog.map((e) => e.action)).toEqual(['hide', 'restore', 'delete']);
   });
 
@@ -77,22 +77,22 @@ describe('moderation', () => {
     const { t, id, code } = await setup();
     await goTo(id, t, 1);
     await word(code, 'p-aaaaaa', 'ok');
-    await word(code, 'p-bbbbbb', 'bad');
+    await word(code, 'p-bbbbbb', 'zzprofanezz');
     let s = await pub(code);
     expect(s.slides[1].tally.total).toBe(2);
     const doc = await Presentation.findById(id);
-    const bad = doc.slides[1].responses.find((r) => r.text === 'bad');
+    const bad = doc.slides[1].responses.find((r) => r.text === 'zzprofanezz');
     await moderate(id, t, doc.slides[1].id, bad.id, 'hide');
     s = await pub(code);
     expect(s.slides[1].tally.total).toBe(1);
     expect(s.slides[1].tally.words).toEqual([{ text: 'ok', count: 1 }]);
-    expect(JSON.stringify(s)).not.toContain('bad');
+    expect(JSON.stringify(s)).not.toContain('zzprofanezz');
   });
 
   it('rejects moderation by another owner or the audience', async () => {
     const { t, id, code } = await setup();
     const other = (await request(app).post('/api/users/signup').send({ username: 'intruder', password: 'super-secret-1' })).body.token;
-    await say(code, 'p-aaaaaa', 'x1');
+    await say(code, 'p-aaaaaa', 'zzx1zz');
     const doc = await Presentation.findById(id);
     const args = [id, other, doc.slides[0].id, doc.slides[0].responses[0].id, 'delete'];
     expect((await moderate(...args)).status).toBe(404);
@@ -121,11 +121,11 @@ describe('moderation', () => {
 
   it('a retried send of a deleted response is not resurrected', async () => {
     const { t, id, code } = await setup();
-    await say(code, 'p-aaaaaa', 'again', 'client-id-1');
+    await say(code, 'p-aaaaaa', 'zzagainzz', 'client-id-1');
     const doc = await Presentation.findById(id);
     await moderate(id, t, doc.slides[0].id, doc.slides[0].responses[0].id, 'delete');
-    await say(code, 'p-aaaaaa', 'again', 'client-id-1');
-    expect(JSON.stringify(await pub(code))).not.toContain('again');
+    await say(code, 'p-aaaaaa', 'zzagainzz', 'client-id-1');
+    expect(JSON.stringify(await pub(code))).not.toContain('zzagainzz');
     expect((await Presentation.findById(id)).slides[0].responses).toHaveLength(1);
   });
 
@@ -166,11 +166,11 @@ describe('moderation', () => {
   it('exports include only visible responses', async () => {
     const { t, id, code } = await setup();
     await say(code, 'p-aaaaaa', 'shown');
-    await say(code, 'p-bbbbbb', 'hidden-one');
+    await say(code, 'p-bbbbbb', 'zzhiddenonezz');
     const doc = await Presentation.findById(id);
     await moderate(id, t, doc.slides[0].id, doc.slides[0].responses[1].id, 'hide');
     const csv = (await request(app).get(`/api/presentations/${id}/export.csv?kind=responses`).set(auth(t))).text;
     expect(csv).toContain('shown');
-    expect(csv).not.toContain('hidden-one');
+    expect(csv).not.toContain('zzhiddenonezz');
   });
 });
