@@ -36,6 +36,26 @@ async function call<T>(path: string, options: RequestInit = {}, givenToken?: str
   return body as T;
 }
 
+/** Downloads a private CSV as a file: the owner's token goes in a header, never in the URL. */
+export async function downloadCsv(token: string, id: string, kind: 'summary' | 'responses' | 'leaderboard'): Promise<void> {
+  const fresh = tokenRefresher ? ((await tokenRefresher().catch(() => undefined)) ?? token) : token;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/presentations/${id}/export.csv?kind=${kind}`, { headers: { authorization: `Bearer ${fresh}` } });
+  } catch {
+    throw new ApiError(0, { message: "Couldn't reach the server. Check your connection and try again." });
+  }
+  if (res.status === 401) onUnauthorized?.();
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `${kind}.csv`;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export class ApiError extends Error {
   status: number;
   body: { message?: string; code?: string; removedVotes?: number; removedResponses?: number };

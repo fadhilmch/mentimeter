@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
+import { api, downloadCsv } from '../api'
 import { getTheme } from '../themes'
 import logoUrl from '../assets/logo-mark.svg'
 import { useAuthStore } from '../stores/auth'
@@ -36,6 +36,15 @@ async function deleteAccount() {
     deleteError.value = err instanceof Error ? err.message : 'Could not delete the account.'
   } finally {
     deleting.value = false
+  }
+}
+
+async function exportCsv(id: string, kind: 'summary' | 'responses' | 'leaderboard') {
+  error.value = ''
+  try {
+    await downloadCsv(auth.token, id, kind)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not download the file.'
   }
 }
 
@@ -94,6 +103,14 @@ async function createPresentation() {
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
         </div>
+        <details class="export-menu">
+          <summary class="muted">Download results (CSV)</summary>
+          <div class="export-options">
+            <button class="button ghost" @click="exportCsv(p._id, 'summary')">Results summary</button>
+            <button class="button ghost" @click="exportCsv(p._id, 'responses')">Written responses</button>
+            <button class="button ghost" title="Includes the names players chose" @click="exportCsv(p._id, 'leaderboard')">Quiz scores with names</button>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -124,6 +141,9 @@ async function createPresentation() {
 </template>
 
 <style scoped>
+.export-menu { margin-top: var(--space-3, 12px); font-size: 0.875rem; }
+.export-menu summary { cursor: pointer; }
+.export-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
 .account-delete { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); max-width: 420px; }
 .account-delete summary { cursor: pointer; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 600; padding: var(--space-2) 0; }
 .account-delete form { display: grid; gap: var(--space-3); margin-top: var(--space-3); }

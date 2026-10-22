@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -6,6 +7,7 @@ import { validate } from '../middleware/validate.js';
 import { generateUniqueAccessCode } from '../lib/accessCode.js';
 import { ensureSlideIds, hasUnidentifiedSlides, matchSlideUpdate, stampSlideIdsIfMissing } from '../lib/slideIdentity.js';
 import { presenterActionSchema, applyLiveAction, publicState } from '../lib/live.js';
+import { summaryCsv, responsesCsv, leaderboardCsv } from '../lib/csvReport.js';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
 
@@ -106,6 +108,32 @@ presentationsRouter.get('/code/:accessCode', async (req, res, next) => {
     const data = await Presentation.findOne({ accessCode: req.params.accessCode });
     if (!data) return res.status(404).json({ message: 'No presentation with that code' });
     return res.json({ data: publicState(data) });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/**
+ * Owner-only CSV of the results as they stand now (a snapshot, not a frozen historical report:
+ * sessions are not separated from decks yet). kind=summary is aggregate; responses adds open-ended
+ * text; leaderboard adds player names and scores and is a deliberate separate choice.
+ */
+const exporters = { summary: summaryCsv, responses: responsesCsv, leaderboard: leaderboardCsv };
+presentationsRouter.get('/:id/export.csv', authenticate, async (req, res, next) => {
+  try {
+    const kind = String(req.query.kind ?? 'summary');
+    if (!Object.hasOwn(exporters, kind)) return res.status(400).json({ message: 'kind must be summary, responses or leaderboard' });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
+    const data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    if (!data) return res.status(404).json({ message: 'Presentation not found' });
+    const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'presentation';
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${slug}-${kind}.csv"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return res.send(exporters[kind](data));
   } catch (err) {
     return next(err);
   }
