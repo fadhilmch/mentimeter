@@ -185,12 +185,13 @@ async function deleteFirebaseAccount(req, res) {
   }
   const user = await User.findOne({ firebaseUid: uid });
   let deletedPresentations = 0;
+  let firebaseLoginRemoved = false;
   try {
     if (user) {
       ({ deletedCount: deletedPresentations } = await Presentation.deleteMany({ owner: user._id }));
       await User.deleteOne({ _id: user._id });
     }
-    await deleteFirebaseUser(uid);
+    firebaseLoginRemoved = await deleteFirebaseUser(uid);
   } catch (err) {
     console.error('Account deletion incomplete', err);
     return res.status(500).json({
@@ -198,5 +199,6 @@ async function deleteFirebaseAccount(req, res) {
       code: 'ACCOUNT_DELETE_INCOMPLETE',
     });
   }
-  return res.json({ ok: true, deletedPresentations });
+  // false means this server holds no service account: the browser must delete its own login next.
+  return res.json({ ok: true, deletedPresentations, firebaseLoginRemoved });
 }
