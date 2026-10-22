@@ -23,6 +23,10 @@ const ended = ref(false)
 watch(error, (message) => {
   if (isPresentationGone(message)) ended.value = true
 })
+// A reconnect proves the server is reachable again, so a leftover connection error no longer applies.
+watch(() => live.reconnects, () => {
+  if (!ended.value) error.value = ''
+})
 const draft = ref('')
 const wordDraft = ref('')
 const myVotes = reactive<Record<number, number>>({})
@@ -109,6 +113,7 @@ async function restoreMyAnswers() {
 async function choose(optionIndex: number) {
   if (!state.value) return
   const slideIndex = state.value.currentSlide
+  error.value = ''
   try {
     // A failed vote must not stay shown as locked in.
     await setThenSave(myVotes, slideIndex, optionIndex, () => live.vote(slideIndex, optionIndex))
@@ -120,6 +125,7 @@ async function choose(optionIndex: number) {
 async function submitResponse() {
   const text = draft.value.trim()
   if (!text || !state.value) return
+  error.value = ''
   try {
     await live.respond(state.value.currentSlide, text)
     draft.value = ''
@@ -131,6 +137,7 @@ async function submitResponse() {
 async function upvote(responseIndex: number) {
   if (!state.value) return
   const key = `${state.value.currentSlide}:${responseIndex}`
+  error.value = ''
   myUpvotes[key] = !myUpvotes[key]
   try {
     await live.upvote(state.value.currentSlide, responseIndex)
@@ -143,6 +150,7 @@ async function upvote(responseIndex: number) {
 async function submitWord() {
   const word = wordDraft.value.trim()
   if (!word || !state.value) return
+  error.value = ''
   try {
     await live.submitWord(state.value.currentSlide, word)
     myWords[state.value.currentSlide] = word.toLowerCase()
@@ -155,6 +163,7 @@ async function submitWord() {
 async function rate(value: number) {
   if (!state.value) return
   const slideIndex = state.value.currentSlide
+  error.value = ''
   try {
     await setThenSave(myRatings, slideIndex, value, () => live.castRating(slideIndex, value))
   } catch (err) {
@@ -171,6 +180,7 @@ function tapRank(id: string) {
 async function sendRanking() {
   if (!state.value) return
   const order = [...rankingDraft.value]
+  error.value = ''
   try {
     await live.submitRanking(state.value.currentSlide, order)
     submittedRankings[state.value.currentSlide] = order

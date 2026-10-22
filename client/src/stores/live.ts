@@ -9,6 +9,8 @@ export const useLiveStore = defineStore('live', {
     state: null as PresentationState | null,
     error: '',
     connected: false,
+    /** Counts successful reconnects, so a view can drop an error that the reconnect has resolved. */
+    reconnects: 0,
   }),
   getters: {
     currentSlide(state) {
@@ -24,6 +26,9 @@ export const useLiveStore = defineStore('live', {
       this.transport = transport;
       transport.onState((state) => {
         this.state = state;
+      });
+      transport.onReconnect?.(() => {
+        this.reconnects += 1;
       });
       try {
         this.state = await transport.join(accessCode);

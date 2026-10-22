@@ -69,5 +69,7 @@ export interface LiveTransport {
   join(accessCode: string): Promise<PresentationState>;
   send(action: LiveAction): Promise<void>;
   onState(handler: (state: PresentationState) => void): void;
+  /** Optional: called after a dropped connection is re-established and the room is rejoined. */
+  onReconnect?(handler: () => void): void;
   leave(): void;
 }
