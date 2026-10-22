@@ -236,7 +236,7 @@ input:focus, select:focus, textarea:focus {
   font-weight: 800; color: var(--t-accink); min-width: 44px; text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.stage-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 40px; position: sticky; bottom: 12px; }
+.stage-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 40px; position: sticky; bottom: 0; padding: var(--space-3) 0; background: linear-gradient(to top, var(--t-sbg) 72%, transparent); }
 .stage-nav .button { background: var(--t-stage2); color: var(--t-ink); box-shadow: inset 0 0 0 1px var(--t-track); }
 .stage-nav .button:hover:not(:disabled) { background: var(--t-track); }
 

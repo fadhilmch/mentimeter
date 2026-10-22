@@ -353,7 +353,7 @@ async function sendRanking() {
         <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
           <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
           <ParticipantAvatar :name="entry.name" :size="32" />
-          <span class="lb-name">{{ entry.name }}<span v-if="entry.name === myName" class="you-chip">You</span></span>
+          <span class="lb-name"><span class="lb-name-text">{{ entry.name }}</span><span v-if="entry.name === myName" class="you-chip">You</span></span>
           <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
         </li>
       </ol>
@@ -443,6 +443,11 @@ async function sendRanking() {
   font-weight: 700;
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.lb-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -457,12 +462,12 @@ async function sendRanking() {
   padding: 2px var(--space-2);
   border-radius: 99px;
   margin-left: 6px;
-  vertical-align: 2px;
+  flex-shrink: 0;
 }
 .lb-score {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--t-accink, var(--accent));
   white-space: nowrap;
 }
 .lb-score.zero {
