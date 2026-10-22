@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLiveStore } from '../stores/live'
+import ConnectionBanner from '../components/ConnectionBanner.vue'
 import { useAuthStore } from '../stores/auth'
 import { getTheme, themeVars } from '../themes'
 import { api } from '../api'
@@ -186,6 +187,7 @@ function end() {
     <JoinPanel v-if="showJoin" :code="code" @close="showJoin = false" />
 
     <div class="stage-body">
+    <ConnectionBanner role="presenter" />
       <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">

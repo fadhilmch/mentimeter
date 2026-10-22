@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import type { LiveAction, LiveTransport, PresentationState } from '../types';
+import type { ConnectionState, LiveAction, LiveTransport, PresentationState } from '../types';
 
 /** How long to wait for the server to acknowledge before giving up, so the UI never waits forever. */
 export const ACK_TIMEOUT_MS = 10_000;
@@ -17,6 +17,7 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
   let accessCode: string | null = null;
   let handler: ((state: PresentationState) => void) | null = null;
   let reconnected: (() => void) | null = null;
+  let connection: ((state: ConnectionState) => void) | null = null;
 
   const emit = <T>(event: string, payload: unknown, noReply: string) =>
     new Promise<T>((resolve, reject) => {
@@ -34,7 +35,7 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
   // the server refuses an answer from a socket that has not joined the room.
   let dropped = false;
   let waiting: Array<() => void> = [];
-  socket.on('disconnect', () => { if (accessCode) dropped = true; });
+  socket.on('disconnect', () => { if (accessCode) { dropped = true; connection?.('reconnecting'); } });
   socket.on('connect', () => {
     if (!accessCode) return;
     emit<JoinAck>('presentation:join', { accessCode }, 'Reconnect timed out')
@@ -45,6 +46,7 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
         const release = waiting;
         waiting = [];
         release.forEach((go) => go());
+        connection?.('connected');
         reconnected?.();
       })
       .catch(() => { /* the next reconnect tries again */ });
@@ -80,10 +82,14 @@ export function createSocketTransport(url?: string, socketFactory: () => SocketL
     onReconnect(next) {
       reconnected = next;
     },
+    onConnection(next) {
+      connection = next;
+    },
     leave() {
       accessCode = null;
       handler = null;
       reconnected = null;
+      connection = null;
       socket.disconnect();
     },
   };

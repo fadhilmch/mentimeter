@@ -150,3 +150,19 @@ describe('Socket transport', () => {
     expect(f.pending).toHaveLength(1)
   })
 })
+
+describe('Socket transport connection states', () => {
+  it('reports reconnecting on a drop and connected once the room is rejoined', async () => {
+    const f = fakeSocket()
+    const t = await joined(f)
+    const seen: string[] = []
+    t.onConnection?.((s) => seen.push(s))
+    f.fire('disconnect')
+    expect(seen).toEqual(['reconnecting'])
+    f.fire('connect')
+    f.reply({ ok: true, state })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(seen).toEqual(['reconnecting', 'connected'])
+  })
+})
