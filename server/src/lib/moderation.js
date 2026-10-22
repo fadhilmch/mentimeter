@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { z } from 'zod';
+import { LiveSession } from '../models/liveSession.js';
 import { Presentation } from '../models/presentation.js';
 
 const LOG_LIMIT = 200;
@@ -73,7 +74,11 @@ export function moderationQueue(presentation) {
 async function withOwnedPresentation(presentationId, ownerId, mutate, maxAttempts = 6) {
   if (!mongoose.isValidObjectId(presentationId)) throw new ModerationError('Presentation not found', 404);
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const presentation = await Presentation.findOne({ _id: presentationId, owner: ownerId });
+    let presentation = await Presentation.findOne({ _id: presentationId, owner: ownerId });
+    // With sessions on, the presenter addresses a run by the id in its state (a session id).
+    if (!presentation && process.env.SESSIONS_ENABLED === 'true') {
+      presentation = await LiveSession.findOne({ _id: presentationId, owner: ownerId, status: 'active' });
+    }
     if (!presentation) throw new ModerationError('Presentation not found', 404);
     const idsStamped = stampIds(presentation);
     const result = mutate(presentation);

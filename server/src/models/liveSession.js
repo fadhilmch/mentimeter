@@ -26,7 +26,17 @@ const liveSessionSchema = new mongoose.Schema(
     currentSlide: { type: Number, default: 0 },
     votingOpen: { type: Boolean, default: true },
     resultsVisible: { type: Boolean, default: true },
-    moderationMode: { type: String, default: 'off' },
+    moderationMode: { type: String, enum: ['off', 'approve'], default: 'off' },
+    // Owner, action and time only. Never the response text.
+    moderationLog: {
+      type: [
+        new mongoose.Schema(
+          { owner: { type: String, required: true }, action: { type: String, required: true }, slideId: { type: String }, responseId: { type: String }, at: { type: Date, default: Date.now } },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     liveRevision: { type: Number, default: 0 },
     // Set only on a session created from pre-session data. One per deck, which makes migration idempotent.
     legacyOf: { type: mongoose.Schema.Types.ObjectId },
