@@ -109,7 +109,7 @@ describe('Ably transport', () => {
     expect(seen).toEqual([state])
   })
 
-  it('turns a stalled action into the plain no-answer message instead of hanging', async () => {
+  it('turns a stalled action into an unknown-outcome message and reloads the saved state', async () => {
     const t = setup()
     t.deps.timeoutMs = 20
     const hang = (_url: string, init?: RequestInit) => new Promise<Response>((_res, rej) => {
@@ -117,7 +117,11 @@ describe('Ably transport', () => {
     })
     const transport = createAblyTransport(t.deps)
     await transport.join('123456')
+    const seen: unknown[] = []
+    transport.onState((s) => seen.push(s))
     t.fetchFn.mockImplementationOnce(hang as never)
-    await expect(transport.send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'person-1' })).rejects.toThrow('No answer from the server')
+    await expect(transport.send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'person-1' })).rejects.toThrow("couldn't confirm")
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seen).toEqual([state]) // the authoritative state was fetched, so the screen shows what was saved
   })
 })

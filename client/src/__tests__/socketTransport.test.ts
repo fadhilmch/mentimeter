@@ -69,11 +69,11 @@ describe('Socket transport', () => {
     await p
   })
 
-  it('stops waiting when the server never acknowledges an answer, and says it may not be saved', async () => {
+  it('stops waiting when the server never acknowledges an answer, and says the outcome is unconfirmed', async () => {
     vi.useFakeTimers()
     const f = fakeSocket()
     const t = await joined(f)
-    const p = expect(t.send(rate)).rejects.toThrow('may not have been saved')
+    const p = expect(t.send(rate)).rejects.toThrow("couldn't confirm")
     await vi.advanceTimersByTimeAsync(ACK_TIMEOUT_MS)
     await p
   })
