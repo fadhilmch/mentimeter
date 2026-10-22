@@ -14,6 +14,8 @@ const responseSchema = new mongoose.Schema(
   {
     text: { type: String, required: true, trim: true, maxlength: 280 },
     authorId: { type: String, required: true },
+    // Client-chosen id of the send, so a retry after a lost acknowledgment is not stored twice.
+    clientId: { type: String },
     upvotes: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now },
   },

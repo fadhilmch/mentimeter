@@ -28,6 +28,9 @@ watch(() => live.reconnects, () => {
   if (!ended.value) error.value = ''
 })
 const draft = ref('')
+// One id per distinct comment, kept until it is accepted: tapping Send again after a lost
+// acknowledgment reuses it, so the server stores the comment once. Edited text gets a new id.
+const sendIds = new Map<string, string>()
 const wordDraft = ref('')
 const myVotes = reactive<Record<number, number>>({})
 const myUpvotes = reactive<Record<string, boolean>>({})
@@ -127,7 +130,11 @@ async function submitResponse() {
   if (!text || !state.value) return
   error.value = ''
   try {
-    await live.respond(state.value.currentSlide, text)
+    const idKey = `${state.value.currentSlide}:${text}`
+    const clientId = sendIds.get(idKey) ?? crypto.randomUUID()
+    sendIds.set(idKey, clientId)
+    await live.respond(state.value.currentSlide, text, clientId)
+    sendIds.delete(idKey)
     draft.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
@@ -138,9 +145,10 @@ async function upvote(responseIndex: number) {
   if (!state.value) return
   const key = `${state.value.currentSlide}:${responseIndex}`
   error.value = ''
-  myUpvotes[key] = !myUpvotes[key]
+  const want = !myUpvotes[key]
+  myUpvotes[key] = want
   try {
-    await live.upvote(state.value.currentSlide, responseIndex)
+    await live.upvote(state.value.currentSlide, responseIndex, want)
   } catch (err) {
     myUpvotes[key] = !myUpvotes[key]
     error.value = err instanceof Error ? err.message : 'Upvote failed.'

@@ -108,18 +108,21 @@ export function submitRanking(slide, order, participantId) {
   return slide;
 }
 
-export function addResponse(slide, text, participantId) {
+/** A retry carrying the same clientId from the same participant is the same answer: stored once. */
+export function addResponse(slide, text, participantId, clientId) {
   if (slide.questionType !== 'open-ended') {
     throw new TypeError('Responses only apply to open-ended slides');
   }
   const cleaned = text.trim();
   if (cleaned.length === 0) throw new TypeError('Response text must not be empty');
   if (cleaned.length > 280) throw new RangeError('Response text is limited to 280 characters');
-  slide.responses.push({ text: cleaned, upvotes: [], authorId: participantId });
+  if (clientId && slide.responses.some((entry) => entry.authorId === participantId && entry.clientId === clientId)) return slide;
+  slide.responses.push({ text: cleaned, upvotes: [], authorId: participantId, ...(clientId ? { clientId } : {}) });
   return slide;
 }
 
-export function toggleUpvote(slide, responseIndex, participantId) {
+/** `on` states the wanted result (true = upvoted), so a retry cannot undo it. Without `on` it toggles. */
+export function toggleUpvote(slide, responseIndex, participantId, on) {
   if (!Number.isInteger(responseIndex) || responseIndex < 0 || responseIndex >= slide.responses.length) {
     throw new RangeError('Response index out of range');
   }
@@ -128,8 +131,11 @@ export function toggleUpvote(slide, responseIndex, participantId) {
     throw new TypeError('Authors cannot upvote their own response');
   }
   const at = response.upvotes.indexOf(participantId);
-  if (at === -1) response.upvotes.push(participantId);
-  else response.upvotes.splice(at, 1);
+  if (at === -1) {
+    if (on !== false) response.upvotes.push(participantId);
+  } else if (on !== true) {
+    response.upvotes.splice(at, 1);
+  }
   return slide;
 }
 
