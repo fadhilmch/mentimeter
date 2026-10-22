@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { readableOn } from '../themes'
 import { useAuthStore } from '../stores/auth'
 import { STEPS, QUESTION_TYPES, FEATURES } from '../landing/content'
 import JoinWithCode from '../components/landing/JoinWithCode.vue'
@@ -45,7 +46,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
       <p class="band-lead">Mix question types in one presentation.</p>
       <ul class="grid three">
         <li v-for="t in QUESTION_TYPES" :key="t.name" class="type">
-          <span class="tile" :style="{ background: t.color }" aria-hidden="true">{{ t.glyph }}</span>
+          <span class="tile" :style="{ background: t.color, color: readableOn(t.color) }" aria-hidden="true">{{ t.glyph }}</span>
           <span>
             <b>{{ t.name }}</b>
             <span class="type-text">{{ t.text }}</span>

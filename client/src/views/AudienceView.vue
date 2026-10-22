@@ -9,7 +9,7 @@ import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import { useColorMode } from '../colorMode'
 import { shouldPromptNow } from '../namePrompt'
-import { aliasFor, randomNickname } from '../alias'
+import { playerKey, randomNickname } from '../alias'
 import { setThenSave } from '../optimistic'
 import { participantId } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
@@ -62,11 +62,16 @@ const pageStyle = computed(() => themeVars(theme.value, mode.value))
 const pal = computed(() => theme.value.pal)
 const accent = computed(() => slide.value?.design?.accent ?? pal.value[0])
 const onAccent = computed(() => readableOn(accent.value))
-const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
+// Medal colours come from the theme palette. On the light stage they are mixed toward the ink so
+// the rank number stays readable (the bright palette colours are only 1.4-2.6:1 on white).
+const rankColor = (rank: number): string | undefined => {
+  if (rank < 1 || rank > 3) return undefined
+  const colour = pal.value[rank + 1]
+  return mode.value === 'light' ? `color-mix(in srgb, ${colour} 40%, var(--t-ink))` : colour
+}
 const votingOpen = computed(() => state.value?.votingOpen !== false && !ended.value)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const savedName = ref(localStorage.getItem('livepoll.nickname') ?? '')
-const myName = computed(() => savedName.value.trim() || aliasFor(participantId()))
 const nameDraft = ref('')
 const askName = computed(() => !!state.value && shouldPromptNow(state.value.slides, state.value.currentSlide, savedName.value))
 function generateName() { nameDraft.value = randomNickname() }
@@ -80,7 +85,9 @@ async function saveName() {
     // Not saved: the card stays so they can try again. Answering is never blocked.
   }
 }
-const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
+const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
+const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.key === myKey.value) ?? null)
+
 
 // Start each slide's ranking with a clean slate.
 watch(
@@ -372,10 +379,10 @@ async function sendRanking() {
         <span class="lb-count">{{ state.leaderboard.length }} player{{ state.leaderboard.length === 1 ? '' : 's' }}</span>
       </div>
       <ol class="leaderboard-list">
-        <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.name" :class="{ me: entry.name === myName }">
+        <li v-for="entry in state.leaderboard.slice(0, 5)" :key="entry.key" :class="{ me: entry.key === myKey }">
           <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
           <ParticipantAvatar :name="entry.name" :size="32" />
-          <span class="lb-name">{{ entry.name }}<span v-if="entry.name === myName" class="you-chip">You</span></span>
+          <span class="lb-name"><span class="lb-name-text">{{ entry.name }}</span><span v-if="entry.key === myKey" class="you-chip">You</span></span>
           <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
         </li>
       </ol>
@@ -443,7 +450,7 @@ async function sendRanking() {
 }
 .lb-count {
   font-size: var(--fs-xs);
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   font-variant-numeric: tabular-nums;
 }
 .leaderboard-list {
@@ -471,11 +478,16 @@ async function sendRanking() {
   font-weight: 800;
   font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--t-ink) 55%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .lb-name {
   font-weight: 700;
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.lb-name-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -491,16 +503,16 @@ async function sendRanking() {
   padding: 2px var(--space-2);
   border-radius: 99px;
   margin-left: 6px;
-  vertical-align: 2px;
+  flex-shrink: 0;
 }
 .lb-score {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--t-accink, var(--accent));
   white-space: nowrap;
 }
 .lb-score.zero {
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .rank-badge {
   width: 26px;

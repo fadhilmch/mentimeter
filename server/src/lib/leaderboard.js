@@ -14,6 +14,30 @@ const ANIMALS = [
   'Mole', 'Finch', 'Yak', 'Wolf',
 ];
 
+/** cyrb53: small synchronous 53-bit string hash. Not a secret, only an opaque stable label. */
+function cyrb53(str) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+/**
+ * Opaque per-room label for one player. Two players can share a display name (the same chosen
+ * nickname, or the same alias), so a phone finds its own leaderboard row by this label instead.
+ * The raw participant id is a bearer-like secret and never leaves the server; this label cannot
+ * be turned back into it. Mirrored in client/src/alias.ts (a shared test vector keeps them equal).
+ */
+export function playerKey(accessCode, participantId) {
+  return cyrb53(`${accessCode}:${participantId}`).toString(36);
+}
+
 /** Stable alias per participant id, so an unnamed voter still has a name. */
 export function aliasFor(participantId) {
   let hash = 0;
@@ -48,7 +72,11 @@ export function computeLeaderboard(presentation) {
   // Everyone who answered a revealed question is on the board, wrong answers
   // included - a 0-point player still sees their own rank.
   const entries = [...answered]
-    .map((participantId) => ({ name: displayName(presentation, participantId), score: scores.get(participantId) ?? 0 }))
+    .map((participantId) => ({
+      key: playerKey(presentation.accessCode, participantId),
+      name: displayName(presentation, participantId),
+      score: scores.get(participantId) ?? 0,
+    }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   entries.forEach((entry, i) => {
     entry.rank = i > 0 && entry.score === entries[i - 1].score ? entries[i - 1].rank : i + 1;

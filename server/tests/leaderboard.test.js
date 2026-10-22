@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aliasFor, displayName, computeLeaderboard } from '../src/lib/leaderboard.js';
+import { aliasFor, displayName, computeLeaderboard, playerKey } from '../src/lib/leaderboard.js';
 import { applyLiveAction, publicState } from '../src/lib/live.js';
 
 function quizPresentation(overrides = {}) {
@@ -57,9 +57,9 @@ describe('computeLeaderboard', () => {
     p.slides.forEach((slide) => { slide.revealed = true; });
     const board = computeLeaderboard(p);
     expect(board).toEqual([
-      { name: aliasFor('p-2'), score: 2, rank: 1 },
-      { name: aliasFor('p-3'), score: 1, rank: 2 },
-      { name: aliasFor('p-1'), score: 0, rank: 3 },
+      { key: playerKey('111111', 'p-2'), name: aliasFor('p-2'), score: 2, rank: 1 },
+      { key: playerKey('111111', 'p-3'), name: aliasFor('p-3'), score: 1, rank: 2 },
+      { key: playerKey('111111', 'p-1'), name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
   });
 
@@ -123,9 +123,9 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(state.slides[0].tally.correctOptionIndex).toBe(1);
     expect(state.slides[0].tally.correctCount).toBe(2);
     expect(state.leaderboard).toEqual([
-      { name: aliasFor('p-2'), score: 1, rank: 1 },
-      { name: aliasFor('p-3'), score: 1, rank: 1 },
-      { name: aliasFor('p-1'), score: 0, rank: 3 },
+      { key: playerKey('111111', 'p-2'), name: aliasFor('p-2'), score: 1, rank: 1 },
+      { key: playerKey('111111', 'p-3'), name: aliasFor('p-3'), score: 1, rank: 1 },
+      { key: playerKey('111111', 'p-1'), name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
   });
 
@@ -157,9 +157,9 @@ describe('quiz answer reveal gating in publicState', () => {
     applyLiveAction(p, { type: 'voting:set', open: false }); // reveals Q2
     const state = publicState(p);
     expect(state.leaderboard).toEqual([
-      { name: aliasFor('p-2'), score: 2, rank: 1 },
-      { name: aliasFor('p-3'), score: 1, rank: 2 },
-      { name: aliasFor('p-1'), score: 0, rank: 3 },
+      { key: playerKey('111111', 'p-2'), name: aliasFor('p-2'), score: 2, rank: 1 },
+      { key: playerKey('111111', 'p-3'), name: aliasFor('p-3'), score: 1, rank: 2 },
+      { key: playerKey('111111', 'p-1'), name: aliasFor('p-1'), score: 0, rank: 3 },
     ]);
   });
 
@@ -209,5 +209,34 @@ describe('quiz answer reveal gating in publicState', () => {
     expect(raw).not.toContain('p-2');
     expect(raw).not.toContain('participantId');
     expect(state.leaderboard[0].name).toBe('Fadhil');
+  });
+});
+
+describe('player keys', () => {
+  it('are stable, per room, and pinned to a shared vector the client must match', () => {
+    expect(playerKey('111111', 'p-1')).toBe('296pve18sa');
+    expect(playerKey('111111', 'p-2')).toBe('6pixhw4j56');
+    expect(playerKey('222222', 'p-1')).toBe('1ey60bew77n');
+  });
+
+  it('tell two players with the same display name apart', () => {
+    const p = quizPresentation({
+      participants: [
+        { participantId: 'p-2', nickname: 'Fika Fan' },
+        { participantId: 'p-3', nickname: 'Fika Fan' },
+      ],
+    });
+    p.slides.forEach((slide) => { slide.revealed = true; });
+    const board = computeLeaderboard(p);
+    const same = board.filter((entry) => entry.name === 'Fika Fan');
+    expect(same).toHaveLength(2);
+    expect(new Set(same.map((entry) => entry.key)).size).toBe(2);
+    expect(same.map((entry) => entry.key)).toContain(playerKey('111111', 'p-3'));
+  });
+
+  it('never put a raw participant id in the public board', () => {
+    const p = quizPresentation();
+    p.slides.forEach((slide) => { slide.revealed = true; });
+    expect(JSON.stringify(computeLeaderboard(p))).not.toContain('p-2');
   });
 });

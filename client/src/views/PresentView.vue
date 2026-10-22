@@ -57,7 +57,13 @@ const isFirst = computed(() => (state.value?.currentSlide ?? 0) <= 0)
 const isLast = computed(() => !!state.value && state.value.currentSlide >= state.value.slides.length - 1)
 const votingOpen = computed(() => state.value?.votingOpen !== false)
 const accent = computed(() => slide.value?.design?.accent ?? null)
-const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
+// Medal colours come from the theme palette. On the light stage they are mixed toward the ink so
+// the rank number stays readable (the bright palette colours are only 1.4-2.6:1 on white).
+const rankColor = (rank: number): string | undefined => {
+  if (rank < 1 || rank > 3) return undefined
+  const colour = pal.value[rank + 1]
+  return mode.value === 'light' ? `color-mix(in srgb, ${colour} 40%, var(--t-ink))` : colour
+}
 
 function optionsOf(): RankingOption[] {
   const s = slide.value
@@ -165,7 +171,7 @@ function end() {
         <img class="stage-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
         <span class="stage-title">{{ state?.title ?? 'Presentation' }}</span>
       </div>
-      <button type="button" class="code-chip" aria-label="Show join QR code" @click="showJoin = true">
+      <button type="button" class="code-chip" :aria-label="`JOIN ${code}, show join QR code`" @click="showJoin = true">
         <span>JOIN {{ code }}</span>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3M21 14v.01M14 21h.01M17.5 21H21v-3.5" /></svg>
       </button>
@@ -195,7 +201,7 @@ function end() {
         <div class="stage-slide-slot">
         <Transition :name="`slide-${direction}`">
         <div :key="state.currentSlide">
-        <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); font-weight:600; margin:0 0 var(--space-2);">
+        <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent); font-weight:600; margin:0 0 var(--space-2);">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
         </p>
         <div
@@ -226,7 +232,7 @@ function end() {
               <div class="result-fill" :style="{ width: `${Math.max(slide.tally.percentages?.[i] ?? 0, 2)}%`, background: pal[i % pal.length], transitionDelay: `${i * 60}ms` }"></div>
             </div>
           </div>
-          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">
+          <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">
             {{ displayed.total }} vote{{ displayed.total === 1 ? '' : 's' }}<template v-if="slide.questionType === 'quiz' && slide.tally.correctCount !== undefined"> · {{ slide.tally.correctCount }} correct</template>
 
 
@@ -238,14 +244,14 @@ function end() {
           <div v-if="cloudWords.length" class="cloud-stage" aria-live="polite">
             <span v-for="w in cloudWords" :key="w.text" class="cloud-word" :style="{ fontSize: `${w.size}rem`, color: w.color }">{{ w.text }}</span>
           </div>
-          <p v-else style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">Waiting for words…</p>
-          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">{{ slide.tally?.total ?? 0 }} word{{ (slide.tally?.total ?? 0) === 1 ? '' : 's' }}</p>
+          <p v-else style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">Waiting for words…</p>
+          <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">{{ slide.tally?.total ?? 0 }} word{{ (slide.tally?.total ?? 0) === 1 ? '' : 's' }}</p>
         </template>
 
         <template v-else-if="slide.questionType === 'rating' && slide.tally">
           <div class="rating-stage" aria-live="polite">
             <p class="rating-big">{{ slide.tally.average }}</p>
-            <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent); margin-top:0;">average of {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}</p>
+            <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent); margin-top:0;">average of {{ slide.tally.total }} rating{{ slide.tally.total === 1 ? '' : 's' }}</p>
             <div v-if="slide.tally.buckets" class="bucket-row">
               <div v-for="(count, i) in slide.tally.buckets" :key="i" class="bucket-col">
                 <span class="bucket-count" :style="{ visibility: count ? 'visible' : 'hidden' }">{{ count }}</span>
@@ -269,7 +275,7 @@ function end() {
               <div class="result-fill" :style="{ width: `${Math.max(row.pct, 2)}%`, background: row.color }"></div>
             </div>
           </div>
-          <p style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">{{ slide.tally.total }} ranking{{ slide.tally.total === 1 ? '' : 's' }}</p>
+          <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">{{ slide.tally.total }} ranking{{ slide.tally.total === 1 ? '' : 's' }}</p>
           </div>
         </template>
 
@@ -280,7 +286,7 @@ function end() {
               <span class="upvote-count">▲ {{ r.upvotes }}</span>
             </div>
           </div>
-          <p v-if="!slide.responses.length" style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">Waiting for answers…</p>
+          <p v-if="!slide.responses.length" style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">Waiting for answers…</p>
         </template>
         </div>
         </Transition>
@@ -292,7 +298,7 @@ function end() {
             <span class="lb-count">{{ live.state.leaderboard.length }} player{{ live.state.leaderboard.length === 1 ? '' : 's' }}</span>
           </div>
           <ol class="lb-rows">
-            <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.name">
+            <li v-for="entry in (showFullBoard ? live.state.leaderboard : live.state.leaderboard.slice(0, 5))" :key="entry.key">
               <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
               <ParticipantAvatar :name="entry.name" :size="36" />
               <span class="lb-name">{{ entry.name }}</span>
@@ -309,7 +315,7 @@ function end() {
           <button class="button" :disabled="isLast" @click="go(1)">Next →</button>
         </div>
       </template>
-      <p v-else style="color:color-mix(in srgb, var(--t-ink) 60%, transparent);">This presentation has no slides yet.</p>
+      <p v-else style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">This presentation has no slides yet.</p>
     </div>
   </div>
 </template>
@@ -330,7 +336,7 @@ function end() {
 }
 .lb-count {
   font-size: var(--fs-xs);
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   font-variant-numeric: tabular-nums;
 }
 .lb-rows {
@@ -356,7 +362,7 @@ function end() {
   font-weight: 800;
   font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--t-ink) 55%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .lb-name {
   font-weight: 700;
@@ -373,7 +379,7 @@ function end() {
   white-space: nowrap;
 }
 .lb-pts.zero {
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
 .stage-question-row.has-image:not(.behind) {
   display: flex;
@@ -444,7 +450,7 @@ function end() {
 }
 .bucket-num {
   font-size: 0.8rem;
-  color: color-mix(in srgb, var(--t-ink) 60%, transparent);
+  color: color-mix(in srgb, var(--t-ink) 72%, transparent);
   font-weight: 700;
 }
 .bucket-count {
