@@ -64,6 +64,7 @@ sessionsRouter.post('/presentations/:id/sessions', authenticate, async (req, res
       title: deck.title,
       theme: deck.theme,
       slides: blankSlides(deck.slides),
+      moderationMode: deck.moderationMode ?? 'off',
       code,
     });
     return res.status(201).json({ data: summary(session) });
