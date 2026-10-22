@@ -169,7 +169,25 @@ export const liveChannel = (accessCode) => `presentation:${accessCode}`;
  * on Mongoose optimistic-concurrency conflicts so concurrent audience actions
  * (many people voting at once) do not fail or drop votes.
  */
-export async function applyLiveActionByCode(accessCode, action, { maxAttempts = 8 } = {}) {
+// Actions for one presentation run one after another inside this process. Without it, a few
+// hundred simultaneous answers all read the same version, collide, and the unlucky ones exhaust
+// their retries and see a raw database error (measured: 40 of 100 and 213 of 250 voters).
+// Across several server processes the version check and the retry below still protect the data.
+const queues = new Map();
+function serialByCode(accessCode, task) {
+  const previous = queues.get(accessCode) ?? Promise.resolve();
+  const run = previous.then(task, task);
+  const tail = run.catch(() => {});
+  queues.set(accessCode, tail);
+  tail.then(() => { if (queues.get(accessCode) === tail) queues.delete(accessCode); });
+  return run;
+}
+
+export function applyLiveActionByCode(accessCode, action, options) {
+  return serialByCode(accessCode, () => applyLiveActionUnqueued(accessCode, action, options));
+}
+
+async function applyLiveActionUnqueued(accessCode, action, { maxAttempts = 8 } = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     // Fresh document each attempt: retries re-apply onto the latest state.
     const presentation = await Presentation.findOne({ accessCode });
