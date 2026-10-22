@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLiveStore } from '../stores/live'
-import { participantId } from '../participant'
-import { aliasFor } from '../alias'
-import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 
 const router = useRouter()
 const route = useRoute()
 const live = useLiveStore()
 // A code can arrive from the landing page (?code=123456); keep digits only.
 const code = ref(String(route.query.code ?? '').replace(/\D/g, '').slice(0, 6))
-const nickname = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const error = ref('')
 const busy = ref(false)
 
-// Preview the avatar that will sit next to the player's name: the typed
-// nickname, or the automatic alias they will get when they leave it blank.
-const previewName = computed(() => nickname.value.trim() || aliasFor(participantId()))
 
 async function join() {
   error.value = ''
@@ -29,9 +22,12 @@ async function join() {
   busy.value = true
   try {
     await live.join(accessCode)
-    if (nickname.value.trim()) {
+    // A name saved on this device from an earlier quiz carries over. New players are asked for one
+    // on the audience screen, and only when the deck has a quiz.
+    const saved = localStorage.getItem('livepoll.nickname')
+    if (saved?.trim()) {
       try {
-        await live.identify(nickname.value)
+        await live.identify(saved)
       } catch {
         // A missed nickname never blocks joining; the alias is the fallback.
       }
@@ -63,18 +59,6 @@ async function join() {
             autocomplete="off"
           />
         </label>
-        <label class="field">
-          <span>Name for the quiz leaderboard <span class="muted">(optional)</span></span>
-          <span class="nickname-row">
-            <ParticipantAvatar :name="previewName" :size="36" />
-            <input
-              v-model="nickname"
-              maxlength="24"
-              placeholder="e.g. Fika Fan"
-              autocomplete="off"
-            />
-          </span>
-        </label>
         <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">
           {{ busy ? 'Joining…' : 'Join presentation' }}
@@ -87,14 +71,3 @@ async function join() {
     </p>
   </div>
 </template>
-
-<style scoped>
-.nickname-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.nickname-row input {
-  flex: 1;
-}
-</style>

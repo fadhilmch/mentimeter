@@ -61,11 +61,12 @@ export const useLiveStore = defineStore('live', {
     submitRanking(slideIndex: number, order: string[]) {
       return this.act({ type: 'ranking:submit', slideIndex, order, participantId: participantId() });
     },
-    identify(nickname: string) {
+    async identify(nickname: string) {
       const cleaned = nickname.trim().slice(0, 24);
+      await this.act({ type: 'participant:identify', participantId: participantId(), nickname: cleaned });
+      // Keep it on the device only once the server has it, so a failed save never counts as chosen.
       if (cleaned) localStorage.setItem('livepoll.nickname', cleaned);
       else localStorage.removeItem('livepoll.nickname');
-      return this.act({ type: 'participant:identify', participantId: participantId(), nickname: cleaned });
     },
     leave() {
       this.transport?.leave();
