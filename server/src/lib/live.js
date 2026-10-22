@@ -145,6 +145,8 @@ export function publicState(presentation) {
       ...(slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'
         ? {
             options: slide.options.map(({ text }) => text),
+            // Stable ids parallel to options (additive; clients still vote by index).
+            optionIds: slide.options.map(({ id }) => id),
             // The correct answer leaves the server only while results are visible,
             // and for quiz slides only after voting closes.
             tally: resultsVisible ? quizTally(slide, quizRevealed) : null,
