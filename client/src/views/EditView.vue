@@ -173,6 +173,21 @@ function moveSlide(index: number, delta: number) {
   activeSlide.value = target
 }
 
+/** Radio-group keys: arrows move and select, Home/End jump. Only the selected option is a tab stop. */
+function onThemeKey(event: KeyboardEvent) {
+  const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+  const current = THEMES.findIndex((t) => t.id === themeId.value)
+  let next = -1
+  if (event.key in keys) next = (current + keys[event.key] + THEMES.length) % THEMES.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = THEMES.length - 1
+  if (next < 0) return
+  event.preventDefault()
+  themeId.value = THEMES[next].id
+  const group = (event.currentTarget as HTMLElement).parentElement
+  ;(group?.querySelectorAll<HTMLElement>('[role=radio]')[next])?.focus()
+}
+
 const joinLink = computed(() => (accessCode.value ? `${window.location.origin}/p/${accessCode.value}` : ''))
 
 async function copyJoinLink() {
@@ -370,9 +385,11 @@ async function remove() {
             type="button"
             role="radio"
             :aria-checked="themeId === t.id"
+            :tabindex="themeId === t.id ? 0 : -1"
             class="theme-option"
             :class="{ sel: themeId === t.id }"
             @click="themeId = t.id"
+            @keydown="onThemeKey"
           >
             <span class="theme-mini" :style="{ background: t.sbg }">
               <span class="mq"></span>
