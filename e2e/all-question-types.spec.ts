@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { createDeck, joinAudience, openEnded, poll, presenterAction } from './helpers'
+import { closeAudiences, createDeck, joinAudience, openEnded, poll, presenterAction } from './helpers'
+
+test.afterEach(closeAudiences)
 
 const option = (text: string) => ({ id: crypto.randomUUID(), text })
 

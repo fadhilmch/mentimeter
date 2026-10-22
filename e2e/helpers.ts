@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Browser, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test'
 
 /** Everything here talks to the real server API with the seeded in-memory presenter. */
 export interface Deck { id: string; code: string; token: string }
@@ -39,8 +39,15 @@ export async function presenterAction(request: APIRequestContext, deck: Deck, ac
 }
 
 /** Each audience member gets their own browser context, so storage and cookies never mix. */
+const opened: BrowserContext[] = []
+/** Closes every audience context a test opened, so open phones do not pile up and slow later tests. */
+export async function closeAudiences() {
+  await Promise.all(opened.splice(0).map((c) => c.close().catch(() => {})))
+}
+
 export async function joinAudience(browser: Browser, code: string): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 390, height: 800 } })
+  opened.push(context)
   const page = await context.newPage()
   await page.goto(`/join?code=${code}`)
   await page.getByRole('button', { name: /Join presentation/ }).click()
