@@ -11,7 +11,7 @@ import { useColorMode } from '../colorMode'
 import { shouldPromptNow } from '../namePrompt'
 import { playerKey, randomNickname } from '../alias'
 import { setThenSave } from '../optimistic'
-import { participantId } from '../participant'
+import { participantId, participantToken } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import type { RankingOption } from '../types'
 
@@ -117,7 +117,7 @@ const cloudWords = computed(() => {
 async function restoreMyAnswers() {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/live/${code}/me`, {
-      headers: { 'x-participant-id': participantId() },
+      headers: { 'x-participant-id': participantId(), ...(participantToken(code) ? { 'x-participant-token': participantToken(code)! } : {}) },
     })
     if (!res.ok) return
     const { data } = (await res.json()) as { data: Record<string, MyAnswers> }

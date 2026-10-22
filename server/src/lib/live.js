@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
 import { castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
+import { LiveError } from './audience.js';
 
 export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('vote:cast'), slideIndex: z.number().int().min(0), optionIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
@@ -30,7 +31,7 @@ export function applyLiveAction(presentation, action) {
   // The presenter paces the session: answers only count for the question on screen. A late or
   // replayed answer for another slide is refused, never applied to a different question.
   if (mutatesAnswers && action.slideIndex !== presentation.currentSlide) {
-    throw new TypeError('That question is no longer on screen');
+    throw new LiveError('That question is no longer on screen', 'slide_not_active');
   }
   switch (action.type) {
     case 'vote:reset':
