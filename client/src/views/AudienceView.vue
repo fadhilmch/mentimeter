@@ -8,6 +8,7 @@ import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
 import ColorModeToggle from '../components/ColorModeToggle.vue'
 import { useColorMode } from '../colorMode'
+import { shouldAskForName } from '../namePrompt'
 import { aliasFor } from '../alias'
 import { setThenSave } from '../optimistic'
 import { participantId } from '../participant'
@@ -64,7 +65,21 @@ const onAccent = computed(() => readableOn(accent.value))
 const rankColor = (rank: number): string | undefined => (rank >= 1 && rank <= 3 ? pal.value[rank + 1] : undefined)
 const votingOpen = computed(() => state.value?.votingOpen !== false && !ended.value)
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
-const myName = computed(() => localStorage.getItem('livepoll.nickname')?.trim() || aliasFor(participantId()))
+const savedName = ref(localStorage.getItem('livepoll.nickname') ?? '')
+const myName = computed(() => savedName.value.trim() || aliasFor(participantId()))
+const nameDraft = ref('')
+const nameDismissed = ref(false)
+const askName = computed(() => !!state.value && shouldAskForName(state.value.slides, savedName.value, nameDismissed.value))
+async function saveName() {
+  const name = nameDraft.value.trim()
+  if (!name) { nameDismissed.value = true; return }
+  try {
+    await live.identify(name)
+    savedName.value = name
+  } catch {
+    nameDismissed.value = true // the automatic alias stays; never block answering
+  }
+}
 const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.name === myName.value) ?? null)
 
 // Start each slide's ranking with a clean slate.
@@ -210,6 +225,17 @@ async function sendRanking() {
     <p v-if="!state" class="connecting">Connecting…</p>
     <template v-else>
       <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
+      <form v-if="askName" class="name-card" @submit.prevent="saveName">
+        <label for="leaderboard-name">Pick a name for the leaderboard <span class="muted">(optional)</span></label>
+        <div class="name-row">
+          <ParticipantAvatar :name="nameDraft.trim() || myName" :size="36" />
+          <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
+        </div>
+        <div class="name-actions">
+          <button class="button" type="submit">Save name</button>
+          <button class="button ghost" type="button" @click="nameDismissed = true">Keep {{ myName }}</button>
+        </div>
+      </form>
       <template v-if="slide">
         <div
           class="audience-slide"
@@ -365,6 +391,20 @@ async function sendRanking() {
 </template>
 
 <style scoped>
+.name-card {
+  background: var(--t-stage2);
+  border: 1px solid var(--t-track);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  color: var(--t-ink);
+}
+.name-card label { display: block; font-weight: 700; margin-bottom: var(--space-2); }
+.name-card .muted { color: color-mix(in srgb, var(--t-ink) 72%, transparent); font-weight: 500; }
+.name-row { display: flex; align-items: center; gap: 10px; }
+.name-row input { flex: 1; min-width: 0; }
+.name-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.name-actions .button.ghost { color: var(--t-ink); border: 1px solid var(--t-track); }
 .cloud-box {
   margin-top: 18px;
   padding: 18px;
