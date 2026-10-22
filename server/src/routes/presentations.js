@@ -226,7 +226,9 @@ presentationsRouter.get('/:id/export.csv', authenticate, async (req, res, next) 
     const kind = String(req.query.kind ?? 'summary');
     if (!Object.hasOwn(exporters, kind)) return res.status(400).json({ message: 'kind must be summary, responses or leaderboard' });
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Presentation not found' });
-    const data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    let data = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+    // A run's results export by its session id (sessions on only), ended runs included.
+    if (!data && process.env.SESSIONS_ENABLED === 'true') data = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId });
     if (!data) return res.status(404).json({ message: 'Presentation not found' });
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'presentation';
     res.set({

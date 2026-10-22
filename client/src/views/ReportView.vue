@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../api'
+import { api, downloadCsv } from '../api'
 import { useAuthStore } from '../stores/auth'
 
 interface ReportSlide {
@@ -60,6 +60,14 @@ async function sessionAction(sid: string, action: 'end' | 'archive' | 'delete') 
   }
 }
 
+async function download(kind: 'summary' | 'responses') {
+  try {
+    await downloadCsv(auth.token, String(route.params.sid ?? route.params.id), kind)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not download the file.'
+  }
+}
+
 onMounted(load)
 // The same component serves the deck report and a session report, so reload when the route changes.
 watch(() => route.fullPath, load)
@@ -72,6 +80,10 @@ watch(() => route.fullPath, load)
     <template v-else-if="report">
       <h1>{{ report.title }}: report</h1>
       <p class="muted">{{ report.scope }}. Generated {{ new Date(report.generatedAt).toLocaleString() }}.</p>
+      <div style="margin-top:var(--space-3); display:flex; gap:var(--space-2); flex-wrap:wrap;" aria-label="Download results">
+        <button class="button ghost" @click="download('summary')">Results summary (CSV)</button>
+        <button class="button ghost" @click="download('responses')">Written responses (CSV)</button>
+      </div>
       <section v-if="sessions.length" class="card" style="margin-top:var(--space-4);" aria-label="Sessions">
         <h2>Sessions</h2>
         <ul>
@@ -101,6 +113,21 @@ watch(() => route.fullPath, load)
         <div v-else-if="s.topResponses">
           <p class="muted">{{ s.responseCount }} responses</p>
           <ul><li v-for="(r, k) in s.topResponses" :key="k">{{ r.text }} ({{ r.upvotes }} upvotes)</li></ul>
+        </div>
+        <div v-else-if="s.questionType === 'rating' && s.tally">
+          <p class="muted">{{ s.tally.total }} ratings, average {{ s.tally.average }}</p>
+          <table>
+            <thead><tr><th scope="col">Rating</th><th scope="col">Count</th></tr></thead>
+            <tbody><tr v-for="(c, k) in (s.tally.buckets as number[])" :key="k"><td>{{ k + 1 }}</td><td>{{ c }}</td></tr></tbody>
+          </table>
+        </div>
+        <div v-else-if="s.questionType === 'word-cloud' && s.tally">
+          <p class="muted">{{ s.tally.total }} words</p>
+          <ul><li v-for="w in (s.tally.words as { word?: string; text?: string; count: number }[])" :key="w.word ?? w.text">{{ w.word ?? w.text }} ({{ w.count }})</li></ul>
+        </div>
+        <div v-else-if="s.questionType === 'ranking' && s.tally">
+          <p class="muted">{{ s.tally.total }} rankings (higher points = ranked higher)</p>
+          <ul><li v-for="(p, k) in (s.tally.points as { text?: string; points?: number; optionId?: string }[])" :key="k">{{ p.text ?? p.optionId }}: {{ p.points }}</li></ul>
         </div>
         <pre v-else-if="s.tally" class="muted" style="white-space:pre-wrap;">{{ JSON.stringify(s.tally) }}</pre>
       </section>

@@ -82,3 +82,15 @@ describe('session report', () => {
     expect((await as(other, request(app).get(`/api/sessions/${run.id}/report`))).status).toBe(404);
   });
 });
+
+describe('session csv export', () => {
+  it('exports a run by its session id, owner only', async () => {
+    const { applyLiveActionByCode } = await import('../src/lib/live.js');
+    const run = (await as(owner, request(app).post(`/api/presentations/${deck._id}/sessions`))).body.data;
+    await applyLiveActionByCode(run.code, { type: 'vote:cast', slideIndex: 0, optionIndex: 1, participantId: 'p-csv001' });
+    const res = await as(owner, request(app).get(`/api/presentations/${run.id}/export.csv?kind=summary`));
+    expect(res.status).toBe(200);
+    expect(res.text).toMatch(/votes,1/);
+    expect((await as(other, request(app).get(`/api/presentations/${run.id}/export.csv?kind=summary`))).status).toBe(404);
+  });
+});

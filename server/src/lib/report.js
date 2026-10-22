@@ -13,6 +13,9 @@ export function reportSlides(slides) {
         ...(slide.questionType === 'quiz' ? { correctOptionIndex: tally.correctOptionIndex } : {}),
       };
     }
+    if (slide.questionType === 'ranking') {
+      return { ...base, tally: { total: tally.total, points: slide.options.map((o, k) => ({ text: o.text, points: tally.points[k] })) } };
+    }
     if (slide.questionType === 'rating' || slide.questionType === 'ranking' || slide.questionType === 'word-cloud') {
       return { ...base, tally };
     }
