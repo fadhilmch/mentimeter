@@ -32,7 +32,11 @@ test.describe('critical live flows', () => {
     await expect(phone.getByText('Second?')).toBeVisible()
     // A late answer for slide 0 is refused at the API and changes nothing.
     const late = await request.post(`/api/live/${deck.code}/action`, { data: { type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'late-person-1' } })
-    expect(late.status()).toBe(400)
+    // With #34 the refusal is a recoverable 409 that carries a code and the fresh state.
+    expect(late.status()).toBe(409)
+    const lateBody = await late.json()
+    expect(lateBody.code).toBe('slide_not_active')
+    expect(lateBody.state.currentSlide).toBe(1)
     expect(await late.text()).toContain('no longer on screen')
     await phone.locator('.option-button').first().click()
     await expect(phone.locator('.option-button.chosen')).toHaveCount(1)
