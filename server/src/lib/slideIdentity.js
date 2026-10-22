@@ -5,6 +5,19 @@ import { randomUUID } from 'node:crypto';
 // Anything unmatched is counted as removed so the route can demand explicit,
 // count-aware confirmation before discarding real audience data.
 
+/** True when a revealed quiz is edited in a way that changes what its answers mean. */
+function isRevealedQuizChanged(previous, incoming) {
+  if (!previous || previous.questionType !== 'quiz' || !previous.revealed) return false;
+  if (incoming.questionType !== 'quiz') return false; // type changes are handled as before
+  if (previous.question !== incoming.question) return true;
+  if (previous.correctOptionId !== incoming.correctOptionId) return true;
+  const incomingById = new Map(incoming.options.filter((o) => o.id).map((o) => [o.id, o]));
+  return previous.options.some((o) => {
+    const next = o.id ? incomingById.get(o.id) : undefined;
+    return !next || next.text !== o.text;
+  });
+}
+
 export function ensureSlideIds(presentation) {
   let changed = false;
   for (const slide of presentation.slides) {
@@ -54,7 +67,12 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
 
   const merged = incomingSlides.map((incoming) => {
     const previous = incoming.id ? storedById.get(incoming.id) : undefined;
-    const kept = previous && previous.questionType === incoming.questionType;
+    // A revealed quiz is locked: its answers were shown. Saving it unchanged (theme, design,
+    // reordering by stable id) keeps the lock. A change that would re-score or reword the answered
+    // question drops its answers and unlocks it, and is counted below so the save asks for the
+    // same explicit confirmation as any other destructive change.
+    const lockBroken = isRevealedQuizChanged(previous, incoming);
+    const kept = previous && previous.questionType === incoming.questionType && !lockBroken;
     if (previous) {
       usedSlideIds.add(previous.id);
       for (const option of incoming.options) {
@@ -88,6 +106,7 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
       // Quiz answer key and per-slide design follow the slide identity.
       correctOptionId,
       design: incoming.design,
+      ...(kept && previous.revealed ? { revealed: true } : {}),
     };
   });
 
@@ -96,7 +115,7 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
   for (const slide of storedSlides) {
     if (slide.id && usedSlideIds.has(slide.id)) {
       const incoming = incomingSlides.find((s) => s.id === slide.id);
-      const typeKept = incoming.questionType === slide.questionType;
+      const typeKept = incoming.questionType === slide.questionType && !isRevealedQuizChanged(slide, incoming);
       for (const option of slide.options) {
         if (!typeKept || (option.id && !usedOptionIds.has(option.id))) removedVotes += option.votes.length;
       }
