@@ -204,8 +204,9 @@ presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, nex
     if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
     applyLiveAction(presentation, action);
     const data = await presentation.save();
-    await broadcastState(data.accessCode);
-    return res.json({ ok: true, state: publicState(data) });
+    const state = publicState(data);
+    await broadcastState(data.accessCode, state);
+    return res.json({ ok: true, state });
   } catch (err) {
     if (err.name === 'ZodError') return res.status(400).json({ message: 'Invalid action', issues: err.issues });
     if (err instanceof RangeError || err instanceof TypeError) return res.status(400).json({ message: err.message });
