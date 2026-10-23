@@ -61,7 +61,7 @@ async function join() {
         </label>
         <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
         <button class="button big block" type="submit" :disabled="busy">
-          {{ busy ? 'Joining…' : 'Join presentation' }}
+          <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Joining…' : 'Join presentation' }}
         </button>
       </form>
     </div>

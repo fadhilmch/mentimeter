@@ -42,7 +42,7 @@ async function submit() {
           <label class="field"><span>New email</span><input v-model="email" type="email" required autocomplete="email" /></label>
           <label class="field"><span>New password</span><input v-model="newPassword" type="password" minlength="8" required autocomplete="new-password" /></label>
           <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-          <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Moving…' : 'Move my account' }}</button>
+          <button class="button big block" type="submit" :disabled="busy"><span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Moving…' : 'Move my account' }}</button>
         </form>
       </div>
     </template>
