@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+const base = 'http://localhost:3199'
+const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] })
+const ctx = await browser.newContext()
+const p = await ctx.newPage()
+await p.goto(base + '/login', { waitUntil: 'networkidle' })
+const [popup] = await Promise.all([ctx.waitForEvent('page'), p.getByRole('button', { name: 'Continue with Google' }).click()])
+await popup.waitForLoadState()
+await popup.getByText('Add new account').click()
+await popup.waitForTimeout(800)
+const inputs = await popup.$$eval('input', (els) => els.map((e) => ({ id: e.id, name: e.name, type: e.type, aria: e.getAttribute('aria-label') })))
+console.log(JSON.stringify(inputs, null, 1))
+const buttons = await popup.$$eval('button', (els) => els.map((e) => e.textContent.trim()))
+console.log('buttons:', JSON.stringify(buttons))
+await browser.close()

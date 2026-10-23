@@ -1,0 +1,18 @@
+import { chromium } from '@playwright/test'
+const base = 'http://localhost:3199'
+const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] })
+const ctx = await browser.newContext()
+const p = await ctx.newPage()
+await p.goto(base + '/login', { waitUntil: 'networkidle' })
+const [popup] = await Promise.all([ctx.waitForEvent('page'), p.getByRole('button', { name: 'Continue with Google' }).click()])
+popup.on('console', (m) => console.log('[popup-console]', m.type(), m.text().slice(0, 200)))
+popup.on('pageerror', (e) => console.log('[popup-error]', String(e).slice(0, 250)))
+await popup.waitForLoadState()
+await popup.getByText('Add new account').click()
+await popup.locator('#email-input').fill('grace4@example.com')
+await popup.locator('#display-name-input').fill('Grace Four')
+await popup.getByRole('button', { name: 'Sign in with Google.com' }).click()
+await p.waitForTimeout(5000)
+console.log('popup url now:', popup.url().slice(0, 120))
+await popup.screenshot({ path: '/tmp/popup-stuck.png' })
+await browser.close()

@@ -19,7 +19,8 @@ async function google() {
   try {
     await auth.loginWithGoogle()
     if (auth.pendingProfile) return router.push({ name: 'finish-setup' })
-    router.push({ name: 'dashboard' })
+    if (auth.isLoggedIn) router.push({ name: 'dashboard' })
+    // Neither: the popup was closed - stay put, no error.
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not sign in with Google.'
   } finally {
@@ -69,6 +70,6 @@ async function submit() {
 </template>
 
 <style scoped>
-.auth-divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; color: color-mix(in srgb, var(--t-ink) 55%, transparent); font-size: 0.85rem; }
-.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid color-mix(in srgb, var(--t-ink) 18%, transparent); }
+.auth-divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; color: var(--ink-3); font-size: 0.85rem; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid color-mix(in srgb, var(--ink-3) 30%, transparent); }
 </style>

@@ -43,7 +43,7 @@ describe('content security policy with Firebase sign-in', () => {
       const csp = directives(res.headers['content-security-policy']);
       expect(csp['connect-src']).toEqual(["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com']);
       expect(csp['frame-src']).toEqual(["'self'", 'https://demo-crowdflow.firebaseapp.com']);
-      expect(csp['script-src']).toEqual(["'self'"]);
+      expect(csp['script-src']).toEqual(["'self'", 'https://apis.google.com']);
     } finally {
       config.firebase.projectId = '';
     }
