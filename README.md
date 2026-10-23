@@ -227,3 +227,11 @@ Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026
 - `responses`: written answers with upvotes and UTC time. No author ids.
 - `leaderboard`: quiz rank, name and score. Names are what players chose, so this is its own export.
 UTF-8 with a byte-order mark, UTC timestamps. Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading apostrophe so spreadsheets do not run them as formulas. The response is `private, no-store`. "Answers" means stored submissions, not connected clients and not distinct people. The file is built in memory, which is fine for a deck of at most 50 slides but is not streamed.
+
+### Session basics
+
+- **End** on the presenter screen now closes answers for everyone and saves the ended state. Phones show a thank-you message instead of waiting forever. Leaving a browser tab is not the same as ending a presentation. The legacy deck can be presented again explicitly; that keeps its existing answers and quiz reveal locks. With separate sessions enabled, start a new session for a fresh run.
+- Phones show multiple-choice counts/percentages and ranking points, alongside the existing word clouds, ratings, comments and quiz feedback. **Hide results** still removes aggregate results from both screens and public snapshots; **Reveal results** restores them.
+- Empty decks point to the editor before presenting. An editor starter slide is not live until it has been saved. A direct empty-stage link also explains what to do next.
+
+Regression coverage: `E2E_CHROME=/path/to/chrome npm run test:e2e -- e2e/session-basics.spec.ts` after `npm run build`. Add `E2E_SESSIONS=true` to cover the separate-session terminal broadcast. This uses the local demo backend, not Firebase or a live Ably account.

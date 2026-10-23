@@ -55,6 +55,8 @@ export interface PresentationState {
   currentSlide: number;
   votingOpen: boolean;
   resultsVisible: boolean;
+  /** Persisted by the presenter, distinct from closing voting for one slide. */
+  ended?: boolean;
   /** 'approve' when the presenter holds new responses until approved. */
   moderation?: 'off' | 'approve';
   slides: PublicSlide[];

@@ -183,8 +183,9 @@ async function createPresentation(kind: CreationKind, title: string) {
         <div class="card-actions">
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button ghost" :to="{ name: 'report', params: { id: p._id } }">Report</router-link>
-          <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
-          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" :disabled="startingId === p._id" @click="startSession(p._id)">
+          <router-link v-if="p.slideCount" class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
+          <router-link v-else class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Add slides to present</router-link>
+          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" :disabled="!p.slideCount || startingId === p._id" @click="startSession(p._id)">
             <span v-if="startingId === p._id" class="spinner" aria-hidden="true"></span>{{ startingId === p._id ? 'Starting…' : 'Start new session' }}
           </button>
           <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." :disabled="duplicatingId === p._id" @click="duplicate(p._id)">
