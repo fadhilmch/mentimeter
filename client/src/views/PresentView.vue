@@ -180,7 +180,7 @@ function end() {
         <span>JOIN {{ code }}</span>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3M21 14v.01M14 21h.01M17.5 21H21v-3.5" /></svg>
       </button>
-      <span v-if="live.presence !== null" class="muted" data-testid="presence" title="Connected to this room right now, including this screen. Not the number of people who answered.">{{ live.presence }} connected</span>
+      <span v-if="live.presence !== null" class="muted presence" data-testid="presence" title="Connected to this room right now, including this screen. Not the number of people who answered.">{{ live.presence }} connected</span>
       <div class="stage-actions">
         <ColorModeToggle />
         <button class="button ghost end-button" @click="end">End</button>
