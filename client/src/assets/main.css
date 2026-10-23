@@ -178,12 +178,6 @@ input:focus, select:focus, textarea:focus {
 
 .empty-state { text-align: center; padding: 56px var(--space-5); color: var(--ink-2); }
 
-/* Slide list editor */
-.slide-list { display: flex; flex-direction: column; gap: 14px; margin: 20px 0; }
-.slide-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; background: var(--card); }
-.slide-item .slide-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.slide-type { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
-.option-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
 .icon-button {
   border: 0; background: none; cursor: pointer; color: var(--ink-3);
   padding: 6px; border-radius: var(--radius-sm); font-size: 1rem; line-height: 1;
