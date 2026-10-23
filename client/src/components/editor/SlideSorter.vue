@@ -50,7 +50,6 @@ function onDragEnd() {
           class="sorter-item"
           :class="{ active: i === active, 'drop-target': dropAt === i && dragFrom !== null && dragFrom !== i, dragging: dragFrom === i }"
           :aria-current="i === active ? 'true' : undefined"
-          :aria-label="`Slide ${i + 1}, ${typeLabel(slide.questionType)}${i === active ? ', editing' : ''}. Drag to reorder.`"
           data-testid="sorter-item"
           draggable="true"
           @click="emit('select', i)"
@@ -63,6 +62,7 @@ function onDragEnd() {
           <span class="meta">
             <span class="name">{{ i + 1 }} · <span class="lbl-full">{{ typeLabel(slide.questionType) }}</span><span class="lbl-short">{{ typeShort(slide.questionType) }}</span></span>
             <span v-if="i === active" class="editing-badge">Editing</span>
+            <span class="visually-hidden">Drag to reorder.</span>
           </span>
         </button>
       </li>
@@ -180,5 +180,13 @@ function onDragEnd() {
     align-self: stretch;
     scroll-snap-align: start;
   }
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 </style>

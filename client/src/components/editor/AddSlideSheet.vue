@@ -126,8 +126,16 @@ const sampleOptions = (has: boolean) => (has ? [{ text: '' }, { text: '' }, { te
   transform: translateY(-1px);
 }
 .type-thumb {
+  /* min-width: 0: the stage inside renders at a fixed 420px and scales down;
+     without this the card grows to the unscaled stage and hides the meta. */
   flex: 0 0 128px;
+  width: 128px;
+  min-width: 0;
   pointer-events: none;
+}
+.type-meta {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .type-meta b {
   display: block;

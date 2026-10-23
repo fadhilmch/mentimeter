@@ -496,11 +496,14 @@ async function remove() {
       <div class="editor-header">
         <div class="editor-join">
           <span v-if="accessCode" class="code-chip">{{ accessCode }}</span>
-          <button v-if="accessCode" class="button ghost copy-link" @click="copyJoinLink">{{ copied ? 'Copied ✓' : 'Copy join link' }}</button>
+          <button v-if="accessCode" class="button ghost copy-link" :aria-label="copied ? 'Copied' : 'Copy join link'" @click="copyJoinLink">
+            <svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+            <span class="lbl">{{ copied ? 'Copied ✓' : 'Copy join link' }}</span>
+          </button>
         </div>
         <div class="editor-actions">
-          <button class="button ghost" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl+Z)" @click="undo">Undo</button>
-          <button class="button ghost" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" @click="redo">Redo</button>
+          <button class="button ghost hist-btn" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl+Z)" @click="undo"><span class="ic" aria-hidden="true">↶</span><span class="lbl">Undo</span></button>
+          <button class="button ghost hist-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" @click="redo"><span class="ic" aria-hidden="true">↷</span><span class="lbl">Redo</span></button>
           <span v-if="savedAt" class="muted saved-at">Saved {{ savedAt }}</span>
           <router-link class="button ghost" :to="{ name: 'present', params: { code: accessCode } }">Present</router-link>
           <button class="button danger" :disabled="deleting" @click="remove">
@@ -721,6 +724,8 @@ async function remove() {
   align-items: center;
   flex-wrap: wrap;
 }
+/* Icon forms of compact controls; only shown in the phone toolbar. */
+.copy-link .ic, .hist-btn .ic { display: none; }
 
 .editor-grid {
   display: grid;
@@ -908,6 +913,28 @@ async function remove() {
     align-items: stretch;
     gap: var(--space-4);
   }
+  /* Phone toolbar: two compact rows instead of three wrapped ones.
+     Row 1: join code + copy, Save pinned right. Row 2: undo/redo, Present, Delete. */
+  .editor-header {
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .editor-join, .editor-actions { display: contents; }
+  .editor-join > *, .editor-actions > * { order: 2; }
+  .code-chip { order: 1; }
+  .copy-link { order: 1; }
+  .editor-header .button.big { order: 1; margin-left: auto; }
+  .hist-btn { order: 1; }
+  .saved-at { display: none; }
+  .editor-header .button {
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    font-size: var(--fs-sm);
+  }
+  .copy-link .lbl, .hist-btn .lbl { display: none; }
+  .copy-link .ic, .hist-btn .ic { display: inline-flex; }
+  .copy-link, .hist-btn { width: 40px; justify-content: center; }
+  .hist-btn .ic { font-size: 1.15rem; line-height: 1; }
   /* Let the sorter shrink below its content width so the thumbnail strip
      scrolls internally instead of widening the page. */
   .editor-grid > * {
