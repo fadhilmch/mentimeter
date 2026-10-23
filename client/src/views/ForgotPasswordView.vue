@@ -35,7 +35,7 @@ async function submit() {
         <form v-else @submit.prevent="submit">
           <label class="field"><span>Email</span><input v-model="email" type="email" required autocomplete="email" /></label>
           <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-          <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Sending…' : 'Send reset link' }}</button>
+          <button class="button big block" type="submit" :disabled="busy"><span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Sending…' : 'Send reset link' }}</button>
         </form>
       </div>
     </template>

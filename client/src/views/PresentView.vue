@@ -194,14 +194,14 @@ function end() {
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">
         <div class="stage-controls">
-          <button class="button ghost" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
-            {{ votingOpen ? 'Close voting' : 'Reopen voting' }}
+          <button class="button ghost" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" :aria-busy="busy === 'voting'" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
+            <span v-if="busy === 'voting'" class="spinner" aria-hidden="true"></span>{{ votingOpen ? 'Close voting' : 'Reopen voting' }}
           </button>
-          <button class="button ghost" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
-            {{ resultsVisible ? 'Hide results' : 'Reveal results' }}
+          <button class="button ghost" :class="{ 'is-on': !resultsVisible }" :disabled="!!busy" :aria-busy="busy === 'results'" @click="presenterAction({ type: 'results:set', visible: !resultsVisible }, 'results')">
+            <span v-if="busy === 'results'" class="spinner" aria-hidden="true"></span>{{ resultsVisible ? 'Hide results' : 'Reveal results' }}
           </button>
-          <button class="button ghost" :disabled="!!busy" @click="askReset">
-            {{ confirmingReset ? 'Tap again to confirm reset' : 'Reset votes' }}
+          <button class="button ghost" :disabled="!!busy" :aria-busy="busy === 'reset'" @click="askReset">
+            <span v-if="busy === 'reset'" class="spinner" aria-hidden="true"></span>{{ confirmingReset && !busy ? 'Tap again to confirm reset' : 'Reset votes' }}
           </button>
         </div>
 

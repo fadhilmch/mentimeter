@@ -29,6 +29,9 @@ watch(error, (message) => {
 watch(() => live.reconnects, () => {
   if (!ended.value) error.value = ''
 })
+// Sending feedback for the submit buttons: locks the button and shows a spinner until
+// the server answers, so a slow connection never looks like the tap did nothing.
+const sending = ref<'response' | 'word' | 'ranking' | 'name' | ''>('')
 const draft = ref('')
 // One id per distinct comment, kept until it is accepted: tapping Send again after a lost
 // acknowledgment reuses it, so the server stores the comment once. Edited text gets a new id.
@@ -80,13 +83,16 @@ const askName = computed(() => !!state.value && shouldPromptNow(state.value.slid
 function generateName() { nameDraft.value = randomNickname() }
 async function saveName() {
   const name = nameDraft.value.trim()
-  if (!name) return
+  if (!name || sending.value) return
+  sending.value = 'name'
   try {
     await live.identify(name)
     savedName.value = name.slice(0, 24)
   } catch {
     // Not saved: the card stays so they can try again.
     window.alert("Couldn't save your nickname. Check your connection and try again.")
+  } finally {
+    sending.value = ''
   }
 }
 const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
@@ -154,8 +160,9 @@ async function choose(optionIndex: number) {
 
 async function submitResponse() {
   const text = draft.value.trim()
-  if (!text || !state.value) return
+  if (!text || !state.value || sending.value) return
   error.value = ''
+  sending.value = 'response'
   try {
     const idKey = `${state.value.currentSlide}:${text}`
     const clientId = sendIds.get(idKey) ?? crypto.randomUUID()
@@ -165,6 +172,8 @@ async function submitResponse() {
     draft.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
+  } finally {
+    sending.value = ''
   }
 }
 
@@ -184,8 +193,9 @@ async function upvote(target: { id?: string; index: number }) {
 
 async function submitWord() {
   const word = wordDraft.value.trim()
-  if (!word || !state.value) return
+  if (!word || !state.value || sending.value) return
   error.value = ''
+  sending.value = 'word'
   try {
     await live.submitWord(state.value.currentSlide, word)
     myWords[state.value.currentSlide] = word.toLowerCase()
@@ -194,6 +204,8 @@ async function submitWord() {
     wordDraft.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
+  } finally {
+    sending.value = ''
   }
 }
 
@@ -215,14 +227,17 @@ function tapRank(id: string) {
 }
 
 async function sendRanking() {
-  if (!state.value) return
+  if (!state.value || sending.value) return
   const order = [...rankingDraft.value]
   error.value = ''
+  sending.value = 'ranking'
   try {
     await live.submitRanking(state.value.currentSlide, order)
     submittedRankings[state.value.currentSlide] = order
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not send.'
+  } finally {
+    sending.value = ''
   }
 }
 </script>
@@ -245,7 +260,9 @@ async function sendRanking() {
         <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
         <button class="button ghost pill" type="button" @click="generateName">&#10024; Generate nickname</button>
         <p class="name-hint">Up to 24 characters. Shown on the leaderboard.</p>
-        <button class="button block" type="submit" :disabled="!nameDraft.trim()" :style="{ background: accent, color: onAccent }">Save nickname</button>
+        <button class="button block" type="submit" :disabled="!nameDraft.trim() || !!sending" :style="{ background: accent, color: onAccent }">
+          <span v-if="sending === 'name'" class="spinner" aria-hidden="true"></span>{{ sending === 'name' ? 'Saving…' : 'Save nickname' }}
+        </button>
       </form>
       <template v-if="slide && !askName">
         <div
@@ -293,8 +310,8 @@ async function sendRanking() {
                 <span>One word</span>
                 <input v-model="wordDraft" maxlength="40" placeholder="Type a single word…" :disabled="!votingOpen" />
               </label>
-              <button class="button block" type="submit" :disabled="!wordDraft.trim() || !votingOpen" :style="{ background: accent, color: onAccent }">
-                {{ myWords[state.currentSlide] ? 'Replace my word' : 'Send' }}
+              <button class="button block" type="submit" :disabled="!wordDraft.trim() || !votingOpen || !!sending" :style="{ background: accent, color: onAccent }">
+                <span v-if="sending === 'word'" class="spinner" aria-hidden="true"></span>{{ sending === 'word' ? 'Sending…' : myWords[state.currentSlide] ? 'Replace my word' : 'Send' }}
               </button>
             </form>
           </div>
@@ -345,10 +362,10 @@ async function sendRanking() {
             class="button block"
             style="margin-top:var(--space-3);"
             :style="{ background: accent, color: onAccent }"
-            :disabled="rankingDraft.length !== optionsOf().length || !votingOpen"
+            :disabled="rankingDraft.length !== optionsOf().length || !votingOpen || !!sending"
             @click="sendRanking"
           >
-            {{ submittedRankings[state.currentSlide] ? 'Update my ranking' : 'Send ranking' }}
+            <span v-if="sending === 'ranking'" class="spinner" aria-hidden="true"></span>{{ sending === 'ranking' ? 'Sending…' : submittedRankings[state.currentSlide] ? 'Update my ranking' : 'Send ranking' }}
           </button>
           <p v-if="rankingDraft.length && rankingDraft.length !== optionsOf().length" class="muted">
             {{ optionsOf().length - rankingDraft.length }} left to place.
@@ -364,7 +381,9 @@ async function sendRanking() {
                 <span>Your answer</span>
                 <textarea v-model="draft" rows="2" maxlength="280" placeholder="Type your answer…" :disabled="!votingOpen"></textarea>
               </label>
-              <button class="button block" type="submit" :disabled="!draft.trim() || !votingOpen">Send</button>
+              <button class="button block" type="submit" :disabled="!draft.trim() || !votingOpen || !!sending">
+                <span v-if="sending === 'response'" class="spinner" aria-hidden="true"></span>{{ sending === 'response' ? 'Sending…' : 'Send' }}
+              </button>
             </form>
           </div>
           <p v-if="!resultsVisible" class="voting-closed">The presenter has hidden the results for now.</p>

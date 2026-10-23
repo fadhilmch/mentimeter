@@ -53,7 +53,7 @@ async function signOut() {
       <form @submit.prevent="submit">
         <label class="field"><span>Name</span><input v-model="name" required autocomplete="name" placeholder="Ada Lovelace" /></label>
         <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-        <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Saving…' : 'Continue' }}</button>
+        <button class="button big block" type="submit" :disabled="busy"><span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Saving…' : 'Continue' }}</button>
       </form>
     </div>
     <details class="account-delete" style="margin-top: 18px;">
