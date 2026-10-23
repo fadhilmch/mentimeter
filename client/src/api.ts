@@ -75,7 +75,7 @@ export const api = {
   login: (username: string, password: string) =>
     call<AuthResponse>('/api/users/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   deleteAccount: (token: string, password?: string) =>
-    call<{ ok: boolean; deletedPresentations: number }>('/api/users/me', { method: 'DELETE', body: JSON.stringify(password ? { password } : {}) }, token),
+    call<{ ok: boolean; deletedPresentations: number; firebaseLoginRemoved?: boolean }>('/api/users/me', { method: 'DELETE', body: JSON.stringify(password ? { password } : {}) }, token),
   createProfile: (token: string, name: string) =>
     call<{ user: PublicUser }>('/api/users/profile', { method: 'POST', body: JSON.stringify({ name }) }, token),
   me: (token: string) => call<{ user: PublicUser }>('/api/users/me', {}, token),

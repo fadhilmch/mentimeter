@@ -39,11 +39,22 @@ export async function verifyFirebaseToken(token, { checkRevoked = false } = {}) 
   };
 }
 
+/**
+ * The server can delete a Firebase login only with a service account (or the local emulator). Without
+ * one, the signed-in browser deletes its own login after the server has removed the data.
+ */
+export function canDeleteFirebaseUsers() {
+  return Boolean(override || config.firebase.serviceAccountJson || process.env.FIREBASE_AUTH_EMULATOR_HOST);
+}
+
+/** Returns true when the login was removed (or was already gone), false when this server cannot remove it. */
 export async function deleteFirebaseUser(uid) {
+  if (!canDeleteFirebaseUsers()) return false;
   try {
     await adminAuth().deleteUser(uid);
+    return true;
   } catch (err) {
-    if (err?.code === 'auth/user-not-found') return; // already gone, so a retry is safe
+    if (err?.code === 'auth/user-not-found') return true; // already gone, so a retry is safe
     throw err;
   }
 }

@@ -54,6 +54,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         timeout-minutes: 10
+        env:
+          # Runs the session specs too; without this they skip silently.
+          E2E_SESSIONS: 'true'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -199,7 +199,16 @@ export const useAuthStore = defineStore('auth', {
         if (!current?.email) throw new Error('You are not signed in.');
         await fb.reauthenticateWithCredential(current, fb.EmailAuthProvider.credential(current.email, password));
         this.token = await current.getIdToken(true);
-        await api.deleteAccount(this.token);
+        const result = await api.deleteAccount(this.token);
+        // Without a server-side service account the server cannot remove the login, so this browser does.
+        // The data is already gone at that point; if this step fails the login still works and can be removed by retrying.
+        if (result.firebaseLoginRemoved === false) {
+          try {
+            await fb.deleteUser(current);
+          } catch {
+            throw new ApiError(500, { code: 'LOGIN_REMOVAL_INCOMPLETE', message: 'Your presentations and profile were deleted, but your login could not be removed yet. Log in again and delete the account to finish.' });
+          }
+        }
         await this.logout();
       } catch (err) {
         throw this.explain(err);

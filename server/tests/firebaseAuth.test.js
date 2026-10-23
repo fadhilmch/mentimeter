@@ -140,7 +140,7 @@ describe('deleting a Firebase account', () => {
 
     const t = tok('uid1', 'ada@example.com', 10);
     const gone = await request(app).delete('/api/users/me').set(bearer(t)).send({}).expect(200);
-    expect(gone.body).toEqual({ ok: true, deletedPresentations: 1 });
+    expect(gone.body).toEqual({ ok: true, deletedPresentations: 1, firebaseLoginRemoved: true });
     expect(await User.countDocuments()).toBe(0);
     expect(await Presentation.countDocuments()).toBe(0);
     expect(deleted).toEqual(['uid1']);
