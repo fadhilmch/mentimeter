@@ -16,7 +16,7 @@ export function setBroadcaster(fn) {
  * otherwise a presenter's slide change or voting control would be saved but never reach phones.
  */
 export async function broadcastState(accessCode, state) {
-  if (broadcaster) return broadcaster(accessCode);
+  if (broadcaster) return state?.ended ? broadcaster(accessCode, state) : broadcaster(accessCode);
   if (!state) return;
   try {
     await publishState(accessCode, state);

@@ -18,6 +18,8 @@ export const liveActionSchema = z.discriminatedUnion('type', [
 
 /** Presenter-only actions: accepted on the authenticated route, never on public live channels. */
 export const presenterActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('presentation:end') }),
+  z.object({ type: z.literal('presentation:start') }),
   z.object({ type: z.literal('slide:change'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('vote:reset'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('voting:set'), open: z.boolean() }),
@@ -48,6 +50,10 @@ const newResponseStatus = (presentation) => (presentation.moderationMode === 'ap
 
 /** Applies one validated live action to a presentation document. */
 export function applyLiveAction(presentation, action) {
+  const ended = Boolean(presentation.endedAt) || ['ended', 'archived'].includes(presentation.status);
+  if (ended && !['presentation:end', 'presentation:start'].includes(action.type)) {
+    throw new LiveError('This presentation has ended', 'presentation_ended');
+  }
   const mutatesAnswers = ['vote:cast', 'response:add', 'response:upvote', 'word:submit', 'rating:cast', 'ranking:submit'].includes(action.type);
   if (mutatesAnswers && presentation.votingOpen === false) {
     throw new TypeError('Voting is closed for this presentation');
@@ -81,6 +87,21 @@ export function applyLiveAction(presentation, action) {
         closeVoting(presentation);
         presentation.resultsVisible = true; // the podium is the results
       }
+      return;
+    case 'presentation:end':
+      if (!presentation.endedAt) presentation.endedAt = new Date();
+      if (presentation.status === 'active') presentation.status = 'ended';
+      // Use the same reveal rules as Close voting; hidden results remain hidden.
+      for (let i = 0; i <= presentation.currentSlide && i < presentation.slides.length; i += 1) {
+        if (presentation.slides[i].questionType === 'quiz') presentation.slides[i].revealed = true;
+      }
+      presentation.votingOpen = false;
+      return;
+    case 'presentation:start':
+      if (presentation.status) throw new TypeError('Start a new session from the dashboard');
+      if (!presentation.slides.length) throw new TypeError('Add a slide before presenting');
+      presentation.endedAt = null;
+      presentation.votingOpen = true;
       return;
     case 'vote:reset':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
@@ -196,6 +217,7 @@ export function publicState(presentation) {
         ? { durationSec: current.timeLimit, endsAt, serverNow: Date.now() }
         : null;
     })(),
+    ended: Boolean(presentation.endedAt) || ['ended', 'archived'].includes(presentation.status),
     // Lets the audience say "waiting for approval"; says nothing about any held response.
     moderation: presentation.moderationMode === 'approve' ? 'approve' : 'off',
     // Scores reveal with the answers: only once voting is closed and results are visible.

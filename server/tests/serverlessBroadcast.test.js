@@ -34,3 +34,11 @@ describe('publish failure after a successful save', () => {
     quiet.mockRestore();
   });
 });
+
+it('passes a saved terminal snapshot to sockets before its session code is released', async () => {
+  const socketBroadcast = vi.fn();
+  setBroadcaster(socketBroadcast);
+  const state = { ended: true, votingOpen: false };
+  await broadcastState('123456', state);
+  expect(socketBroadcast).toHaveBeenCalledWith('123456', state);
+});

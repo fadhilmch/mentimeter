@@ -36,7 +36,15 @@ export function registerPresentationSockets(io) {
   // collapses bursts into a leading and a trailing snapshot per room.
   const broadcastState = createCoalescer((accessCode) => sendState(io, accessCode), Number(process.env.BROADCAST_COALESCE_MS ?? 0));
   const broadcastTo = (_io, accessCode) => broadcastState(accessCode);
-  setBroadcaster((accessCode) => broadcastState(accessCode));
+  setBroadcaster(async (accessCode, terminalState) => {
+    // Ended sessions release their code, so they cannot be looked up again.
+    if (terminalState) {
+      io.to(liveChannel(accessCode)).emit('presentation:state', terminalState);
+      await publishState(accessCode, terminalState);
+      return;
+    }
+    return broadcastState(accessCode);
+  });
   io.on('connection', (socket) => {
     let joinedCode = null;
 

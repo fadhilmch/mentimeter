@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
 import ConnectionBanner from '../components/ConnectionBanner.vue'
+import AudienceResults from '../components/AudienceResults.vue'
 import { getTheme, readableOn, themeVars } from '../themes'
 import logoLight from '../assets/logo-light.svg'
 import logoDark from '../assets/logo-dark.svg'
@@ -27,9 +28,10 @@ const live = useLiveStore()
 const code = String(route.params.code)
 const error = ref('')
 // Set once the server says the presentation no longer exists; nothing can be sent after that.
-const ended = ref(false)
+const gone = ref(false)
+const ended = computed(() => gone.value || live.state?.ended === true)
 watch(error, (message) => {
-  if (isPresentationGone(message)) ended.value = true
+  if (isPresentationGone(message)) gone.value = true
 })
 // A reconnect proves the server is reachable again, so a leftover connection error no longer applies.
 watch(() => live.reconnects, () => {
@@ -85,7 +87,7 @@ const votingOpen = computed(() => state.value?.votingOpen !== false && !ended.va
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
 const savedName = ref(localStorage.getItem('livepoll.nickname') ?? '')
 const nameDraft = ref('')
-const askName = computed(() => !!state.value && shouldPromptNow(state.value.slides, state.value.currentSlide, savedName.value))
+const askName = computed(() => !ended.value && !!state.value && shouldPromptNow(state.value.slides, state.value.currentSlide, savedName.value))
 function generateName() { nameDraft.value = randomNickname() }
 async function saveName() {
   const name = nameDraft.value.trim()
@@ -264,11 +266,15 @@ async function sendRanking() {
     </header>
   <div class="audience-page">
     <ConnectionBanner role="audience" />
-    <p v-if="ended" class="error-banner" role="alert">This presentation has ended or was deleted. Answers can no longer be sent.</p>
+    <section v-if="ended" class="card session-ended" role="status">
+      <h1>{{ gone ? 'Presentation unavailable' : 'Thanks for taking part!' }}</h1>
+      <p>{{ gone ? 'This presentation has ended or was deleted.' : 'The presenter has ended this presentation.' }} Answers can no longer be sent.</p>
+      <router-link class="button secondary" :to="{ name: 'join' }">Join another presentation</router-link>
+    </section>
     <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
     <p v-if="!state" class="connecting">Connecting…</p>
     <template v-else>
-      <p class="audience-title"><span class="live-dot"></span>{{ state.title }}</p>
+      <p class="audience-title"><span v-if="!ended" class="live-dot"></span>{{ state.title }}</p>
       <form v-if="askName" class="name-card" @submit.prevent="saveName">
         <label for="leaderboard-name">Choose your nickname</label>
         <input id="leaderboard-name" v-model="nameDraft" maxlength="24" placeholder="e.g. Fika Fan" autocomplete="off" />
@@ -418,8 +424,10 @@ async function sendRanking() {
           </div>
           <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
+        <AudienceResults v-if="resultsVisible" :slide="slide" :palette="pal" />
+        <p v-else-if="slide.questionType === 'multiple-choice' || slide.questionType === 'ranking'" class="voting-closed">The presenter has hidden the results for now.</p>
       </template>
-      <p v-else class="muted">Waiting for the presenter…</p>
+      <p v-else-if="!ended" class="muted">Waiting for the presenter…</p>
     </template>
     <WinnersPodium v-if="state && showFinale" class="audience-podium" variant="audience" :leaderboard="state.leaderboard!" :scoring="scoring" :palette="pal" :my-key="myKey" />
     <div v-else-if="state?.leaderboard?.length" class="card leaderboard-card">

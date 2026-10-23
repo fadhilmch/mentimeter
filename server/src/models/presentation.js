@@ -147,6 +147,7 @@ const presentationSchema = new mongoose.Schema(
     finale: { type: Boolean, default: false },
     currentSlide: { type: Number, default: 0, min: 0 },
     votingOpen: { type: Boolean, default: true },
+    endedAt: { type: Date, default: null },
     resultsVisible: { type: Boolean, default: true },
     // Bumped only when the slide/option structure changes. Votes and live
     // actions do not touch it, so the editor can detect concurrent structural

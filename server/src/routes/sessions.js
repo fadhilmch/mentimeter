@@ -90,10 +90,9 @@ sessionsRouter.post('/sessions/:sid/end', authenticate, async (req, res, next) =
     const s = await ownedSession(req);
     if (!s) return res.status(404).json({ message: 'Session not found' });
     if (s.status === 'active') {
-      s.status = 'ended';
-      s.endedAt = new Date();
-      s.votingOpen = false;
+      applyLiveAction(s, { type: 'presentation:end' });
       await s.save();
+      await broadcastState(s.code, publicState(s));
     }
     return res.json({ data: summary(s) });
   } catch (err) {
