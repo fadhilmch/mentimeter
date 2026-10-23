@@ -307,63 +307,88 @@ presentationsRouter.get('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req, res, next) => {
-  try {
-    const presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
-    if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
-    const { slides, baseStructureRevision, confirmRemove, ...rest } = req.body;
-    Object.assign(presentation, rest);
-    if (slides) {
-      if (hasUnidentifiedSlides(presentation.slides)) {
-        // Pre-identity deck: stamp ids additively and ask the client to reload.
-        // Never index-match legacy data - that is how votes get misattached.
-        // Version-guarded write; on contention the other writer's ids win.
-        await stampSlideIdsIfMissing(presentation);
-        return res.status(409).json({
-          code: 'upgraded',
-          message: 'This presentation was just upgraded for safer editing. Reload it and save again.',
-        });
-      }
-      const normalized = slides.map((slide) => ({ ...slide, options: slide.options.map(normalizeOption) }));
-      // A deck with no stored slides has nothing to attach identities to, so a
-      // first save of brand-new slides (no ids yet) is legitimate. Only reject
-      // id-less slides when stored slides exist that they could be mismatched with.
-      const echoesNoIdentities =
-        presentation.slides.length > 0 && normalized.length > 0 && normalized.every((s) => !s.id);
-      if (baseStructureRevision === undefined || echoesNoIdentities) {
-        // The client is not echoing identities; it may hold stale data. Reject
-        // rather than guess: no attachment beats wrong attachment.
-        return res.status(409).json({ code: 'stale', message: 'Reload the presentation before saving.' });
-      }
-      if (baseStructureRevision !== presentation.structureRevision) {
-        return res.status(409).json({ code: 'conflict', message: 'Someone changed these slides elsewhere. Reload before saving.' });
-      }
-      const { merged, removedVotes, removedResponses } = matchSlideUpdate(presentation.slides, normalized);
-      if (removedVotes > 0 || removedResponses > 0) {
-        // Discarding real audience data requires an explicit, count-aware
-        // confirmation computed against the current stored document. Counts
-        // that went stale (new votes meanwhile) fail this check.
-        if (!confirmRemove || confirmRemove.votes !== removedVotes || confirmRemove.responses !== removedResponses) {
-          return res.status(409).json({
+// One save attempt against the latest stored deck. Returns the HTTP outcome instead of sending it, so a
+// lost race (VersionError: an answer was saved first) can reload the deck and run every check again.
+async function attemptDeckSave(req) {
+  const presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+  if (!presentation) return { status: 404, body: { message: 'Presentation not found' } };
+  const { slides, baseStructureRevision, confirmRemove, ...rest } = req.body;
+  Object.assign(presentation, rest);
+  if (slides) {
+    if (hasUnidentifiedSlides(presentation.slides)) {
+      // Pre-identity deck: stamp ids additively and ask the client to reload.
+      // Never index-match legacy data - that is how votes get misattached.
+      // Version-guarded write; on contention the other writer's ids win.
+      await stampSlideIdsIfMissing(presentation);
+      return {
+        status: 409,
+        body: { code: 'upgraded', message: 'This presentation was just upgraded for safer editing. Reload it and save again.' },
+      };
+    }
+    const normalized = slides.map((slide) => ({ ...slide, options: slide.options.map(normalizeOption) }));
+    // A deck with no stored slides has nothing to attach identities to, so a
+    // first save of brand-new slides (no ids yet) is legitimate. Only reject
+    // id-less slides when stored slides exist that they could be mismatched with.
+    const echoesNoIdentities =
+      presentation.slides.length > 0 && normalized.length > 0 && normalized.every((s) => !s.id);
+    if (baseStructureRevision === undefined || echoesNoIdentities) {
+      // The client is not echoing identities; it may hold stale data. Reject
+      // rather than guess: no attachment beats wrong attachment.
+      return { status: 409, body: { code: 'stale', message: 'Reload the presentation before saving.' } };
+    }
+    if (baseStructureRevision !== presentation.structureRevision) {
+      return { status: 409, body: { code: 'conflict', message: 'Someone changed these slides elsewhere. Reload before saving.' } };
+    }
+    const { merged, removedVotes, removedResponses } = matchSlideUpdate(presentation.slides, normalized);
+    if (removedVotes > 0 || removedResponses > 0) {
+      // Discarding real audience data requires an explicit, count-aware
+      // confirmation computed against the current stored document. Counts
+      // that went stale (new votes meanwhile) fail this check.
+      if (!confirmRemove || confirmRemove.votes !== removedVotes || confirmRemove.responses !== removedResponses) {
+        return {
+          status: 409,
+          body: {
             code: 'requiresConfirmation',
             message: 'Saving removes slides or options that already have audience results.',
             removedVotes,
             removedResponses,
-          });
-        }
+          },
+        };
       }
-      const currentSlideId = presentation.slides[presentation.currentSlide]?.id;
-      presentation.slides = merged;
-      if (currentSlideId) {
-        const nextIndex = merged.findIndex((s) => s.id === currentSlideId);
-        presentation.currentSlide = nextIndex >= 0 ? nextIndex : Math.max(0, merged.length - 1);
-      } else if (presentation.currentSlide >= merged.length) {
-        presentation.currentSlide = Math.max(0, merged.length - 1);
-      }
-      presentation.structureRevision += 1;
     }
-    const data = await presentation.save();
-    return res.json({ data });
+    const currentSlideId = presentation.slides[presentation.currentSlide]?.id;
+    presentation.slides = merged;
+    if (currentSlideId) {
+      const nextIndex = merged.findIndex((s) => s.id === currentSlideId);
+      presentation.currentSlide = nextIndex >= 0 ? nextIndex : Math.max(0, merged.length - 1);
+    } else if (presentation.currentSlide >= merged.length) {
+      presentation.currentSlide = Math.max(0, merged.length - 1);
+    }
+    presentation.structureRevision += 1;
+  }
+  const data = await presentation.save();
+  return { status: 200, body: { data } };
+}
+
+/**
+ * Saving slides while an audience votes: an answer saved between our read and our write makes the save
+ * lose the race (VersionError). The edit is not lost: reload the latest deck (with the new votes) and apply
+ * the same edit again, so the presenter's changes and the audience's votes both survive. Every check
+ * (structure revision, removal confirmation) re-runs against the fresh deck, so a real conflict still stops.
+ */
+presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req, res, next) => {
+  try {
+    const maxAttempts = 8;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const { status, body } = await attemptDeckSave(req);
+        return res.status(status).json(body);
+      } catch (err) {
+        if (err.name !== 'VersionError' || attempt === maxAttempts - 1) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 30 * (attempt + 1)));
+      }
+    }
+    return undefined;
   } catch (err) {
     return next(err);
   }
