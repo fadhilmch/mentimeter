@@ -265,7 +265,7 @@ async function end() {
           <h1 class="stage-question">{{ slide.question }}</h1>
         </div>
 
-        <QuestionTimer v-if="timer" class="stage-timer" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="onTimerExpired" />
+        <QuestionTimer v-if="timer && votingOpen" class="stage-timer" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="onTimerExpired" />
 
         <WinnersPodium v-if="showFinale && live.state?.leaderboard?.length" class="stage-podium" variant="stage" :leaderboard="live.state.leaderboard" :scoring="scoring" :palette="pal" />
 

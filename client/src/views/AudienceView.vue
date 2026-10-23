@@ -299,7 +299,7 @@ async function sendRanking() {
         <template v-if="isLayout"></template>
 
         <template v-else-if="slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'">
-          <QuestionTimer v-if="timer" class="audience-timer" size="small" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="timeUp = true" />
+          <QuestionTimer v-if="timer && votingOpen" class="audience-timer" size="small" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="timeUp = true" />
           <p v-if="timer && timer.endsAt === null && votingOpen" class="muted">Waiting for the presenter to start the timer…</p>
           <button
             v-for="(option, i) in optionsOf()"
