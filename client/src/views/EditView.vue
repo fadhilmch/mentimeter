@@ -143,7 +143,9 @@ const hasValidationErrors = computed(() => titleError.value !== '' || slides.val
 const previewSlide = computed(() => slides.value[activeSlide.value] ?? slides.value[0])
 const themeName = computed(() => THEMES.find((t) => t.id === themeId.value)?.name ?? '')
 
+const savedSlideCount = ref(0)
 function applyLoaded(p: LoadedPresentation) {
+  savedSlideCount.value = p.slides.length
   title.value = p.title
   location.value = p.location ?? ''
   accessCode.value = p.accessCode
@@ -542,7 +544,8 @@ function remove() {
           <button class="button ghost hist-btn" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl+Z)" @click="undo"><span class="ic" aria-hidden="true">↶</span><span class="lbl">Undo</span></button>
           <button class="button ghost hist-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" @click="redo"><span class="ic" aria-hidden="true">↷</span><span class="lbl">Redo</span></button>
           <span v-if="savedAt" class="muted saved-at">Saved {{ savedAt }}</span>
-          <router-link class="button ghost" :to="{ name: 'present', params: { code: accessCode } }">Present</router-link>
+          <router-link v-if="savedSlideCount && slides.length" class="button ghost" :to="{ name: 'present', params: { code: accessCode } }">Present</router-link>
+          <span v-else class="muted" role="status">Add and save a slide to present.</span>
           <button class="button danger" :disabled="deleting" @click="remove">
             <span v-if="deleting" class="spinner" aria-hidden="true"></span>{{ deleting ? 'Deleting…' : 'Delete' }}
           </button>

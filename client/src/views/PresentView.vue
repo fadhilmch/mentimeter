@@ -163,9 +163,9 @@ watch(
 )
 onBeforeUnmount(() => cancelAnimationFrame(raf))
 
-function end() {
-  live.leave()
-  router.push({ name: 'dashboard' })
+async function end() {
+  await presenterAction({ type: 'presentation:end' }, 'end')
+  if (!error.value) { live.leave(); router.push({ name: 'dashboard' }) }
 }
 </script>
 
@@ -183,7 +183,7 @@ function end() {
       <span v-if="live.presence !== null" class="muted presence" data-testid="presence" title="Connected to this room right now, including this screen. Not the number of people who answered.">{{ live.presence }} connected</span>
       <div class="stage-actions">
         <ColorModeToggle />
-        <button class="button ghost end-button" @click="end">End</button>
+        <button v-if="state?.slides.length && !state.ended" class="button ghost end-button" :disabled="!!busy" @click="end">{{ busy === 'end' ? 'Ending…' : 'End' }}</button>
       </div>
     </header>
     <JoinPanel v-if="showJoin" :code="code" @close="showJoin = false" />
@@ -192,6 +192,12 @@ function end() {
     <ConnectionBanner role="presenter" />
       <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
       <p v-else-if="!state" class="connecting">Connecting…</p>
+      <section v-else-if="state?.ended" class="card" role="status">
+        <h1>This presentation has ended</h1>
+        <p>Audience answers are closed. Presenting again keeps the existing answers and quiz locks.</p>
+        <button v-if="auth.token" class="button" :disabled="!!busy" @click="presenterAction({ type: 'presentation:start' }, 'start')">Present again</button>
+        <router-link class="button secondary" :to="{ name: 'dashboard' }">Back to presentations</router-link>
+      </section>
       <template v-else-if="slide">
         <div class="stage-controls">
           <button class="button ghost" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" :aria-busy="busy === 'voting'" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
@@ -329,7 +335,12 @@ function end() {
           <button class="button" :disabled="isLast" @click="go(1)">Next →</button>
         </div>
       </template>
-      <p v-else style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">This presentation has no slides yet.</p>
+      <section v-else class="card" role="status">
+        <h1>Add a slide before presenting</h1>
+        <p>Your audience has nothing to answer yet. Add and save a question in the editor first.</p>
+        <router-link v-if="auth.token && state" class="button" :to="{ name: 'edit', params: { id: state.id } }">Open editor</router-link>
+        <router-link class="button secondary" :to="{ name: 'dashboard' }">Back to presentations</router-link>
+      </section>
     </div>
   </div>
 </template>

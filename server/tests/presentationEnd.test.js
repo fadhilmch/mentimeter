@@ -1,0 +1,43 @@
+import { beforeAll, afterAll, it, expect } from 'vitest';
+import request from 'supertest';
+import { setupTestApp, teardownTestApp } from './helpers.js';
+import { applyLiveAction, publicState, presenterActionSchema, liveActionSchema } from '../src/lib/live.js';
+import { Presentation } from '../src/models/presentation.js';
+let app, token, other, deck;
+beforeAll(async () => {
+  app = await setupTestApp();
+  token = (await request(app).post('/api/users/signup').send({ username: 'end-owner', password: 'super-secret-1' })).body.token;
+  other = (await request(app).post('/api/users/signup').send({ username: 'end-other', password: 'super-secret-1' })).body.token;
+  deck = (await request(app).post('/api/presentations').set('authorization', `Bearer ${token}`).send({ title: 'End test', slides: [{ questionType: 'multiple-choice', question: 'Q?', options: ['A', 'B'] }] })).body.data;
+});
+afterAll(teardownTestApp);
+const act = (auth, action) => request(app).post(`/api/presentations/${deck._id}/live-actions`).set('authorization', `Bearer ${auth}`).send(action);
+it('end is owner-only, persisted, idempotent and rejects late answers and reopen controls', async () => {
+  expect(presenterActionSchema.safeParse({ type: 'presentation:end' }).success).toBe(true);
+  expect(liveActionSchema.safeParse({ type: 'presentation:end' }).success).toBe(false);
+  expect((await act(other, { type: 'presentation:end' })).status).toBe(404);
+  await act(token, { type: 'results:set', visible: false });
+  const res = await act(token, { type: 'presentation:end' });
+  expect(res.status).toBe(200);
+  expect(res.body.state).toMatchObject({ ended: true, votingOpen: false, resultsVisible: false });
+  expect(res.body.state.slides[0].tally).toBeNull();
+  const saved = await Presentation.findById(deck._id);
+  expect(saved.endedAt).toBeTruthy();
+  expect((await act(token, { type: 'presentation:end' })).status).toBe(200);
+  expect((await act(token, { type: 'voting:set', open: true })).status).toBe(400);
+  const late = await request(app).post(`/api/live/${deck.accessCode}/action`).send({ type: 'vote:cast', slideIndex: 0, optionIndex: 0, participantId: 'late-person' });
+  expect(late.status).toBe(400);
+  expect(late.body.message).toContain('ended');
+  expect((await request(app).get(`/api/live/${deck.accessCode}/state`)).body.data.ended).toBe(true);
+  expect((await act(token, { type: 'presentation:start' })).body.state).toMatchObject({ ended: false, votingOpen: true });
+});
+it('ending a quiz reveals reached questions, but never future answers or hidden results', () => {
+  const slide = () => ({ questionType: 'quiz', question: 'Q?', options: [{ id: 'a', text: 'A', votes: [] }, { id: 'b', text: 'B', votes: [] }], correctOptionId: 'a', responses: [] });
+  const p = { currentSlide: 0, slides: [slide(), slide()], votingOpen: true, resultsVisible: false };
+  applyLiveAction(p, { type: 'presentation:end' });
+  expect(p.slides[0].revealed).toBe(true);
+  expect(p.slides[1].revealed).not.toBe(true);
+  expect(publicState(p)).toMatchObject({ ended: true, leaderboard: null });
+  expect(publicState(p).slides[0].tally).toBeNull();
+  expect(() => applyLiveAction(p, { type: 'participant:identify', participantId: 'person-1', nickname: 'Late' })).toThrow('ended');
+});
