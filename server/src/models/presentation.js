@@ -157,7 +157,7 @@ const presentationSchema = new mongoose.Schema(
     // Clients use it to ignore a snapshot that arrives after a newer one.
     liveRevision: { type: Number, default: 0 },
   },
-  { timestamps: true },
+  { timestamps: true, optimisticConcurrency: true },
 );
 
 // Atomic $inc, so two writers cannot both stamp the same stale value + 1.

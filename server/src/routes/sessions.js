@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { mutateWithRetry } from '../lib/occ.js';
 import mongoose from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { Presentation } from '../models/presentation.js';
@@ -87,13 +88,14 @@ sessionsRouter.get('/presentations/:id/sessions', authenticate, async (req, res,
 // End: stops accepting the join code (the unique code index only covers active sessions).
 sessionsRouter.post('/sessions/:sid/end', authenticate, async (req, res, next) => {
   try {
-    const s = await ownedSession(req);
-    if (!s) return res.status(404).json({ message: 'Session not found' });
-    if (s.status === 'active') {
+    const outcome = await mutateWithRetry(() => ownedSession(req), (s) => {
+      if (s.status !== 'active') return false;
       applyLiveAction(s, { type: 'presentation:end' });
-      await s.save();
-      await broadcastState(s.code, publicState(s));
-    }
+      return true;
+    });
+    if (!outcome) return res.status(404).json({ message: 'Session not found' });
+    const s = outcome.doc;
+    if (outcome.result) await broadcastState(s.code, publicState(s));
     return res.json({ data: summary(s) });
   } catch (err) {
     return next(err);
@@ -102,11 +104,12 @@ sessionsRouter.post('/sessions/:sid/end', authenticate, async (req, res, next) =
 
 sessionsRouter.post('/sessions/:sid/archive', authenticate, async (req, res, next) => {
   try {
-    const s = await ownedSession(req);
-    if (!s) return res.status(404).json({ message: 'Session not found' });
-    if (s.status === 'active') return res.status(409).json({ message: 'End the session before archiving it' });
-    s.status = 'archived';
-    await s.save();
+    const outcome = await mutateWithRetry(() => ownedSession(req), (s) => {
+      if (s.status === 'active') throw Object.assign(new Error('End the session before archiving it'), { status: 409 });
+      s.status = 'archived';
+    });
+    if (!outcome) return res.status(404).json({ message: 'Session not found' });
+    const s = outcome.doc;
     return res.json({ data: summary(s) });
   } catch (err) {
     return next(err);
@@ -130,11 +133,12 @@ sessionsRouter.delete('/sessions/:sid', authenticate, async (req, res, next) => 
 sessionsRouter.post('/sessions/:sid/live-actions', authenticate, async (req, res, next) => {
   try {
     const action = presenterActionSchema.parse(req.body);
-    const s = await ownedSession(req);
-    if (!s) return res.status(404).json({ message: 'Session not found' });
-    if (s.status !== 'active') return res.status(409).json({ message: 'This session has ended' });
-    applyLiveAction(s, action);
-    const data = await s.save();
+    const outcome = await mutateWithRetry(() => ownedSession(req), (s) => {
+      if (s.status !== 'active') throw Object.assign(new Error('This session has ended'), { status: 409 });
+      applyLiveAction(s, action);
+    });
+    if (!outcome) return res.status(404).json({ message: 'Session not found' });
+    const data = outcome.doc;
     const state = publicState(data);
     await broadcastState(data.code, state);
     return res.json({ ok: true, state });

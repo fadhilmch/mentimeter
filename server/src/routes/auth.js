@@ -6,6 +6,8 @@ import { User, syntheticUsername } from '../models/user.js';
 import { Presentation } from '../models/presentation.js';
 import { authenticate, identifyFirebase, isLegacyToken, bearerToken } from '../middleware/authenticate.js';
 import { config } from '../config.js';
+import { Media } from '../models/media.js';
+import { LiveSession } from '../models/liveSession.js';
 import { firebaseEnabled, deleteFirebaseUser } from '../lib/firebase.js';
 import { signUserToken } from '../lib/tokens.js';
 import { validate } from '../middleware/validate.js';
@@ -158,7 +160,7 @@ authRouter.delete('/me', authLimiter, chooseSession, validate(deleteAccountSchem
     // Two steps without a transaction (so no replica set is required). Presentations go first so
     // none are left without an owner. If the second step fails, the presentations are already
     // gone but the account remains, and repeating the request finishes the job.
-    const { deletedCount } = await Presentation.deleteMany({ owner: user._id });
+    const { deletedCount } = await removeOwnedData(user._id);
     try {
       await User.deleteOne({ _id: user._id });
     } catch (err) {
@@ -174,6 +176,14 @@ authRouter.delete('/me', authLimiter, chooseSession, validate(deleteAccountSchem
   }
 });
 
+// Everything an account owns: live sessions and uploaded images as well as decks. Repeatable.
+async function removeOwnedData(ownerId) {
+  const presentations = await Presentation.deleteMany({ owner: ownerId });
+  await LiveSession.deleteMany({ owner: ownerId });
+  await Media.deleteMany({ owner: ownerId });
+  return presentations;
+}
+
 // Three steps, no transaction, in an order that can always be repeated: presentations, then the
 // profile, then the Firebase login. If a step fails the Firebase login still works, so the person
 // can run the same request again (a missing profile is fine, it just skips that step).
@@ -188,7 +198,7 @@ async function deleteFirebaseAccount(req, res) {
   let firebaseLoginRemoved = false;
   try {
     if (user) {
-      ({ deletedCount: deletedPresentations } = await Presentation.deleteMany({ owner: user._id }));
+      ({ deletedCount: deletedPresentations } = await removeOwnedData(user._id));
       await User.deleteOne({ _id: user._id });
     }
     firebaseLoginRemoved = await deleteFirebaseUser(uid);

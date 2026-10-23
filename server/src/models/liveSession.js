@@ -44,7 +44,7 @@ const liveSessionSchema = new mongoose.Schema(
     // Set only on a session created from pre-session data. One per deck, which makes migration idempotent.
     legacyOf: { type: mongoose.Schema.Types.ObjectId },
   },
-  { timestamps: true },
+  { timestamps: true, optimisticConcurrency: true },
 );
 
 // Lets the shared live logic treat a session like a deck (publicState reads accessCode).
