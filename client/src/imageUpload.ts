@@ -39,3 +39,17 @@ export async function prepareImage(file: File): Promise<Blob> {
   }
   throw new Error('That image is too detailed to shrink enough. Try a smaller one.')
 }
+
+/** Whether an uploaded file can be deleted now, and if not, why. The slide being edited counts as a use. */
+export function deleteBlock(item: { url: string; usedIn: { title: string }[] }, selectedUrl: string | undefined): string {
+  if (item.url === selectedUrl) return 'Selected on this slide. Remove it from the slide first.'
+  if (item.usedIn.length) {
+    const names = item.usedIn.map((d) => `"${d.title}"`).join(', ')
+    return `Used in ${names}. Remove it from those slides and save, then delete.`
+  }
+  return ''
+}
+
+/** "3 of 200 images used": how close the account is to the upload limit. */
+export const uploadQuota = (count: number, limit: number): string =>
+  count >= limit ? `All ${limit} upload spots are used. Delete images you no longer need.` : `${count} of ${limit} uploads used`

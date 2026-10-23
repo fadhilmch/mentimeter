@@ -176,7 +176,31 @@ test.describe('quiz timer, winners podium, layouts and images', () => {
     expect(saved.quizScoring).toBe('speed')
     expect(saved.slides[0].timeLimit).toBe(20)
     expect(saved.slides[1]).toMatchObject({ questionType: 'title', question: 'Hello team' })
-    expect(saved.slides[2].design.imageUrl).toMatch(/^\/api\/media\/[a-f0-9]{24}$/)
+    expect(saved.slides[2].design.imageUrl).toMatch(/^\/api\/media\/[a-f0-9]{32}$/)
+    const first = saved.slides[2].design.imageUrl as string
+
+    // Your uploads: the file in use cannot be deleted; replace it, save, then the old file can go.
+    await page.getByTestId('manage-uploads').click()
+    await expect(page.getByTestId('upload-quota')).toHaveText(/\d+ of 200 uploads used/)
+    const used = Number((await page.getByTestId('upload-quota').textContent())!.match(/^(\d+)/)![1]) // the demo account is shared by other specs
+    await expect(page.locator('.iuf-item.current').getByTestId('delete-upload')).toBeDisabled()
+    await expect(page.getByTestId('uploads-panel')).toContainText('Selected on this slide')
+    await shot(page, 'editor-uploads-panel')
+    await page.getByLabel('Choose an image file').first().setInputFiles(PHOTO || '/tmp/e2e-pixel.png')
+    await expect(page.getByTestId('upload-quota')).toHaveText(`${used + 1} of 200 uploads used`)
+    // The saved deck still shows the first file, so it is protected until the deck is saved.
+    await expect(page.locator(`.iuf-item:has(img[src$="${first}"])`).getByTestId('delete-upload')).toBeDisabled()
+    await expect(page.locator(`.iuf-item:has(img[src$="${first}"])`)).toContainText('Used in')
+    await page.getByRole('button', { name: /^Save/ }).first().click()
+    await expect.poll(async () => (await (await request.get(`/api/presentations/${deck.id}`, { headers: { authorization: `Bearer ${deck.token}` } })).json()).data.slides[2].design.imageUrl).not.toBe(first)
+    await page.getByTestId('manage-uploads').click()
+    await page.getByTestId('manage-uploads').click()
+    const old = page.locator(`.iuf-item:has(img[src$="${first}"])`)
+    await expect(old.getByTestId('delete-upload')).toBeEnabled()
+    await old.getByTestId('delete-upload').click()
+    await page.getByTestId('confirm-delete-upload').click()
+    await expect(page.getByTestId('upload-quota')).toHaveText(`${used} of 200 uploads used`)
+    expect((await request.get(first)).status()).toBe(404)
     await ctx.close()
   })
 })

@@ -1,10 +1,24 @@
 import express, { Router } from 'express';
 import mongoose from 'mongoose';
 import { Media } from '../models/media.js';
+import { Presentation } from '../models/presentation.js';
+import { LiveSession } from '../models/liveSession.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { MAX_IMAGE_BYTES, MAX_IMAGES_PER_USER, sniffImageType } from '../lib/media.js';
 
 export const mediaRouter = Router();
+
+const PUBLIC_ID = /^[a-f0-9]{32}$/;
+const urlFor = (publicId) => `/api/media/${publicId}`;
+
+/** Decks (any owner) and saved live sessions whose slides still show this image. */
+async function usageOf(url) {
+  const [decks, sessions] = await Promise.all([
+    Presentation.find({ 'slides.design.imageUrl': url }).select('title owner').lean(),
+    LiveSession.countDocuments({ 'slides.design.imageUrl': url }),
+  ]);
+  return { decks, sessions };
+}
 
 /** Owner uploads one image (raw bytes: jpeg, png or webp, up to 600 KB). Returns the path to use as a slide image. */
 mediaRouter.post(
@@ -20,10 +34,10 @@ mediaRouter.post(
       if (!contentType) return res.status(415).json({ message: 'That file is not a JPEG, PNG or WebP image.' });
       const owner = new mongoose.Types.ObjectId(req.auth.userId);
       if ((await Media.countDocuments({ owner })) >= MAX_IMAGES_PER_USER) {
-        return res.status(429).json({ message: `You can keep up to ${MAX_IMAGES_PER_USER} uploaded images.` });
+        return res.status(429).json({ message: `You have reached the limit of ${MAX_IMAGES_PER_USER} uploaded images. Delete some you no longer use, then try again.`, code: 'upload_limit' });
       }
       const media = await Media.create({ owner, contentType, data: req.body });
-      return res.status(201).json({ data: { url: `/api/media/${media._id}`, bytes: req.body.length } });
+      return res.status(201).json({ data: { url: urlFor(media.publicId), bytes: req.body.length } });
     } catch (err) {
       if (err.type === 'entity.too.large') return res.status(413).json({ message: 'That image is too large (600 KB maximum).' });
       return next(err);
@@ -31,11 +45,29 @@ mediaRouter.post(
   },
 );
 
-/** Public: the audience's phones load slide images without an account. The id is unguessable. */
+/** The owner's own uploads, newest first, with how many of their decks use each. Never includes the bytes. */
+mediaRouter.get('/', authenticate, async (req, res, next) => {
+  try {
+    const owner = new mongoose.Types.ObjectId(req.auth.userId);
+    const items = await Media.find({ owner }).select('publicId contentType createdAt data').sort({ createdAt: -1 }).lean();
+    const decks = await Presentation.find({ owner, 'slides.design.imageUrl': { $regex: '^/api/media/' } }).select('title slides.design.imageUrl').lean();
+    const data = items.map((item) => {
+      const url = urlFor(item.publicId);
+      const usedIn = decks.filter((d) => d.slides.some((s) => s.design?.imageUrl === url)).map((d) => ({ id: String(d._id), title: d.title }));
+      return { url, bytes: (item.data.buffer ?? item.data).length, createdAt: item.createdAt, usedIn };
+    });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ data, limit: MAX_IMAGES_PER_USER });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/** Public by design: audience phones load slide images without an account. Anyone with the link can view it. */
 mediaRouter.get('/:id', async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Image not found' });
-    const media = await Media.findById(req.params.id).lean();
+    if (!PUBLIC_ID.test(req.params.id)) return res.status(404).json({ message: 'Image not found' });
+    const media = await Media.findOne({ publicId: req.params.id }).lean();
     if (!media) return res.status(404).json({ message: 'Image not found' });
     res.set({
       'Content-Type': media.contentType,
@@ -50,13 +82,28 @@ mediaRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-/** Owner deletes one of their own uploads. Someone else's id looks the same as a missing one. */
+/**
+ * Owner deletes the file itself. Refused (409) while any deck or saved session still shows it, so a slide
+ * never ends up with a silently broken picture. Someone else's id looks the same as a missing one.
+ */
 mediaRouter.delete('/:id', authenticate, async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Image not found' });
+    if (!PUBLIC_ID.test(req.params.id)) return res.status(404).json({ message: 'Image not found' });
     const owner = new mongoose.Types.ObjectId(req.auth.userId);
-    const removed = await Media.findOneAndDelete({ _id: req.params.id, owner });
-    if (!removed) return res.status(404).json({ message: 'Image not found' });
+    const media = await Media.findOne({ publicId: req.params.id, owner }).select('_id').lean();
+    if (!media) return res.status(404).json({ message: 'Image not found' });
+    const { decks, sessions } = await usageOf(urlFor(req.params.id));
+    if (decks.length || sessions) {
+      const own = decks.filter((d) => String(d.owner) === String(owner)).map((d) => d.title);
+      const others = decks.length - own.length;
+      return res.status(409).json({
+        message: 'This image is still used on a slide. Remove it from the slide first, then delete the file.',
+        code: 'image_in_use',
+        usedIn: own,
+        otherUses: others + sessions,
+      });
+    }
+    await Media.deleteOne({ _id: media._id });
     return res.status(204).end();
   } catch (err) {
     return next(err);

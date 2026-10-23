@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitWithin, imageFileProblem } from '../imageUpload'
+import { deleteBlock, fitWithin, imageFileProblem, uploadQuota } from '../imageUpload'
 import { imageSrc } from '../api'
 
 describe('image upload helpers', () => {
@@ -24,5 +24,17 @@ describe('image upload helpers', () => {
     expect(imageSrc('/api/media/0123456789abcdef01234567')).toBe('/api/media/0123456789abcdef01234567')
     expect(imageSrc('https://example.com/a.png')).toBe('https://example.com/a.png')
     expect(imageSrc(undefined)).toBeUndefined()
+  })
+
+  it('blocks deleting an image that is selected or used, and says where', () => {
+    const free = { url: '/api/media/a', usedIn: [] }
+    expect(deleteBlock(free, undefined)).toBe('')
+    expect(deleteBlock(free, '/api/media/a')).toMatch(/Remove it from the slide/)
+    expect(deleteBlock({ url: '/api/media/b', usedIn: [{ title: 'Kickoff' }] }, undefined)).toContain('"Kickoff"')
+  })
+
+  it('words the upload quota, including when it is full', () => {
+    expect(uploadQuota(3, 200)).toBe('3 of 200 uploads used')
+    expect(uploadQuota(200, 200)).toMatch(/Delete images/)
   })
 })

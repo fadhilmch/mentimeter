@@ -25,7 +25,7 @@ describe('image upload', () => {
     const token = await signedIn();
     const up = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'image/png').send(png);
     expect(up.status).toBe(201);
-    expect(up.body.data.url).toMatch(/^\/api\/media\/[a-f0-9]{24}$/);
+    expect(up.body.data.url).toMatch(/^\/api\/media\/[a-f0-9]{32}$/);
     const got = await request(app).get(up.body.data.url); // no login: the audience loads it
     expect(got.status).toBe(200);
     expect(got.headers['content-type']).toContain('image/png');
@@ -63,10 +63,65 @@ describe('image upload', () => {
     const full = await signedIn();
     const other = await signedIn();
     const first = await request(app).post('/api/media').set('Authorization', `Bearer ${full}`).set('Content-Type', 'image/png').send(png);
-    const owner = (await Media.findById(first.body.data.url.split('/').pop()).lean()).owner;
+    const owner = (await Media.findOne({ publicId: first.body.data.url.split("/").pop() }).lean()).owner;
     await Media.insertMany(Array.from({ length: MAX_IMAGES_PER_USER - 1 }, () => ({ owner, contentType: 'image/png', data: png })));
     expect((await request(app).post('/api/media').set('Authorization', `Bearer ${full}`).set('Content-Type', 'image/png').send(png)).status).toBe(429);
     expect((await request(app).post('/api/media').set('Authorization', `Bearer ${other}`).set('Content-Type', 'image/png').send(png)).status).toBe(201);
+  });
+
+  it('uses random 32-character public ids, and the old ObjectId-shaped path is not served', async () => {
+    const token = await signedIn();
+    const a = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'image/png').send(png);
+    const b = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'image/png').send(png);
+    expect(a.body.data.url).toMatch(/^\/api\/media\/[a-f0-9]{32}$/);
+    expect(a.body.data.url).not.toBe(b.body.data.url);
+    const { Media } = await import('../src/models/media.js');
+    const doc = await Media.findOne({ publicId: a.body.data.url.split('/').pop() }).lean();
+    expect((await request(app).get(`/api/media/${doc._id}`)).status).toBe(404);
+  });
+
+  it('lists only my uploads, with where each is used and no image bytes', async () => {
+    const mine = await signedIn();
+    const other = await signedIn();
+    const a = await request(app).post('/api/media').set('Authorization', `Bearer ${mine}`).set('Content-Type', 'image/png').send(png);
+    await request(app).post('/api/media').set('Authorization', `Bearer ${other}`).set('Content-Type', 'image/png').send(png);
+    await request(app).post('/api/presentations').set('Authorization', `Bearer ${mine}`)
+      .send({ title: 'Kickoff', slides: [{ questionType: 'image', question: 'Team', design: { imageUrl: a.body.data.url } }] });
+    expect((await request(app).get('/api/media')).status).toBe(401);
+    const list = await request(app).get('/api/media').set('Authorization', `Bearer ${mine}`);
+    expect(list.status).toBe(200);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({ url: a.body.data.url, usedIn: [{ title: 'Kickoff' }] });
+    expect(list.body.data[0].data).toBeUndefined();
+    expect(list.body.limit).toBe(200);
+  });
+
+  it('refuses to delete an image a deck still shows, and deletes it once the slide lets go', async () => {
+    const token = await signedIn();
+    const up = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'image/png').send(png);
+    const url = up.body.data.url;
+    const deck = await request(app).post('/api/presentations').set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Kickoff', slides: [{ questionType: 'image', question: 'Team', design: { imageUrl: url } }] });
+    const blocked = await request(app).delete(url).set('Authorization', `Bearer ${token}`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body).toMatchObject({ code: 'image_in_use', usedIn: ['Kickoff'], otherUses: 0 });
+    expect((await request(app).get(url)).status).toBe(200); // still there
+    const id = deck.body.data._id ?? deck.body.data.id;
+    await request(app).delete(`/api/presentations/${id}`).set('Authorization', `Bearer ${token}`);
+    expect((await request(app).delete(url).set('Authorization', `Bearer ${token}`)).status).toBe(204);
+  });
+
+  it('counts uses in other accounts decks without naming them', async () => {
+    const owner = await signedIn();
+    const other = await signedIn();
+    const up = await request(app).post('/api/media').set('Authorization', `Bearer ${owner}`).set('Content-Type', 'image/png').send(png);
+    await request(app).post('/api/presentations').set('Authorization', `Bearer ${other}`)
+      .send({ title: 'Secret deck', slides: [{ questionType: 'image', question: 'Team', design: { imageUrl: up.body.data.url } }] });
+    const blocked = await request(app).delete(up.body.data.url).set('Authorization', `Bearer ${owner}`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.usedIn).toEqual([]);
+    expect(blocked.body.otherUses).toBe(1);
+    expect(JSON.stringify(blocked.body)).not.toContain('Secret deck');
   });
 
   it('needs a signed-in owner', async () => {
@@ -100,7 +155,7 @@ describe('image upload', () => {
     const token = await signedIn();
     const make = (imageUrl) => request(app).post('/api/presentations').set('Authorization', `Bearer ${token}`)
       .send({ title: 'D', slides: [{ questionType: 'open-ended', question: 'Q', design: { imageUrl } }] });
-    expect((await make('/api/media/0123456789abcdef01234567')).status).toBe(201);
+    expect((await make('/api/media/0123456789abcdef0123456789abcdef')).status).toBe(201);
     expect((await make('https://example.com/a.png')).status).toBe(201);
     expect((await make('http://example.com/a.png')).status).toBe(400);
     expect((await make('javascript:alert(1)')).status).toBe(400);

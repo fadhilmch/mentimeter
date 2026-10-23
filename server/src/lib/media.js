@@ -1,5 +1,5 @@
-/** Uploaded slide images are served from here. */
-export const MEDIA_PATH = /^\/api\/media\/[a-f0-9]{24}$/;
+/** Uploaded slide images are served from here. The id is 32 random hex characters. Anyone who has the link can view the image. */
+export const MEDIA_PATH = /^\/api\/media\/[a-f0-9]{32}$/;
 export const MAX_IMAGE_BYTES = 600 * 1024;
 export const MAX_IMAGES_PER_USER = 200;
 
