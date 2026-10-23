@@ -48,6 +48,12 @@ export async function deleteFirebaseUser(uid) {
   }
 }
 
+/** The Google popup's helper page loads in a frame from the project's auth domain. */
+export function firebaseFrameSources() {
+  const { projectId, authDomain } = config.firebase;
+  return [`https://${authDomain || `${projectId}.firebaseapp.com`}`];
+}
+
 export function firebaseConnectSources() {
   const sources = ["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'];
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST) sources.push(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`);

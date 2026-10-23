@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { api, ApiError, setTokenRefresher, type PublicUser } from '../api';
-import { firebaseEnabled, friendlyAuthError, loadFirebase } from '../firebaseClient';
+import { firebaseEnabled, friendlyAuthError, isPopupCancelled, loadFirebase } from '../firebaseClient';
 
 type Firebase = Awaited<ReturnType<typeof loadFirebase>>;
 type FbUser = NonNullable<Firebase['auth']['currentUser']>;
@@ -18,6 +18,10 @@ export const useAuthStore = defineStore('auth', {
     uid: localStorage.getItem('livepoll.uid') ?? '',
     /** Signed in with Firebase but no app profile yet (setup was interrupted). */
     pendingProfile: false,
+    /** Name the sign-in provider suggested (e.g. the Google name), used to prefill finish-setup. */
+    pendingName: '',
+    /** False for Google-only logins: they confirm sensitive actions with Google, not a password. */
+    hasPasswordLogin: true,
     ready: !firebaseEnabled,
   }),
   getters: {
@@ -43,6 +47,7 @@ export const useAuthStore = defineStore('auth', {
     /** Loads who this Firebase login is from the server. The stored copy is trusted only for the same login and only offline. */
     async loadProfile(fbUser: FbUser) {
       const token = await fbUser.getIdToken();
+      this.hasPasswordLogin = (fbUser.providerData ?? []).some((p) => p?.providerId === 'password');
       const stored = this.uid === fbUser.uid ? this.user : null;
       this.pendingProfile = false;
       try {
@@ -54,6 +59,7 @@ export const useAuthStore = defineStore('auth', {
           this.token = token;
           this.uid = fbUser.uid;
           this.pendingProfile = true;
+          this.pendingName = fbUser.displayName ?? '';
         } else if (err instanceof ApiError && err.status === 401) {
           this.clear();
         } else if (stored) {
@@ -97,6 +103,17 @@ export const useAuthStore = defineStore('auth', {
         const cred = await fb.signInWithEmailAndPassword(fb.auth, email, password);
         await this.loadProfile(cred.user);
       } catch (err) {
+        throw this.explain(err);
+      }
+    },
+    /** Google sign-in. A brand-new Google login still finishes its profile (name) on the next screen. */
+    async loginWithGoogle() {
+      const fb = await this.firebase();
+      try {
+        const cred = await fb.signInWithPopup(fb.auth, new fb.GoogleAuthProvider());
+        await this.loadProfile(cred.user);
+      } catch (err) {
+        if (isPopupCancelled(err)) return; // backed out of the popup: nothing to report
         throw this.explain(err);
       }
     },
@@ -188,20 +205,32 @@ export const useAuthStore = defineStore('auth', {
         throw this.explain(err);
       }
     },
-    async deleteAccount(password: string) {
+    /** True when the account is gone. Backing out of the Google re-check is a quiet no. */
+    async deleteAccount(password: string): Promise<boolean> {
       if (!firebaseEnabled) {
         await api.deleteAccount(this.token, password);
-        return this.logout();
+        await this.logout();
+        return true;
       }
       const fb = await this.firebase();
       try {
         const current = fb.auth.currentUser;
-        if (!current?.email) throw new Error('You are not signed in.');
-        await fb.reauthenticateWithCredential(current, fb.EmailAuthProvider.credential(current.email, password));
+        if (!current) throw new Error('You are not signed in.');
+        const providers = (current.providerData ?? []).map((p) => p?.providerId);
+        if (providers.includes('password')) {
+          if (!current.email) throw new Error('You are not signed in.');
+          await fb.reauthenticateWithCredential(current, fb.EmailAuthProvider.credential(current.email, password));
+        } else if (providers.includes('google.com')) {
+          await fb.reauthenticateWithPopup(current, new fb.GoogleAuthProvider());
+        } else {
+          throw new Error('Log in again before deleting your account.');
+        }
         this.token = await current.getIdToken(true);
         await api.deleteAccount(this.token);
         await this.logout();
+        return true;
       } catch (err) {
+        if (isPopupCancelled(err)) return false;
         throw this.explain(err);
       }
     },
@@ -230,6 +259,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       this.uid = '';
       this.pendingProfile = false;
+      this.pendingName = '';
       localStorage.removeItem('livepoll.token');
       localStorage.removeItem('livepoll.user');
       localStorage.removeItem('livepoll.uid');

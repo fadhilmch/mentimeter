@@ -11,6 +11,21 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const busy = ref(false)
+const googleBusy = ref(false)
+
+async function google() {
+  error.value = ''
+  googleBusy.value = true
+  try {
+    await auth.loginWithGoogle()
+    if (auth.pendingProfile) return router.push({ name: 'finish-setup' })
+    router.push({ name: 'dashboard' })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not sign in with Google.'
+  } finally {
+    googleBusy.value = false
+  }
+}
 
 async function submit() {
   error.value = ''
@@ -32,6 +47,12 @@ async function submit() {
     <h1>Create your account</h1>
     <p class="sub">Build presentations and run them live in front of any audience.</p>
     <div class="card">
+      <template v-if="auth.usesFirebase">
+        <button class="button secondary big block" type="button" :disabled="busy || googleBusy" @click="google">
+          <span v-if="googleBusy" class="spinner" aria-hidden="true"></span>{{ googleBusy ? 'Waiting for Google…' : 'Continue with Google' }}
+        </button>
+        <p class="auth-divider" role="separator"><span>or with email</span></p>
+      </template>
       <form @submit.prevent="submit">
         <label class="field"><span>Name</span><input v-model="name" required autocomplete="name" placeholder="Ada Lovelace" /></label>
         <label v-if="auth.usesFirebase" class="field"><span>Email</span><input v-model="email" type="email" required autocomplete="email" placeholder="ada@example.com" /></label>
@@ -46,3 +67,8 @@ async function submit() {
     <p class="muted" style="margin-top: 18px;">Already have an account?&nbsp;<router-link class="text-link" to="/login">Log in</router-link></p>
   </div>
 </template>
+
+<style scoped>
+.auth-divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; color: color-mix(in srgb, var(--t-ink) 55%, transparent); font-size: 0.85rem; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid color-mix(in srgb, var(--t-ink) 18%, transparent); }
+</style>

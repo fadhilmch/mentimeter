@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import { config } from './config.js';
-import { firebaseEnabled, firebaseConnectSources } from './lib/firebase.js';
+import { firebaseEnabled, firebaseConnectSources, firebaseFrameSources } from './lib/firebase.js';
 import { authRouter } from './routes/auth.js';
 import { presentationsRouter } from './routes/presentations.js';
 import { liveRouter } from './routes/live.js';
@@ -23,7 +23,10 @@ export function createApp() {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
           'img-src': ["'self'", 'data:', 'https:'],
           // Firebase sign-in runs in the browser and talks to Google (or the local emulator).
-          ...(firebaseEnabled() ? { 'connect-src': firebaseConnectSources() } : {}),
+          // The Google popup also loads a helper frame from the project's auth domain.
+          ...(firebaseEnabled()
+            ? { 'connect-src': firebaseConnectSources(), 'frame-src': ["'self'", ...firebaseFrameSources()] }
+            : {}),
         },
       },
     }),

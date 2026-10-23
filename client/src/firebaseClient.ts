@@ -40,8 +40,22 @@ export function friendlyAuthError(err: unknown): string {
     case 'auth/network-request-failed':
       return 'Could not reach the sign-in service. Check your connection.'
     case 'auth/requires-recent-login':
-      return 'For safety, enter your password again.'
+      return 'For safety, sign in again.'
+    case 'auth/account-exists-with-different-credential':
+      return 'That email already signs in a different way. Use the original method.'
+    case 'auth/popup-blocked':
+      return 'The sign-in popup was blocked. Allow popups for this site and try again.'
+    case 'auth/unauthorized-domain':
+      return 'This site is not set up for sign-in yet.'
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not switched on yet.'
     default:
       return err instanceof Error && !code ? err.message : 'Something went wrong. Please try again.'
   }
+}
+
+/** True when the person closed the Google popup themselves. Not an error, so no banner. */
+export function isPopupCancelled(err: unknown): boolean {
+  const code = (err as { code?: string })?.code ?? ''
+  return code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'
 }

@@ -16,6 +16,7 @@ export const config = {
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID ?? '',
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN ?? '',
     serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT ?? '',
     // How recently the user must have typed their password to delete the account.
     recentSignInSeconds: Number(process.env.FIREBASE_RECENT_SIGN_IN_SECONDS ?? 300),
