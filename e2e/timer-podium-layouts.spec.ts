@@ -1,9 +1,11 @@
 import { expect, test, type BrowserContext } from '@playwright/test'
 import { closeAudiences, createDeck, joinAudience, presenterAction, quiz, type Deck } from './helpers'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 test.afterEach(closeAudiences)
 
+// Optional real photo (E2E_PHOTO=/path/to.jpg) so screenshots show crop and fit with a real picture.
+const PHOTO = process.env.E2E_PHOTO && existsSync(process.env.E2E_PHOTO) ? process.env.E2E_PHOTO : ''
 const SHOTS = process.env.E2E_SHOTS ?? ''
 const shot = async (page: import('@playwright/test').Page, name: string) => { if (SHOTS) await page.waitForTimeout(700); if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` }) }
 
@@ -103,13 +105,15 @@ test.describe('quiz timer, winners podium, layouts and images', () => {
   test('title, columns and image slides show on the stage and phones with nothing to answer', async ({ browser, request }) => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
     const token = (await (await request.post('/api/users/login', { data: { username: 'demo', password: 'demo1234' } })).json()).token
-    const up = await request.post('/api/media', { headers: { authorization: `Bearer ${token}`, 'content-type': 'image/png' }, data: png })
+    const up = await request.post('/api/media', { headers: { authorization: `Bearer ${token}`, 'content-type': PHOTO ? 'image/jpeg' : 'image/png' }, data: PHOTO ? readFileSync(PHOTO) : png })
     expect(up.status()).toBe(201)
     const url = (await up.json()).data.url as string
     const deck = await createDeck(request, 'E2E layouts', [
       { questionType: 'title', question: 'Welcome to the kickoff', body: 'Q4 planning', options: [] },
       { questionType: 'columns', question: 'The plan', columns: [{ title: 'Now', text: 'Ship the timer' }, { title: 'Next', text: 'Learn from the room' }], options: [] },
       { questionType: 'image', question: 'Our team', design: { imageUrl: url }, options: [] },
+      { ...quiz('Where was this photo taken?', ['A lake', 'A desert']), design: { imageUrl: url, imageLayout: 'beside' } },
+      { ...quiz('Name this place', ['A lake', 'A desert']), design: { imageUrl: url, imageLayout: 'behind' } },
     ])
     const phone = await joinAudience(browser, deck.code)
     const { ctx, page: stage } = await asPresenter(browser, deck)
@@ -130,6 +134,17 @@ test.describe('quiz timer, winners podium, layouts and images', () => {
     await expect.poll(() => stage.getByTestId('layout-image').locator('img').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBeGreaterThan(0)
     await expect(phone.getByTestId('layout-image').locator('img')).toBeVisible()
     await shot(stage, 'stage-image')
+    await shot(phone, 'phone-image')
+    await stage.getByRole('button', { name: 'Next →' }).click()
+    await phone.getByLabel('Choose your nickname').fill('Photo Fan')
+    await phone.getByRole('button', { name: 'Save nickname' }).click()
+    await expect(phone.getByText('Where was this photo taken?')).toBeVisible()
+    await shot(stage, 'stage-quiz-beside')
+    await shot(phone, 'phone-quiz-beside')
+    await stage.getByRole('button', { name: 'Next →' }).click()
+    await expect(phone.getByText('Name this place')).toBeVisible()
+    await shot(stage, 'stage-quiz-behind')
+    await shot(phone, 'phone-quiz-behind')
     await ctx.close()
   })
 
@@ -151,7 +166,7 @@ test.describe('quiz timer, winners podium, layouts and images', () => {
     await page.getByRole('button', { name: /Image only/ }).click()
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
     writeFileSync('/tmp/e2e-pixel.png', png)
-    await page.getByLabel('Choose an image file').first().setInputFiles('/tmp/e2e-pixel.png')
+    await page.getByLabel('Choose an image file').first().setInputFiles(PHOTO || '/tmp/e2e-pixel.png')
     await expect(page.getByAltText('Selected slide image').first()).toBeVisible()
     await page.getByLabel('Caption').fill('The team')
     await shot(page, 'editor-image-slide')

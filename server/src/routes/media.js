@@ -49,3 +49,16 @@ mediaRouter.get('/:id', async (req, res, next) => {
     return next(err);
   }
 });
+
+/** Owner deletes one of their own uploads. Someone else's id looks the same as a missing one. */
+mediaRouter.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Image not found' });
+    const owner = new mongoose.Types.ObjectId(req.auth.userId);
+    const removed = await Media.findOneAndDelete({ _id: req.params.id, owner });
+    if (!removed) return res.status(404).json({ message: 'Image not found' });
+    return res.status(204).end();
+  } catch (err) {
+    return next(err);
+  }
+});

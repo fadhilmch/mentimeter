@@ -615,5 +615,9 @@ async function sendRanking() {
   background-image: var(--slide-image);
   background-size: cover;
   background-position: center;
+  margin-bottom: var(--space-3);
 }
+.audience-slide.has-image.layout-behind .audience-question { color: white; }
+.audience-slide.has-image.layout-beside { margin-bottom: var(--space-3); }
+.audience-timer { margin: var(--space-2) 0 var(--space-4); }
 </style>

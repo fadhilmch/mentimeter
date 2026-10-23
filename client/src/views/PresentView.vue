@@ -451,6 +451,7 @@ async function end() {
 .lb-pts.zero {
   color: color-mix(in srgb, var(--t-ink) 72%, transparent);
 }
+.stage-question-row.has-image { margin-bottom: var(--space-4); }
 .stage-question-row.has-image:not(.behind) {
   display: flex;
   align-items: center;
@@ -461,8 +462,10 @@ async function end() {
   border-radius: 18px;
   background-size: cover;
   background-position: center;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-4);
+  color: white; /* the photo is darkened, so light text in both modes */
 }
+.stage-question-row.behind h1 { color: white; }
 .stage-timer { margin: var(--space-3) 0 var(--space-4); max-width: 640px; }
 .stage-podium { margin: var(--space-4) 0; }
 .lb-hint { margin: var(--space-2) 0 0; font-size: var(--fs-sm); }

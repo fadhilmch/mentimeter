@@ -98,6 +98,11 @@ const ariaSummary = computed(() =>
 .podium-stage .rank-1 .step-block { height: 200px; }
 .podium-stage .rank-2 .step-block { height: 140px; }
 .podium-stage .rank-3 .step-block { height: 100px; }
+@media (max-height: 900px) {
+  .podium-stage .rank-1 .step-block { height: 130px; }
+  .podium-stage .rank-2 .step-block { height: 90px; }
+  .podium-stage .rank-3 .step-block { height: 64px; }
+}
 .step-rank { font-size: 1.6rem; font-weight: 800; }
 .you-chip { font-size: var(--fs-xs); font-weight: 700; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--t-acc); color: var(--t-sbg); }
 .podium-me { margin: var(--space-3) 0 0; font-weight: 600; }

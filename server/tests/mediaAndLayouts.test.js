@@ -34,6 +34,41 @@ describe('image upload', () => {
     expect(Buffer.compare(got.body, png)).toBe(0);
   });
 
+  it('lets only the owner delete an upload, and the audience link then stops working', async () => {
+    const owner = await signedIn();
+    const other = await signedIn();
+    const up = await request(app).post('/api/media').set('Authorization', `Bearer ${owner}`).set('Content-Type', 'image/png').send(png);
+    const url = up.body.data.url;
+    expect((await request(app).delete(url)).status).toBe(401);
+    expect((await request(app).delete(url).set('Authorization', `Bearer ${other}`)).status).toBe(404);
+    expect((await request(app).get(url)).status).toBe(200); // another account could not remove it
+    expect((await request(app).delete(url).set('Authorization', `Bearer ${owner}`)).status).toBe(204);
+    expect((await request(app).get(url)).status).toBe(404);
+    expect((await request(app).delete('/api/media/not-an-id').set('Authorization', `Bearer ${owner}`)).status).toBe(404);
+  });
+
+  it('refuses an empty body and a mismatched content type', async () => {
+    const token = await signedIn();
+    const empty = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'image/png').send(Buffer.alloc(0));
+    expect(empty.status).toBe(415);
+    const json = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).send({ url: 'x' });
+    expect(json.status).toBe(415);
+    const text = await request(app).post('/api/media').set('Authorization', `Bearer ${token}`).set('Content-Type', 'text/html').send('<script>1</script>');
+    expect(text.status).toBe(415);
+  });
+
+  it('caps uploads per account without blocking other accounts', async () => {
+    const { Media } = await import('../src/models/media.js');
+    const { MAX_IMAGES_PER_USER } = await import('../src/lib/media.js');
+    const full = await signedIn();
+    const other = await signedIn();
+    const first = await request(app).post('/api/media').set('Authorization', `Bearer ${full}`).set('Content-Type', 'image/png').send(png);
+    const owner = (await Media.findById(first.body.data.url.split('/').pop()).lean()).owner;
+    await Media.insertMany(Array.from({ length: MAX_IMAGES_PER_USER - 1 }, () => ({ owner, contentType: 'image/png', data: png })));
+    expect((await request(app).post('/api/media').set('Authorization', `Bearer ${full}`).set('Content-Type', 'image/png').send(png)).status).toBe(429);
+    expect((await request(app).post('/api/media').set('Authorization', `Bearer ${other}`).set('Content-Type', 'image/png').send(png)).status).toBe(201);
+  });
+
   it('needs a signed-in owner', async () => {
     const res = await request(app).post('/api/media').set('Content-Type', 'image/png').send(png);
     expect(res.status).toBe(401);

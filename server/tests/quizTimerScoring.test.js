@@ -125,6 +125,47 @@ describe('speed scoring', () => {
   });
 });
 
+describe('fairness and edge cases', () => {
+  it('re-picking the same answer never makes it earlier, and a late change is refused', () => {
+    const p = deck([quiz({ timeLimit: 20 })], { quizScoring: 'speed' });
+    applyLiveAction(p, { type: 'timer:start' });
+    vi.advanceTimersByTime(5_000);
+    applyLiveAction(p, vote('player-1', 1));
+    vi.advanceTimersByTime(5_000);
+    applyLiveAction(p, vote('player-1', 1));
+    expect(p.slides[0].answerTimes.find((e) => e.participantId === 'player-1').ms).toBe(10_000);
+    vi.advanceTimersByTime(20_000);
+    expect(() => applyLiveAction(p, vote('player-1', 0))).toThrow(/time/i);
+    expect(p.slides[0].answerTimes.find((e) => e.participantId === 'player-1').ms).toBe(10_000);
+  });
+
+  it('answer time comes from the server clock, not from the request', () => {
+    const p = deck([quiz({ timeLimit: 20 })], { quizScoring: 'speed' });
+    applyLiveAction(p, { type: 'timer:start' });
+    vi.advanceTimersByTime(4_000);
+    applyLiveAction(p, { ...vote('player-1', 1), answeredAt: 0, ms: 0 });
+    expect(p.slides[0].answerTimes[0].ms).toBe(4_000);
+  });
+
+  it('equal speed ties share a rank', () => {
+    const p = deck([quiz({ timeLimit: 20 })], { quizScoring: 'speed' });
+    applyLiveAction(p, { type: 'timer:start' });
+    vi.advanceTimersByTime(2_000);
+    applyLiveAction(p, vote('a', 1));
+    applyLiveAction(p, vote('b', 1));
+    applyLiveAction(p, { type: 'voting:set', open: false });
+    expect(computeLeaderboard(p).map((e) => e.rank)).toEqual([1, 1]);
+  });
+
+  it('the podium with nobody answering has an empty leaderboard and does not throw', () => {
+    const p = deck([quiz({ timeLimit: 20 })], { quizScoring: 'speed' });
+    applyLiveAction(p, { type: 'finale:set', visible: true });
+    const state = publicState(p);
+    expect(state.finale).toBe(true);
+    expect(state.leaderboard ?? []).toHaveLength(0);
+  });
+});
+
 describe('winners finale', () => {
   it('showing the podium closes voting, reveals the answers and publishes the leaderboard', () => {
     const p = deck([quiz()]);
