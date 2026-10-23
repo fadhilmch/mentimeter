@@ -24,7 +24,7 @@ The app's base colours are the logo's: indigo `#5757DB` (primary actions, select
 - **Presenter live controls**: close/reopen voting, hide/reveal results on stage and audience, and reset votes per slide, all from the presenter screen.
 - **Quiz leaderboard**: players on a deck that has a quiz slide choose a nickname before their first quiz question (type one or tap Generate nickname for a short adjective + animal; no Skip; plain presentations never ask; a name saved on the device is reused), earn +1 per correct answer - the final answer counts, changes are allowed until voting closes - and the top 5 plus your own rank appear on stage and audience once voting closes. Answers and scores stay hidden while voting is open.
 - **Honest limits by design**: quiz players stay anonymous beyond their nickname or alias. Word cloud takes one word per participant (a new word replaces the old). Rankings use tap-to-order.
-- **Playful, accessible motion**: directional slide transitions, animated bars and count-up tallies, and selection feedback, all disabled under `prefers-reduced-motion`.
+- **Playful, accessible motion**: directional slide transitions, animated bars and count-up tallies, and selection feedback, all disabled under `prefers-reduced-motion`. The landing page demos the product instead of describing it: the hero sample poll votes on a slow loop with easing bars, the hero enters in a stagger and sections reveal on scroll - same reduced-motion guard.
 - **Two realtime transports** (same event protocol, same UI):
   - **Socket.IO** - default, fully self-hosted and open-source.
   - **Ably** - for serverless hosting (e.g. Vercel) where a persistent WebSocket server cannot run.
