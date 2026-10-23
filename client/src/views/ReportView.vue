@@ -5,6 +5,7 @@ function barWidth(count: number, all: number[]): number {
   return max ? Math.round((count / max) * 100) : 0
 }
 import { onMounted, ref, watch } from 'vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { useRoute } from 'vue-router'
 import { api, downloadCsv } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -54,8 +55,35 @@ async function load() {
   }
 }
 
+interface ConfirmRequest {
+  title: string
+  message: string
+  confirmLabel: string
+  action: () => void | Promise<void>
+}
+const confirmDialog = ref<ConfirmRequest | null>(null)
+
+async function runConfirmed() {
+  const pending = confirmDialog.value
+  if (!pending) return
+  await pending.action()
+  confirmDialog.value = null
+}
+
 async function sessionAction(sid: string, action: 'end' | 'archive' | 'delete') {
-  if (action === 'delete' && !window.confirm('Delete this session and all its answers for good?')) return
+  if (action === 'delete') {
+    confirmDialog.value = {
+      title: 'Delete this session?',
+      message: 'This deletes the session and all its answers for good. It cannot be undone.',
+      confirmLabel: 'Delete',
+      action: () => performSessionAction(sid, 'delete'),
+    }
+    return
+  }
+  await performSessionAction(sid, action)
+}
+
+async function performSessionAction(sid: string, action: 'end' | 'archive' | 'delete') {
   try {
     if (action === 'delete') await api.deleteSession(auth.token, sid)
     else await api.sessionAction(auth.token, sid, action)
@@ -139,6 +167,14 @@ watch(() => route.fullPath, load)
       </section>
       <router-link class="button ghost" :to="{ name: 'dashboard' }" style="margin-top:var(--space-4);">Back</router-link>
     </template>
+    <ConfirmDialog
+      v-if="confirmDialog"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :confirm-label="confirmDialog.confirmLabel"
+      @confirm="runConfirmed"
+      @cancel="confirmDialog = null"
+    />
   </div>
 </template>
 

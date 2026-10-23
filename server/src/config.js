@@ -16,6 +16,7 @@ export const config = {
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID ?? '',
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN ?? '',
     serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT ?? '',
     // The public web API key (the same one the browser uses). Lets the server check revocation without a service account.
     webApiKey: process.env.FIREBASE_API_KEY ?? '',

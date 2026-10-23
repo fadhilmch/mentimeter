@@ -11,6 +11,22 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const busy = ref(false)
+const googleBusy = ref(false)
+
+async function google() {
+  error.value = ''
+  googleBusy.value = true
+  try {
+    await auth.loginWithGoogle()
+    if (auth.pendingProfile) return router.push({ name: 'finish-setup' })
+    if (auth.isLoggedIn) router.push(typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'dashboard' })
+    // Neither: the popup was closed - stay put, no error.
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not sign in with Google.'
+  } finally {
+    googleBusy.value = false
+  }
+}
 
 async function submit() {
   error.value = ''
@@ -34,6 +50,12 @@ async function submit() {
     <p v-if="route.query.expired" class="notice" role="status">Your session ended. Log in again to continue.</p>
     <p class="sub">Log in to manage and present your presentations.</p>
     <div class="card">
+      <template v-if="auth.usesFirebase">
+        <button class="button secondary big block" type="button" :disabled="busy || googleBusy" @click="google">
+          <span v-if="googleBusy" class="spinner" aria-hidden="true"></span>{{ googleBusy ? 'Waiting for Google…' : 'Continue with Google' }}
+        </button>
+        <p class="auth-divider" role="separator"><span>or with email</span></p>
+      </template>
       <form @submit.prevent="submit">
         <label v-if="auth.usesFirebase" class="field"><span>Email</span><input v-model="email" type="email" required autocomplete="email" /></label>
         <label v-else class="field"><span>Username</span><input v-model="username" required autocomplete="username" /></label>
@@ -49,3 +71,8 @@ async function submit() {
     <p class="muted" style="margin-top: 18px;">New here?&nbsp;<router-link class="text-link" to="/signup">Sign up</router-link></p>
   </div>
 </template>
+
+<style scoped>
+.auth-divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; color: var(--ink-3); font-size: 0.85rem; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid color-mix(in srgb, var(--ink-3) 30%, transparent); }
+</style>

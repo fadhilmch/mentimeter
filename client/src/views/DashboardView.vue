@@ -36,8 +36,7 @@ async function deleteAccount() {
   deleteError.value = ''
   deleting.value = true
   try {
-    await auth.deleteAccount(deletePassword.value)
-    router.push({ name: 'home' })
+    if (await auth.deleteAccount(deletePassword.value)) router.push({ name: 'home' })
   } catch (err) {
     deleteError.value = err instanceof Error ? err.message : 'Could not delete the account.'
   } finally {
@@ -214,7 +213,7 @@ async function createPresentation() {
         This permanently deletes your account and all {{ total }} of your presentations,
         with their votes, answers and audience nicknames. It cannot be undone.
       </p>
-      <form @submit.prevent="deleteAccount">
+      <form v-if="auth.hasPasswordLogin" @submit.prevent="deleteAccount">
         <label class="field">
           <span>Confirm with your password</span>
           <input v-model="deletePassword" type="password" autocomplete="current-password" required />
@@ -224,6 +223,12 @@ async function createPresentation() {
           <span v-if="deleting" class="spinner" aria-hidden="true"></span>{{ deleting ? 'Deleting…' : 'Delete my account' }}
         </button>
       </form>
+      <template v-else>
+        <p v-if="deleteError" class="error-banner" role="alert">{{ deleteError }}</p>
+        <button class="button danger" type="button" :disabled="deleting" @click="deleteAccount">
+          <span v-if="deleting" class="spinner" aria-hidden="true"></span>{{ deleting ? 'Deleting…' : 'Confirm with Google and delete my account' }}
+        </button>
+      </template>
     </details>
   </div>
 </template>

@@ -4,14 +4,24 @@ import { createPinia, setActivePinia } from 'pinia'
 // The real Firebase SDK is replaced by a small fake so the store's own decisions are what is tested.
 const fb = vi.hoisted(() => {
   const state = {
-    currentUser: null as null | { uid: string; email: string; getIdToken: (force?: boolean) => Promise<string> },
+    currentUser: null as null | ReturnType<typeof user>,
     listener: undefined as undefined | ((u: unknown) => Promise<void>),
     deleted: [] as string[],
     deleteFails: false,
     signedOut: 0,
+    reauthPopup: 0,
+    reauthPopupFails: null as null | { code: string },
+    popupError: null as null | { code: string },
+    popupUser: null as null | ReturnType<typeof user>,
     authStateReady: async () => {},
   }
-  const user = (uid: string, email = `${uid}@x.com`) => ({ uid, email, getIdToken: async () => `tok-${uid}` })
+  const user = (uid: string, email = `${uid}@x.com`) => ({
+    uid,
+    email,
+    displayName: null as string | null,
+    providerData: [{ providerId: 'password' }] as { providerId: string }[],
+    getIdToken: async () => `tok-${uid}`,
+  })
   const lib = {
     auth: state as unknown,
     authStateReady: async () => {},
@@ -21,6 +31,16 @@ const fb = vi.hoisted(() => {
     deleteUser: async (u: { uid: string }) => { if (state.deleteFails) throw new Error('no'); state.deleted.push(u.uid); state.currentUser = null },
     signOut: async () => { state.signedOut++; state.currentUser = null },
     reauthenticateWithCredential: async () => {},
+    reauthenticateWithPopup: async () => {
+      if (state.reauthPopupFails) throw state.reauthPopupFails
+      state.reauthPopup++
+    },
+    signInWithPopup: async () => {
+      if (state.popupError) throw state.popupError
+      state.currentUser = state.popupUser ?? user('guser')
+      return { user: state.currentUser }
+    },
+    GoogleAuthProvider: class {},
     sendPasswordResetEmail: async () => {},
     EmailAuthProvider: { credential: (e: string, p: string) => ({ e, p }) },
   }
@@ -30,6 +50,7 @@ vi.mock('../firebaseClient', () => ({
   firebaseEnabled: true,
   loadFirebase: async () => fb.lib,
   friendlyAuthError: (e: { code?: string }) => `friendly:${e?.code ?? 'unknown'}`,
+  isPopupCancelled: (e: { code?: string }) => e?.code === 'auth/popup-closed-by-user' || e?.code === 'auth/cancelled-popup-request',
 }))
 
 // A scripted server: answers are taken in order per "METHOD /path" key. A string 'network' simulates a lost answer.
@@ -42,7 +63,7 @@ beforeEach(() => {
     getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k),
   })
   script = {}; calls = []
-  Object.assign(fb.state, { currentUser: null, listener: undefined, deleted: [], deleteFails: false, signedOut: 0 })
+  Object.assign(fb.state, { currentUser: null, listener: undefined, deleted: [], deleteFails: false, signedOut: 0, reauthPopup: 0, reauthPopupFails: null, popupError: null, popupUser: null })
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     const key = `${init.method ?? 'GET'} ${url}`
     calls.push(key)
@@ -248,5 +269,64 @@ describe('finishing setup and deleting', () => {
     await auth.init()
     await auth.deleteAccount('password-1')
     expect(fb.state.deleted).toEqual([]); expect(fb.state.signedOut).toBe(1)
+  })
+})
+
+describe('Google sign-in', () => {
+  it('signs in with Google and loads the existing profile', async () => {
+    fb.state.popupUser = { ...fb.user('g1'), providerData: [{ providerId: 'google.com' }] }
+    script[me] = [ok('Grace', 'G')]
+    const auth = await store()
+    await auth.loginWithGoogle()
+    expect(auth.isLoggedIn).toBe(true)
+    expect(auth.user?.name).toBe('Grace')
+    expect(auth.hasPasswordLogin).toBe(false) // a Google-only login confirms with Google, not a password
+  })
+
+  it('sends a brand-new Google login to finish setup, prefilling the Google name', async () => {
+    fb.state.popupUser = { ...fb.user('g2'), displayName: 'Grace Hopper', providerData: [{ providerId: 'google.com' }] }
+    script[me] = [noProfile]
+    const auth = await store()
+    await auth.loginWithGoogle()
+    expect(auth.pendingProfile).toBe(true)
+    expect(auth.pendingName).toBe('Grace Hopper')
+    expect(auth.isLoggedIn).toBe(false)
+  })
+
+  it('closing the Google popup is not an error', async () => {
+    fb.state.popupError = { code: 'auth/popup-closed-by-user' }
+    const auth = await store()
+    await expect(auth.loginWithGoogle()).resolves.toBeUndefined()
+    expect(auth.isLoggedIn).toBe(false)
+  })
+
+  it('surfaces a real Google sign-in failure in plain words', async () => {
+    fb.state.popupError = { code: 'auth/popup-blocked' }
+    const auth = await store()
+    await expect(auth.loginWithGoogle()).rejects.toThrow('friendly:auth/popup-blocked')
+  })
+})
+
+describe('deleting a Google-only account', () => {
+  it('re-authenticates with the Google popup instead of asking for a password', async () => {
+    fb.state.currentUser = { ...fb.user('g3'), providerData: [{ providerId: 'google.com' }] }
+    script[me] = [ok('G', 'G3')]
+    script['DELETE /api/users/me'] = [{ status: 200, body: { ok: true } }]
+    const auth = await store()
+    await auth.init()
+    await expect(auth.deleteAccount('')).resolves.toBe(true)
+    expect(fb.state.reauthPopup).toBe(1)
+    expect(calls).toContain('DELETE /api/users/me')
+  })
+
+  it('treats backing out of the re-check as a quiet no', async () => {
+    fb.state.currentUser = { ...fb.user('g4'), providerData: [{ providerId: 'google.com' }] }
+    fb.state.reauthPopupFails = { code: 'auth/popup-closed-by-user' }
+    script[me] = [ok('G', 'G4')]
+    const auth = await store()
+    await auth.init()
+    await expect(auth.deleteAccount('')).resolves.toBe(false)
+    expect(calls).not.toContain('DELETE /api/users/me')
+    expect(auth.isLoggedIn).toBe(true) // account untouched
   })
 })

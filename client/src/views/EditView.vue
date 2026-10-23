@@ -10,6 +10,7 @@ import { THEMES } from '../themes'
 import SlidePreview from '../components/SlidePreview.vue'
 import SlideSorter from '../components/editor/SlideSorter.vue'
 import AddSlideSheet from '../components/editor/AddSlideSheet.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { copySlide } from '../slideCopy'
 import { hasOptions, typeLabel, typeHint, type SlideType } from '../editor/slideTypes'
 
@@ -407,18 +408,24 @@ async function attemptSave(alreadyRetried = false) {
     const { code, removedVotes = 0, removedResponses = 0 } = err.body
     if (code === 'requiresConfirmation') {
       const loss = describeLoss(removedVotes, removedResponses)
-      if (!window.confirm(`Saving removes slides or options that already have ${loss}. Delete those results?`)) return
-      try {
-        const res = await api.updatePresentation(auth.token, id, savePayload({ votes: removedVotes, responses: removedResponses }))
-        applyLoaded(res.data as unknown as LoadedPresentation)
-        savedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      } catch (retryErr) {
-        error.value =
-          retryErr instanceof ApiError && retryErr.status === 409
-            ? 'New votes came in while you were deciding. Review the slides and save again.'
-            : retryErr instanceof Error
-              ? retryErr.message
-              : 'Could not save.'
+      confirmDialog.value = {
+        title: 'Save these changes?',
+        message: `Saving removes slides or options that already have ${loss}. Delete those results?`,
+        confirmLabel: 'Save anyway',
+        action: async () => {
+          try {
+            const res = await api.updatePresentation(auth.token, id, savePayload({ votes: removedVotes, responses: removedResponses }))
+            applyLoaded(res.data as unknown as LoadedPresentation)
+            savedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          } catch (retryErr) {
+            error.value =
+              retryErr instanceof ApiError && retryErr.status === 409
+                ? 'New votes came in while you were deciding. Review the slides and save again.'
+                : retryErr instanceof Error
+                  ? retryErr.message
+                  : 'Could not save.'
+          }
+        },
       }
       return
     }
@@ -463,18 +470,39 @@ async function attemptSave(alreadyRetried = false) {
   }
 }
 
-async function remove() {
+interface ConfirmRequest {
+  title: string
+  message: string
+  confirmLabel: string
+  action: () => void | Promise<void>
+}
+const confirmDialog = ref<ConfirmRequest | null>(null)
+
+async function runConfirmed() {
+  const pending = confirmDialog.value
+  if (!pending) return
+  await pending.action()
+  confirmDialog.value = null
+}
+
+function remove() {
   if (deleting.value) return
-  if (!window.confirm('Delete this presentation and all its results?')) return
-  deleting.value = true
-  try {
-    await api.deletePresentation(auth.token, id)
-    dirty.value = false
-    clearDraft(id)
-    router.push({ name: 'dashboard' })
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Could not delete.'
-    deleting.value = false
+  confirmDialog.value = {
+    title: 'Delete this presentation?',
+    message: 'This deletes the presentation and all its results. It cannot be undone.',
+    confirmLabel: 'Delete',
+    action: async () => {
+      deleting.value = true
+      try {
+        await api.deletePresentation(auth.token, id)
+        dirty.value = false
+        clearDraft(id)
+        router.push({ name: 'dashboard' })
+      } catch (err) {
+        error.value = err instanceof Error ? err.message : 'Could not delete.'
+        deleting.value = false
+      }
+    },
   }
 }
 </script>
@@ -665,6 +693,15 @@ async function remove() {
       </div>
 
       <AddSlideSheet :open="sheetOpen" :theme-id="themeId" @pick="addSlide" @close="sheetOpen = false" />
+      <ConfirmDialog
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirm-label="confirmDialog.confirmLabel"
+        :busy="deleting"
+        @confirm="runConfirmed"
+        @cancel="confirmDialog = null"
+      />
 
       <!-- Phone: the stage preview docks at the bottom and expands when tapped. -->
       <div v-if="previewSlide" class="dock">

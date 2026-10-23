@@ -108,8 +108,9 @@ See [`server/.env.example`](server/.env.example) and [`client/.env.example`](cli
 ## Sign-in with Firebase (optional)
 
 By default CrowdFlow uses its own username and password login. Setting the variables below turns on
-[Firebase Authentication](https://firebase.google.com/docs/auth) (email and password, with password-reset
-email sent by Firebase). Nothing changes until you set them, and nothing here creates a project for you.
+[Firebase Authentication](https://firebase.google.com/docs/auth) (email and password or Google sign-in, with
+password-reset email sent by Firebase). Nothing changes until you set them, and nothing here creates a project
+for you.
 
 | Where | Variable | Purpose |
 | --- | --- | --- |
@@ -117,6 +118,7 @@ email sent by Firebase). Nothing changes until you set them, and nothing here cr
 | server | `FIREBASE_PROJECT_ID` | Turns Firebase on and verifies ID tokens |
 | server | `FIREBASE_API_KEY` | The same public web key. Without a service account, the server uses it to check that a sign-in token was not revoked (signed out everywhere, password reset, account disabled or deleted). Required for keyless profile, move and delete requests; not a secret |
 | server | `FIREBASE_SERVICE_ACCOUNT` | Service-account JSON, optional. Without it, the browser removes its own Firebase login after the server deletes the account data (no key to store). A secret: never commit it |
+| server | `FIREBASE_AUTH_DOMAIN` | Optional override for the project's auth domain, used in the page security policy for the Google sign-in popup. Defaults to `<project>.firebaseapp.com` |
 
 How it fits the existing app:
 
@@ -124,7 +126,12 @@ How it fits the existing app:
   `passwordHash` become optional. Presentations keep pointing at the same `owner` id.
 - **Old accounts move, they are not copied.** `/move-account` asks for the old username and password once, then
   attaches a Firebase login to the same user record. The old password hash is removed after the move.
-- **Deleting an account** asks for the password again (the browser re-authenticates, and the server accepts the
+- **Google sign-in** appears on the login and signup pages once the Google provider is enabled in the Firebase
+  console (Authentication > Sign-in method). The site's own domain must be an authorized domain there; localhost
+  and the project's `firebaseapp.com` domain are allowed by default. A new Google login still picks its display
+  name on the finish-setup screen, prefilled from Google. No extra environment variables.
+- **Deleting an account** asks for the password again, or for a Google-only login a fresh Google sign-in
+  (the browser re-authenticates, and the server accepts the
   request only if the sign-in is under five minutes old). It then removes the presentations, the profile and the
   Firebase user, in an order that is safe to repeat if a step fails.
 - Built-in signup and login return `410` while Firebase is on. Existing 7-day sessions from the old login keep

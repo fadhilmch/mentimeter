@@ -9,6 +9,10 @@ describe('friendlyAuthError', () => {
     expect(friendlyAuthError({ code: 'auth/email-already-in-use' })).toMatch(/already has an account/)
     expect(friendlyAuthError({ code: 'auth/too-many-requests' })).toMatch(/Wait a few minutes/)
     expect(friendlyAuthError({ code: 'auth/something-new' })).toBe('Something went wrong. Please try again.')
+    expect(friendlyAuthError({ code: 'auth/account-exists-with-different-credential' })).toMatch(/different way/)
+    expect(friendlyAuthError({ code: 'auth/popup-blocked' })).toMatch(/popup was blocked/)
+    expect(friendlyAuthError({ code: 'auth/unauthorized-domain' })).toMatch(/not set up/)
+    expect(friendlyAuthError({ code: 'auth/operation-not-allowed' })).toMatch(/not switched on/)
   })
 })
 

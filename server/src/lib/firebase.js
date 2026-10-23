@@ -92,6 +92,19 @@ export async function deleteFirebaseUser(uid) {
   }
 }
 
+/** The Google sign-in popup loads its iframe client from Google's script host. */
+export function firebaseScriptSources() {
+  return ['https://apis.google.com'];
+}
+
+/** The Google popup's helper page loads in a frame from the project's auth domain (or the local emulator). */
+export function firebaseFrameSources() {
+  const { projectId, authDomain } = config.firebase;
+  const sources = [`https://${authDomain || `${projectId}.firebaseapp.com`}`];
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) sources.push(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`);
+  return sources;
+}
+
 export function firebaseConnectSources() {
   const sources = ["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'];
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST) sources.push(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`);
