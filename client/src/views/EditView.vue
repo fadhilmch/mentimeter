@@ -905,7 +905,13 @@ async function remove() {
   .editor-grid {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: var(--space-4);
+  }
+  /* Let the sorter shrink below its content width so the thumbnail strip
+     scrolls internally instead of widening the page. */
+  .editor-grid > * {
+    min-width: 0;
   }
   .sorter-col,
   .preview-pin {

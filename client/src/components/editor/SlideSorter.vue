@@ -93,6 +93,7 @@ function onDragEnd() {
 .sorter-item {
   display: block;
   width: 100%;
+  min-width: 0;
   padding: 0;
   border: 2px solid var(--line);
   border-radius: var(--radius);
@@ -165,6 +166,7 @@ function onDragEnd() {
   }
   .sorter-list > li {
     flex: 0 0 150px;
+    min-width: 0;
     scroll-snap-align: start;
   }
   .sorter-item { height: 100%; }

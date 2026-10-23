@@ -39,10 +39,11 @@ onBeforeUnmount(() => ro?.disconnect())
 
 <style scoped>
 .mini-stage {
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   border-radius: var(--radius-md);
   pointer-events: none;
-  line-height: 0;
 }
 .mini-inner {
   transform-origin: top left;
