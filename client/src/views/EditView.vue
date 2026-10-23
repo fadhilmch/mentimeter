@@ -501,8 +501,10 @@ async function remove() {
       </div>
       <div class="editor-header">
         <div class="editor-join">
-          <span v-if="accessCode" class="join-label">Join code <span class="muted join-hint">- your audience enters this to watch and answer</span></span>
-          <span v-if="accessCode" class="code-chip">{{ accessCode }}</span>
+          <span v-if="accessCode" class="join-cluster">
+            <span class="join-label">Join code <span class="muted join-hint">- your audience enters this to watch and answer</span></span>
+            <span class="code-chip">{{ accessCode }}</span>
+          </span>
           <button v-if="accessCode" class="button ghost copy-link" :aria-label="copied ? 'Copied' : 'Copy join link'" @click="copyJoinLink">
             <svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
             <span class="lbl">{{ copied ? 'Copied ✓' : 'Copy join link' }}</span>
@@ -709,6 +711,11 @@ async function remove() {
 }
 .editor-join {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.join-cluster {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
 }
@@ -936,7 +943,10 @@ async function remove() {
     margin-bottom: var(--space-3);
   }
   .editor-join, .editor-actions { display: contents; }
-  .join-label { display: none; }
+  /* Phone: keep a compact caption above the chip instead of dropping the explanation. */
+  .join-cluster { order: 1; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .join-hint { display: none; }
+  .join-label { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); white-space: nowrap; }
   .editor-join > *, .editor-actions > * { order: 2; }
   .code-chip { order: 1; }
   .copy-link { order: 1; }
