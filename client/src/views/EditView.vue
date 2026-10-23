@@ -14,6 +14,10 @@ import AddSlideSheet from '../components/editor/AddSlideSheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { copySlide } from '../slideCopy'
 import { hasOptions, typeLabel, typeHint, type SlideType } from '../editor/slideTypes'
+import { isLayoutType } from '../types'
+import type { SlideColumn } from '../types'
+import { TIME_LIMIT_CHOICES } from '../quizTimer'
+import ImageUploadField from '../components/ImageUploadField.vue'
 
 interface EditableOption {
   id?: string
@@ -33,6 +37,9 @@ interface EditableSlide {
   options: EditableOption[]
   correctOptionId?: string
   design?: EditableDesign
+  timeLimit?: number
+  body?: string
+  columns?: SlideColumn[]
 }
 
 interface LoadedSlide {
@@ -42,6 +49,9 @@ interface LoadedSlide {
   options?: { id?: string; text: string }[]
   correctOptionId?: string
   design?: EditableDesign
+  timeLimit?: number
+  body?: string
+  columns?: SlideColumn[]
 }
 
 interface LoadedPresentation {
@@ -51,6 +61,7 @@ interface LoadedPresentation {
   accessCode: string
   theme?: string
   structureRevision?: number
+  quizScoring?: 'standard' | 'speed'
   slides: LoadedSlide[]
 }
 
@@ -71,6 +82,7 @@ const title = ref('')
 const location = ref('')
 const accessCode = ref('')
 const themeId = ref<string>('iris')
+const quizScoring = ref<'standard' | 'speed'>('standard')
 const slides = ref<EditableSlide[]>([])
 const structureRevision = ref(0)
 const loading = ref(true)
@@ -128,7 +140,11 @@ const pendingDraft = ref<ReturnType<typeof loadDraft<DraftData>>>(null)
 const titleError = computed(() => (title.value.trim() ? '' : 'Give the presentation a title.'))
 
 function slideError(slide: EditableSlide): string {
-  if (!slide.question.trim()) return 'Give this slide a question, or remove it.'
+  if (!slide.question.trim()) return isLayoutType(slide.questionType) ? 'Give this slide a title, or remove it.' : 'Give this slide a question, or remove it.'
+  if (slide.questionType === 'image' && !slide.design?.imageUrl?.trim()) return 'Upload an image for this slide.'
+  if (slide.questionType === 'columns' && (slide.columns ?? []).filter((c) => c.title.trim() || c.text.trim()).length < 2) {
+    return 'Fill in at least 2 columns.'
+  }
   if (hasOptions(slide.questionType) && slide.options.filter((o) => o.text.trim()).length < 2) {
     return `${typeLabel(slide.questionType)} needs at least 2 options.`
   }
@@ -150,8 +166,12 @@ function applyLoaded(p: LoadedPresentation) {
   location.value = p.location ?? ''
   accessCode.value = p.accessCode
   themeId.value = p.theme ?? 'iris'
+  quizScoring.value = p.quizScoring === 'speed' ? 'speed' : 'standard'
   structureRevision.value = p.structureRevision ?? 0
   slides.value = p.slides.map((s) => ({
+    ...(s.timeLimit ? { timeLimit: s.timeLimit } : {}),
+    ...(s.body ? { body: s.body } : {}),
+    ...(s.columns?.length ? { columns: s.columns.map((c) => ({ title: c.title ?? '', text: c.text ?? '' })) } : {}),
     id: s.id,
     questionType: s.questionType,
     question: s.question,
@@ -226,7 +246,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onHistoryKey)
 })
 
-watch([title, location, themeId, slides], () => {
+watch([title, location, themeId, slides, quizScoring], () => {
   if (!ready.value) return
   dirty.value = true
   if (!restoring) {
@@ -275,6 +295,7 @@ async function addSlide(type: SlideType) {
     question: '',
     options: hasOptions(type) ? [{ id: crypto.randomUUID(), text: '' }, { id: crypto.randomUUID(), text: '' }] : [],
     design: {},
+    ...(type === 'columns' ? { columns: [{ title: '', text: '' }, { title: '', text: '' }] } : {}),
   })
   activeSlide.value = slides.value.length - 1
   await nextTick()
@@ -346,8 +367,23 @@ function addOption(slide: EditableSlide) {
   slide.options.push({ id: crypto.randomUUID(), text: '' })
 }
 
+function setImage(slide: EditableSlide, url: string | undefined) {
+  slide.design = { ...slide.design, imageUrl: url }
+}
+
 function setAccent(slide: EditableSlide, color?: string) {
   slide.design = { ...slide.design, accent: color }
+}
+
+function addColumn(slide: EditableSlide) {
+  if ((slide.columns?.length ?? 0) < 3) slide.columns = [...(slide.columns ?? []), { title: '', text: '' }]
+}
+function removeColumn(slide: EditableSlide, index: number) {
+  slide.columns = (slide.columns ?? []).filter((_, i) => i !== index)
+}
+function setTimeLimit(slide: EditableSlide, value: string) {
+  if (value) slide.timeLimit = Number(value)
+  else delete slide.timeLimit
 }
 
 function removeOption(slide: EditableSlide, index: number) {
@@ -359,6 +395,7 @@ function savePayload(confirmRemove?: { votes: number; responses: number }) {
     title: title.value.trim(),
     location: location.value.trim() || null,
     theme: themeId.value,
+    quizScoring: quizScoring.value,
     baseStructureRevision: structureRevision.value,
     confirmRemove,
     slides: slides.value.map((s) => {
@@ -377,6 +414,9 @@ function savePayload(confirmRemove?: { votes: number; responses: number }) {
         question: s.question.trim(),
         options,
         ...(s.questionType === 'quiz' && s.correctOptionId ? { correctOptionId: s.correctOptionId } : {}),
+        ...(s.questionType === 'quiz' && s.timeLimit ? { timeLimit: s.timeLimit } : {}),
+        ...(s.questionType === 'title' && s.body?.trim() ? { body: s.body.trim() } : {}),
+        ...(s.questionType === 'columns' ? { columns: (s.columns ?? []).map((c) => ({ title: c.title.trim(), text: c.text.trim() })).filter((c) => c.title || c.text) } : {}),
         ...(design ? { design } : {}),
       }
     }),
@@ -590,7 +630,7 @@ function remove() {
               </span>
             </div>
             <label class="field">
-              <span>Question</span>
+              <span>{{ isLayoutType(previewSlide.questionType) ? (previewSlide.questionType === 'image' ? 'Caption' : 'Title') : 'Question' }}</span>
               <input ref="questionInput" v-model="previewSlide.question" maxlength="300" placeholder="What should we focus on next quarter?" />
             </label>
             <template v-if="hasOptions(previewSlide.questionType)">
@@ -610,6 +650,32 @@ function remove() {
               <button class="button ghost" @click="addOption(previewSlide)">+ Add option</button>
               <p v-if="previewSlide.questionType === 'quiz'" class="muted" style="margin:6px 0 0;">The correct answer is revealed when you close voting. After that the stage shows how many got it right and a leaderboard of the names players chose.</p>
             </template>
+            <label v-if="previewSlide.questionType === 'quiz'" class="field" style="margin-top:var(--space-3);">
+              <span>Time limit</span>
+              <select :value="previewSlide.timeLimit ?? ''" data-testid="time-limit" @change="setTimeLimit(previewSlide, ($event.target as HTMLSelectElement).value)">
+                <option value="">No limit</option>
+                <option v-for="t in TIME_LIMIT_CHOICES" :key="t" :value="t">{{ t }} seconds</option>
+              </select>
+              <small class="muted">With a limit, you start the countdown on stage and answers close when it ends. Without one, players answer until you close voting.</small>
+            </label>
+            <label v-if="previewSlide.questionType === 'title'" class="field">
+              <span>Subtitle <span class="muted">(optional)</span></span>
+              <input v-model="previewSlide.body" maxlength="400" placeholder="Quarterly kickoff" />
+            </label>
+            <template v-if="previewSlide.questionType === 'columns'">
+              <div v-for="(column, ci) in previewSlide.columns" :key="ci" class="option-row column-row">
+                <div class="column-fields">
+                  <input v-model="column.title" maxlength="80" :placeholder="`Column ${ci + 1} heading`" :aria-label="`Column ${ci + 1} heading`" />
+                  <textarea v-model="column.text" rows="2" maxlength="600" :placeholder="`Column ${ci + 1} text`" :aria-label="`Column ${ci + 1} text`"></textarea>
+                </div>
+                <button v-if="(previewSlide.columns?.length ?? 0) > 2" class="icon-button" title="Remove column" :aria-label="`Remove column ${ci + 1}`" @click="removeColumn(previewSlide, ci)">✕</button>
+              </div>
+              <button v-if="(previewSlide.columns?.length ?? 0) < 3" class="button ghost" @click="addColumn(previewSlide)">+ Add column</button>
+            </template>
+            <div v-if="previewSlide.questionType === 'image'" class="field">
+              <span>Image</span>
+              <ImageUploadField :model-value="previewSlide.design?.imageUrl" :token="auth.token" required @update:model-value="setImage(previewSlide, $event)" />
+            </div>
             <p v-if="typeHint(previewSlide.questionType) && previewSlide.questionType !== 'quiz'" class="muted" style="margin:0;">{{ typeHint(previewSlide.questionType) }}</p>
 
             <details class="design-panel">
@@ -633,11 +699,11 @@ function remove() {
                     @click="setAccent(previewSlide, c)"
                   ></button>
                 </div>
-                <label class="field" style="margin-top:10px;">
-                  <span>Image URL <span class="muted">(optional)</span></span>
-                  <input v-model="previewSlide.design!.imageUrl" maxlength="500" placeholder="https://…" />
-                </label>
-                <label v-if="previewSlide.design?.imageUrl" class="field" style="margin-bottom:0;">
+                <div v-if="previewSlide.questionType !== 'image'" class="field" style="margin-top:10px;">
+                  <span>Image <span class="muted">(optional)</span></span>
+                  <ImageUploadField :model-value="previewSlide.design?.imageUrl" :token="auth.token" @update:model-value="setImage(previewSlide, $event)" />
+                </div>
+                <label v-if="previewSlide.design?.imageUrl && previewSlide.questionType !== 'image'" class="field" style="margin-bottom:0;">
                   <span>Image placement</span>
                   <select v-model="previewSlide.design!.imageLayout">
                     <option value="beside">Beside the question</option>
@@ -664,6 +730,13 @@ function remove() {
               </label>
               <p v-if="showValidation && titleError" class="slide-error" role="alert">{{ titleError }}</p>
               <label class="field"><span>Location <span class="muted">(optional)</span></span><input v-model="location" maxlength="120" placeholder="Stockholm office" /></label>
+              <label class="field">
+                <span>Quiz scoring</span>
+                <select v-model="quizScoring" data-testid="quiz-scoring">
+                  <option value="standard">Standard: 1 point per correct answer</option>
+                  <option value="speed">Speed: faster correct answers score more (500 to 1000)</option>
+                </select>
+              </label>
               <h2 class="tt-theme-title">Theme</h2>
               <p class="muted" style="margin:0 0 10px;">Colors for this presentation's stage and audience screens. The rest of the app keeps the standard CrowdFlow look.</p>
               <div class="theme-picker" role="radiogroup" aria-label="Presentation theme">
@@ -898,6 +971,8 @@ function remove() {
   .spinner { animation-duration: 1.8s; }
 }
 
+.column-row { align-items: flex-start; }
+.column-fields { flex: 1; display: grid; gap: var(--space-2); min-width: 0; }
 .option-row {
   display: flex;
   gap: var(--space-2);

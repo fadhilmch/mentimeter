@@ -13,6 +13,9 @@ import { reportSlides } from '../lib/report.js';
 import { summaryCsv, responsesCsv, leaderboardCsv } from '../lib/csvReport.js';
 import { templates, templateList } from '../lib/templates.js';
 import { randomUUID } from 'node:crypto';
+import { MEDIA_PATH } from '../lib/media.js';
+import { LAYOUT_TYPES, SLIDE_TYPES } from '../models/presentation.js';
+import { TIME_LIMIT_MAX, TIME_LIMIT_MIN } from '../lib/scoring.js';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
 import { loadModerationQueue, setModerationMode, moderateResponse, moderationActionSchema, moderationModeSchema, ModerationError } from '../lib/moderation.js';
@@ -25,10 +28,13 @@ const optionInputSchema = z.union([
 
 const normalizeOption = (option) => (typeof option === 'string' ? { text: option } : option);
 
+const isAllowedImageUrl = (value) => MEDIA_PATH.test(value) || (/^https:\/\//i.test(value) && z.string().url().safeParse(value).success);
+
 const designInputSchema = z
   .object({
     accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-    imageUrl: z.string().trim().url().max(500).optional(),
+    // An https link, or an image uploaded through POST /api/media.
+    imageUrl: z.string().trim().max(500).refine(isAllowedImageUrl, { message: 'Use an https:// image link or upload an image' }).optional(),
     imageLayout: z.enum(['beside', 'behind']).optional(),
   })
   .optional();
@@ -36,8 +42,11 @@ const designInputSchema = z
 const slideSchema = z
   .object({
     id: z.string().min(1).max(64).optional(),
-    questionType: z.enum(['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz']),
+    questionType: z.enum(SLIDE_TYPES),
     question: z.string().trim().min(1).max(300),
+    timeLimit: z.number().int().min(TIME_LIMIT_MIN).max(TIME_LIMIT_MAX).optional(),
+    body: z.string().trim().max(400).optional(),
+    columns: z.array(z.object({ title: z.string().trim().max(80).default(''), text: z.string().trim().max(600).default('') })).max(3).optional(),
     options: z.array(optionInputSchema).max(12).default([]),
     correctOptionId: z.string().min(1).max(64).optional(),
     design: designInputSchema,
@@ -48,6 +57,18 @@ const slideSchema = z
     }
     if ((slide.questionType === 'ranking' || slide.questionType === 'quiz') && slide.options.length < 2) {
       ctx.addIssue({ code: 'custom', message: 'Ranking and quiz slides need at least 2 options', path: ['options'] });
+    }
+    if (slide.timeLimit !== undefined && slide.questionType !== 'quiz') {
+      ctx.addIssue({ code: 'custom', message: 'Only quiz questions have a time limit', path: ['timeLimit'] });
+    }
+    if (slide.questionType === 'image' && !slide.design?.imageUrl) {
+      ctx.addIssue({ code: 'custom', message: 'An image slide needs an image', path: ['design'] });
+    }
+    if (slide.questionType === 'columns' && !(slide.columns?.length >= 2)) {
+      ctx.addIssue({ code: 'custom', message: 'A columns slide needs 2 or 3 columns', path: ['columns'] });
+    }
+    if (LAYOUT_TYPES.includes(slide.questionType) && slide.options.length > 0) {
+      ctx.addIssue({ code: 'custom', message: 'Content slides have no answer options', path: ['options'] });
     }
     if (slide.design?.imageLayout && !slide.design?.imageUrl) {
       ctx.addIssue({ code: 'custom', message: 'Image layout only applies when an image is set', path: ['design'] });
@@ -63,6 +84,7 @@ const createSchema = z.object({
   title: z.string().trim().min(1).max(120),
   location: z.string().trim().max(120).optional(),
   theme: z.enum(['iris', 'apricot', 'plum', 'cobalt']).optional(),
+  quizScoring: z.enum(['standard', 'speed']).optional(),
   slides: z.array(slideSchema).max(50).default([]),
 });
 
@@ -70,6 +92,7 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   location: z.string().trim().max(120).nullable().optional(),
   theme: z.enum(['iris', 'apricot', 'plum', 'cobalt']).optional(),
+  quizScoring: z.enum(['standard', 'speed']).optional(),
   slides: z.array(slideSchema).max(50).optional(),
   currentSlide: z.number().int().min(0).optional(),
   baseStructureRevision: z.number().int().min(0).optional(),
@@ -175,10 +198,13 @@ presentationsRouter.post('/:id/duplicate', authenticate, async (req, res, next) 
         revealed: false,
         ...(correctAt >= 0 ? { correctOptionId: options[correctAt].id } : {}),
         ...(design ? { design } : {}),
+        ...(slide.timeLimit ? { timeLimit: slide.timeLimit } : {}),
+        ...(slide.body ? { body: slide.body } : {}),
+        ...(slide.columns?.length ? { columns: slide.columns.map(({ title, text }) => ({ title, text })) } : {}),
       };
     });
     const title = `Copy of ${source.title}`.slice(0, 120);
-    const data = await Presentation.create({ title, location: source.location, theme: source.theme, slides, accessCode, owner: req.auth.userId });
+    const data = await Presentation.create({ title, location: source.location, theme: source.theme, quizScoring: source.quizScoring, slides, accessCode, owner: req.auth.userId });
     return res.status(201).json({ data });
   } catch (err) {
     return next(err);

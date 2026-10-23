@@ -11,6 +11,11 @@ The app's base colours are the logo's: indigo `#5757DB` (primary actions, select
 ## Features
 
 - **Six slide types**: multiple-choice polls with live bar charts, quizzes whose correct answer and scores reveal when the presenter closes voting, word clouds sized by how many people said each word, 1-10 ratings with average and distribution, option rankings scored by points, and open-ended questions where the audience submits answers and upvotes each other's.
+- **Quiz timer**: a quiz slide can have a time limit (10 s to 2 min). The presenter presses Start timer; stage and phones count down together (synced to the server clock), the presenter screen closes voting at zero, and the server rejects answers that arrive more than 1.5 s late. Slides with no limit work as before.
+- **Speed scoring**: per presentation, quizzes score either 1 point per correct answer (default) or 1000 down to 500 by answer speed over the time limit (30 s window when a question has no limit).
+- **Winners podium**: Show winners on the presenter screen closes voting and shows a final podium with confetti on stage and phones (confetti is off under reduced motion).
+- **Layout slides**: title, columns (2-3 text columns) and image-only slides carry nothing to answer, are skipped in results and CSV exports.
+- **Image upload**: slide and quiz-question images can be uploaded (JPEG, PNG or WebP, shrunk in the browser to 600 KB or less). Files are stored in MongoDB and served from `/api/media/<id>` (200 per account), so there is no new service or cost. The id is 128 random bits, but the image is public: anyone with its link can view it, so do not upload private photos (the editor says so). **Your uploads** in the editor lists your files with where each is used. *Remove from slide* only detaches the picture; *Delete file* removes the file for good and is refused while any deck or saved session still shows it, so slides never end up with a broken picture. At the 200 limit the editor opens Your uploads so you can free space. Pasted image links still work and must be https.
 - **Per-slide design**: pick an accent color from the presentation's palette and add an image beside or behind the question, per slide.
 - **Presenter keyboard**: Left/Right arrows and Page Up/Down change slides (ignored while typing or when the join panel is open).
 - **Landing page**: `/` introduces the product with a create-a-presentation call to action and a join-with-code field. The join form itself lives at `/join` (also reachable as `/join?code=123456`); audience links `/p/<code>` are unchanged.
@@ -227,6 +232,10 @@ Originally inspired by [Mentimeter](https://www.mentimeter.com). Rebuilt in 2026
 - `responses`: written answers with upvotes and UTC time. No author ids.
 - `leaderboard`: quiz rank, name and score. Names are what players chose, so this is its own export.
 UTF-8 with a byte-order mark, UTC timestamps. Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading apostrophe so spreadsheets do not run them as formulas. The response is `private, no-store`. "Answers" means stored submissions, not connected clients and not distinct people. The file is built in memory, which is fine for a deck of at most 50 slides but is not streamed.
+
+### Timer, scoring, layouts and uploads
+
+New fields on a slide: `timeLimit`, `body`, `columns`; on a presentation: `quizScoring` (`standard` or `speed`). Presenter actions `timer:start` and `finale:set` are in the live action set. After pulling this change, rebuild the client (`npm run build`). Logic lives in `server/src/lib/scoring.js`, `lib/media.js`, `client/src/quizTimer.ts`, `podium.ts` and `imageUpload.ts`, each unit tested. E2E: `npx playwright test e2e/timer-podium-layouts.spec.ts` after `npm run build`. Not verified against real Firebase or Ably.
 
 ### Session basics
 

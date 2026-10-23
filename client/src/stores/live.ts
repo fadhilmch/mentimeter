@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { createLiveTransport } from '../live';
 import type { ConnectionState, LiveAction, LiveTransport, PresentationState } from '../types';
+import { clockOffset } from '../quizTimer';
 import { participantId, participantToken, ensureCredential } from '../participant';
 
 export const useLiveStore = defineStore('live', {
@@ -16,6 +17,8 @@ export const useLiveStore = defineStore('live', {
     browserOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
     /** Counts successful reconnects, so a view can drop an error that the reconnect has resolved. */
     reconnects: 0,
+    /** Server clock minus this device's clock, for the quiz countdown. */
+    clockOffsetMs: 0,
   }),
   getters: {
     /** One value for the banner: browser offline wins, then whatever the transport says. */
@@ -64,6 +67,7 @@ export const useLiveStore = defineStore('live', {
       const have = this.state?.revision;
       if (typeof have === 'number' && typeof next.revision === 'number' && next.revision < have) return false;
       this.state = next;
+      if (next.timer?.serverNow) this.clockOffsetMs = clockOffset(next.timer.serverNow);
       return true;
     },
     async act(action: LiveAction) {

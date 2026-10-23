@@ -106,6 +106,11 @@ export function matchSlideUpdate(storedSlides, incomingSlides) {
       // Quiz answer key and per-slide design follow the slide identity.
       correctOptionId,
       design: incoming.design,
+      ...(incoming.timeLimit ? { timeLimit: incoming.timeLimit } : {}),
+      ...(incoming.body ? { body: incoming.body } : {}),
+      ...(incoming.columns?.length ? { columns: incoming.columns } : {}),
+      // Answer timing belongs to the answers: kept only while the votes are kept.
+      answerTimes: kept ? (previous.answerTimes ?? []) : [],
       ...(kept && previous.revealed ? { revealed: true } : {}),
     };
   });

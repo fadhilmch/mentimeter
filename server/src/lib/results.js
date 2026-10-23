@@ -171,6 +171,7 @@ export function resetSlide(slide) {
   if (slide.questionType === 'multiple-choice' || slide.questionType === 'quiz') {
     for (const option of slide.options) option.votes = [];
     slide.revealed = false;
+    slide.answerTimes = [];
   } else if (slide.questionType === 'rating') {
     slide.ratings = [];
   } else if (slide.questionType === 'ranking') {

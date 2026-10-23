@@ -16,6 +16,12 @@ import { setThenSave } from '../optimistic'
 import { participantId, participantToken } from '../participant'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import type { RankingOption } from '../types'
+import { isLayoutType } from '../types'
+import LayoutContent from '../components/LayoutContent.vue'
+import QuestionTimer from '../components/QuestionTimer.vue'
+import WinnersPodium from '../components/WinnersPodium.vue'
+import { imageSrc } from '../api'
+import { scoreLabel, scoringHint } from '../podium'
 
 const route = useRoute()
 const live = useLiveStore()
@@ -97,6 +103,14 @@ async function saveName() {
     sending.value = ''
   }
 }
+const isLayout = computed(() => !!slide.value && isLayoutType(slide.value.questionType))
+const scoring = computed(() => state.value?.quizScoring)
+const showFinale = computed(() => !!state.value?.finale && !!state.value?.leaderboard?.length)
+// Timed quiz question: answers open when the presenter starts the clock and close at the deadline.
+const timer = computed(() => (slide.value?.questionType === 'quiz' ? (state.value?.timer ?? null) : null))
+const timeUp = ref(false)
+watch(() => [state.value?.currentSlide, timer.value?.endsAt], () => { timeUp.value = false })
+const timerBlocked = computed(() => !!timer.value && (timer.value.endsAt === null || timeUp.value))
 const myKey = computed(() => (state.value ? playerKey(state.value.accessCode, participantId()) : ''))
 const myEntry = computed(() => state.value?.leaderboard?.find((e) => e.key === myKey.value) ?? null)
 
@@ -271,16 +285,22 @@ async function sendRanking() {
         </button>
       </form>
       <template v-if="slide && !askName">
+        <LayoutContent v-if="isLayout" :slide="slide" variant="audience" />
         <div
+          v-else
           class="audience-slide"
           :class="{ 'has-image': slide.design?.imageUrl, [`layout-${slide.design?.imageLayout ?? 'beside'}`]: slide.design?.imageUrl }"
-          :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(10,10,12,0.55), rgba(10,10,12,0.55)), url(${slide.design.imageUrl})` } : {}"
+          :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(10,10,12,0.55), rgba(10,10,12,0.55)), url(${imageSrc(slide.design.imageUrl)})` } : {}"
         >
-          <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="slide.design.imageUrl" alt="" class="slide-image beside" />
+          <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="imageSrc(slide.design.imageUrl)" alt="" class="slide-image beside" />
           <h1 class="audience-question">{{ slide.question }}</h1>
         </div>
 
-        <template v-if="slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'">
+        <template v-if="isLayout"></template>
+
+        <template v-else-if="slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'">
+          <QuestionTimer v-if="timer && votingOpen" class="audience-timer" size="small" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="timeUp = true" />
+          <p v-if="timer && timer.endsAt === null && votingOpen" class="muted">Waiting for the presenter to start the timer…</p>
           <button
             v-for="(option, i) in optionsOf()"
             :key="i"
@@ -290,7 +310,7 @@ async function sendRanking() {
               'quiz-correct': slide.questionType === 'quiz' && resultsVisible && slide.tally?.correctOptionIndex === i,
             }"
             :style="myVotes[state.currentSlide] === i ? { borderColor: pal[i % pal.length] } : {}"
-            :disabled="!votingOpen || (slide.questionType === 'quiz' && slide.tally?.correctOptionIndex !== undefined)"
+            :disabled="!votingOpen || timerBlocked || (slide.questionType === 'quiz' && slide.tally?.correctOptionIndex !== undefined)"
             @click="choose(i)"
           >
             <span class="option-dot" :style="myVotes[state.currentSlide] === i ? { background: pal[i % pal.length], borderColor: pal[i % pal.length] } : { borderColor: pal[i % pal.length] }"></span>
@@ -303,6 +323,7 @@ async function sendRanking() {
               {{ myVotes[state.currentSlide] === slide.tally.correctOptionIndex ? 'You did!' : 'Not yours this time.' }}
             </template>
           </p>
+          <p v-else-if="timeUp && votingOpen" class="voting-closed">Time is up - waiting for the answer…</p>
           <p v-else-if="votingOpen && myVotes[state.currentSlide] !== undefined" class="muted">
             Answer locked in - tap another option to change it.
           </p>
@@ -380,7 +401,7 @@ async function sendRanking() {
           <p v-if="!votingOpen && !ended" class="voting-closed">Voting is closed - waiting for the presenter…</p>
         </template>
 
-        <template v-else>
+        <template v-else-if="slide.questionType === 'open-ended'">
           <div class="card">
             <form @submit.prevent="submitResponse">
               <label class="field" style="margin-bottom:10px;">
@@ -408,7 +429,8 @@ async function sendRanking() {
       </template>
       <p v-else-if="!ended" class="muted">Waiting for the presenter…</p>
     </template>
-    <div v-if="state?.leaderboard?.length" class="card leaderboard-card">
+    <WinnersPodium v-if="state && showFinale" class="audience-podium" variant="audience" :leaderboard="state.leaderboard!" :scoring="scoring" :palette="pal" :my-key="myKey" />
+    <div v-else-if="state?.leaderboard?.length" class="card leaderboard-card">
       <div class="lb-head">
         <p class="eyebrow">Quiz leaderboard</p>
         <span class="lb-count">{{ state.leaderboard.length }} player{{ state.leaderboard.length === 1 ? '' : 's' }}</span>
@@ -418,11 +440,11 @@ async function sendRanking() {
           <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
           <ParticipantAvatar :name="entry.name" :size="32" />
           <span class="lb-name"><span class="lb-name-text">{{ entry.name }}</span><span v-if="entry.key === myKey" class="you-chip">You</span></span>
-          <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+          <span class="lb-score" :class="{ zero: entry.score === 0 }">{{ scoreLabel(entry.score, scoring) }}</span>
         </li>
       </ol>
-      <p v-if="myEntry && myEntry.rank > 5" class="muted">You are #{{ myEntry.rank }} of {{ state.leaderboard.length }} with {{ myEntry.score }} pt{{ myEntry.score === 1 ? '' : 's' }}. Every correct answer adds a point.</p>
-      <p v-else-if="myEntry" class="muted">That's you - #{{ myEntry.rank }} of {{ state.leaderboard.length }}. Every correct answer adds a point.</p>
+      <p v-if="myEntry && myEntry.rank > 5" class="muted">You are #{{ myEntry.rank }} of {{ state.leaderboard.length }} with {{ scoreLabel(myEntry.score, scoring) }}. {{ scoringHint(scoring) }}</p>
+      <p v-else-if="myEntry" class="muted">That's you - #{{ myEntry.rank }} of {{ state.leaderboard.length }}. {{ scoringHint(scoring) }}</p>
     </div>
   </div>
   </div>
@@ -593,5 +615,9 @@ async function sendRanking() {
   background-image: var(--slide-image);
   background-size: cover;
   background-position: center;
+  margin-bottom: var(--space-3);
 }
+.audience-slide.has-image.layout-behind .audience-question { color: white; }
+.audience-slide.has-image.layout-beside { margin-bottom: var(--space-3); }
+.audience-timer { margin: var(--space-2) 0 var(--space-4); }
 </style>
