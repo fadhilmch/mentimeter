@@ -5,6 +5,11 @@ on:
   push:
     branches: [master, feat/rebuild]
 
+# Cancel superseded runs on the same branch/PR so only the latest push uses runner time.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   server-tests:
     runs-on: ubuntu-latest
