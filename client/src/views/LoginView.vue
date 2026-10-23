@@ -39,7 +39,7 @@ async function submit() {
         <label v-else class="field"><span>Username</span><input v-model="username" required autocomplete="username" /></label>
         <label class="field"><span>Password</span><input v-model="password" type="password" required autocomplete="current-password" /></label>
         <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-        <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
+        <button class="button big block" type="submit" :disabled="busy"><span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Logging in…' : 'Log in' }}</button>
       </form>
     </div>
     <p v-if="auth.usesFirebase" class="muted" style="margin-top: 18px;">

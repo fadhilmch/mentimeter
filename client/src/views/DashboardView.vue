@@ -26,6 +26,9 @@ const loading = ref(true)
 const error = ref('')
 const creating = ref(false)
 const deleting = ref(false)
+// Per-card pending guards: a double tap must not fire the same request twice.
+const startingId = ref<string | null>(null)
+const duplicatingId = ref<string | null>(null)
 const deletePassword = ref('')
 const deleteError = ref('')
 
@@ -98,22 +101,28 @@ const sessionsOn = ref(false)
 api.features().then((f) => { sessionsOn.value = f.sessions }).catch(() => {})
 
 async function startSession(id: string) {
+  if (startingId.value) return
   error.value = ''
+  startingId.value = id
   try {
     const res = await api.startSession(auth.token, id)
     router.push({ name: 'present', params: { code: res.data.code } })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not start a session.'
+    startingId.value = null
   }
 }
 
 async function duplicate(id: string) {
+  if (duplicatingId.value) return
   error.value = ''
+  duplicatingId.value = id
   try {
     const res = await api.duplicatePresentation(auth.token, id)
     router.push({ name: 'edit', params: { id: String(res.data._id) } })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not duplicate the presentation.'
+    duplicatingId.value = null
   }
 }
 
@@ -138,7 +147,7 @@ async function createPresentation() {
         <p class="sub" style="margin:0;">Build slides, then present with a live join code.</p>
       </div>
       <button class="button big" :disabled="creating" @click="createPresentation">
-        {{ creating ? 'Creating…' : '+ New presentation' }}
+        <span v-if="creating" class="spinner" aria-hidden="true"></span>{{ creating ? 'Creating…' : '+ New presentation' }}
       </button>
     </div>
 
@@ -172,8 +181,12 @@ async function createPresentation() {
           <router-link class="button secondary" :to="{ name: 'edit', params: { id: p._id } }">Edit</router-link>
           <router-link class="button ghost" :to="{ name: 'report', params: { id: p._id } }">Report</router-link>
           <router-link class="button secondary" :to="{ name: 'present', params: { code: p.accessCode } }">Present</router-link>
-          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" @click="startSession(p._id)">Start new session</button>
-          <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." @click="duplicate(p._id)">Duplicate</button>
+          <button v-if="sessionsOn" class="button secondary" title="Start a new run with its own join code and blank answers" :disabled="startingId === p._id" @click="startSession(p._id)">
+            <span v-if="startingId === p._id" class="spinner" aria-hidden="true"></span>{{ startingId === p._id ? 'Starting…' : 'Start new session' }}
+          </button>
+          <button class="button secondary" title="Copy the questions into a new presentation. Answers are not copied." :disabled="duplicatingId === p._id" @click="duplicate(p._id)">
+            <span v-if="duplicatingId === p._id" class="spinner" aria-hidden="true"></span>{{ duplicatingId === p._id ? 'Duplicating…' : 'Duplicate' }}
+          </button>
         </div>
         <details class="export-menu">
           <summary class="muted">Download results (CSV)</summary>
@@ -185,7 +198,7 @@ async function createPresentation() {
         </details>
       </div>
       <button v-if="nextCursor" class="button secondary" style="grid-column:1/-1;justify-self:center;" :disabled="loadingMore" @click="loadMore">
-        {{ loadingMore ? 'Loading…' : `Show more (${total - presentations.length} left)` }}
+        <span v-if="loadingMore" class="spinner" aria-hidden="true"></span>{{ loadingMore ? 'Loading…' : `Show more (${total - presentations.length} left)` }}
       </button>
     </div>
 
@@ -208,7 +221,7 @@ async function createPresentation() {
         </label>
         <p v-if="deleteError" class="error-banner" role="alert">{{ deleteError }}</p>
         <button class="button danger" type="submit" :disabled="deleting || !deletePassword">
-          {{ deleting ? 'Deleting…' : 'Delete my account' }}
+          <span v-if="deleting" class="spinner" aria-hidden="true"></span>{{ deleting ? 'Deleting…' : 'Delete my account' }}
         </button>
       </form>
     </details>

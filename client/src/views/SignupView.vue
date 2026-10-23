@@ -40,7 +40,7 @@ async function submit() {
         <p v-if="auth.usesFirebase" class="muted">We use your email to sign you in and to reset your password. Password: at least 8 characters.</p>
         <p v-else class="muted">Username: 3-30 characters, lowercase letters, numbers, dots and dashes. Password: at least 8 characters.</p>
         <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-        <button class="button big block" type="submit" :disabled="busy">{{ busy ? 'Creating…' : 'Sign up' }}</button>
+        <button class="button big block" type="submit" :disabled="busy"><span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Creating…' : 'Sign up' }}</button>
       </form>
     </div>
     <p class="muted" style="margin-top: 18px;">Already have an account?&nbsp;<router-link class="text-link" to="/login">Log in</router-link></p>
