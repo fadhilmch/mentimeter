@@ -44,9 +44,9 @@ function cancel() {
 .confirm-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); padding: var(--space-4); }
 .confirm-sheet {
   width: min(400px, 100%); padding: var(--space-5);
-  background: var(--t-stage2); color: var(--t-ink); border-radius: 20px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
+  background: var(--paper); color: var(--ink); border-radius: 20px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
 }
 .confirm-title { margin: 0 0 var(--space-2); font-size: 1.15rem; }
-.confirm-message { margin: 0 0 var(--space-4); color: color-mix(in srgb, var(--t-ink) 78%, transparent); }
+.confirm-message { margin: 0 0 var(--space-4); color: var(--ink-3); }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 </style>
