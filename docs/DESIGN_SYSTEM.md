@@ -63,7 +63,7 @@ Tokens say what colours and sizes exist. These rules say how new screens are put
 **Proof**
 14. Every UI change ships with a Playwright flow and desktop plus 390px screenshots. When the design direction is open, mock two options and let the owner choose before building.
 
-Audit of the current Your uploads panel against these rules (not yet redesigned): it expands inline (rule 3), repeats text buttons on every card (rules 4 and 5), and shows file-level errors inside the panel (rule 8). These are the gaps to close in the next change.
+The image picker (`ImageUploadField.vue` and `ImagePickerDialog.vue`) is the reference for these rules: one fixed-ratio tile, a dialog for choosing, icon actions with accessible names, and an alert inside the dialog for errors.
 
 ## Checking a change
 
