@@ -1,5 +1,7 @@
+import { pointsForCorrect } from './scoring.js';
+
 /**
- * Quiz leaderboard: +1 point per correct answer, final vote counts.
+ * Quiz leaderboard: points per correct answer (see scoring.js), final vote counts.
  * Answers can change until voting closes; votes already move on recast, so the
  * current stored votes ARE the final ones once the presenter closes voting.
  */
@@ -65,8 +67,10 @@ export function computeLeaderboard(presentation) {
     }
     const correct = (slide.options ?? []).find((option) => option.id && option.id === slide.correctOptionId);
     if (!correct) continue;
+    const times = new Map((slide.answerTimes ?? []).map((entry) => [entry.participantId, entry.ms]));
     for (const participantId of correct.votes ?? []) {
-      scores.set(participantId, (scores.get(participantId) ?? 0) + 1);
+      const points = pointsForCorrect(presentation.quizScoring, slide, times.get(participantId));
+      scores.set(participantId, (scores.get(participantId) ?? 0) + points);
     }
   }
   // Everyone who answered a revealed question is on the board, wrong answers

@@ -44,6 +44,30 @@ const rankingSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Milliseconds a player took to answer a timed or speed-scored quiz question (latest answer).
+// Never sent to clients.
+const answerTimeSchema = new mongoose.Schema(
+  {
+    participantId: { type: String, required: true },
+    ms: { type: Number, required: true, min: 0 },
+  },
+  { _id: false },
+);
+
+// One text block of a columns slide.
+const columnSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true, maxlength: 80 },
+    text: { type: String, trim: true, maxlength: 600 },
+  },
+  { _id: false },
+);
+
+export const SLIDE_TYPES = ['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz', 'title', 'columns', 'image'];
+/** Layout slides show content only: nothing to answer, no tally, no moderation. */
+export const LAYOUT_TYPES = ['title', 'columns', 'image'];
+export const isLayoutSlide = (slide) => LAYOUT_TYPES.includes(slide?.questionType);
+
 const designSchema = new mongoose.Schema(
   {
     // Optional per-slide accent; inherits the presentation theme when unset.
@@ -60,7 +84,7 @@ export const slideSchema = new mongoose.Schema(
     id: { type: String },
     questionType: {
       type: String,
-      enum: ['multiple-choice', 'open-ended', 'word-cloud', 'rating', 'ranking', 'quiz'],
+      enum: SLIDE_TYPES,
       required: true,
     },
     question: { type: String, required: true, trim: true, maxlength: 300 },
@@ -75,6 +99,12 @@ export const slideSchema = new mongoose.Schema(
     // change an answer they have already seen revealed.
     revealed: { type: Boolean, default: false },
     design: { type: designSchema, default: undefined },
+    // Quiz only: seconds the audience has to answer. Unset means no limit.
+    timeLimit: { type: Number, min: 5, max: 300 },
+    answerTimes: { type: [answerTimeSchema], default: [] },
+    // Layout slides: a subtitle (title slide) and up to three text columns (columns slide).
+    body: { type: String, trim: true, maxlength: 400 },
+    columns: { type: [columnSchema], default: undefined },
   },
   { _id: false },
 );
@@ -109,6 +139,12 @@ const presentationSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // 'standard' (1 point per correct answer) or 'speed' (faster correct answers score more).
+    quizScoring: { type: String, enum: ['standard', 'speed'], default: 'standard' },
+    // When the question on screen started counting. Set by the presenter (timer:start) or on a slide change.
+    questionStartedAt: { type: Date },
+    // The presenter is showing the winners' podium.
+    finale: { type: Boolean, default: false },
     currentSlide: { type: Number, default: 0, min: 0 },
     votingOpen: { type: Boolean, default: true },
     resultsVisible: { type: Boolean, default: true },

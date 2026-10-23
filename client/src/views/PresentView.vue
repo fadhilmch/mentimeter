@@ -15,6 +15,12 @@ import { useColorMode } from '../colorMode'
 import { slideStepForKey } from '../presenterKeys'
 import ParticipantAvatar from '../components/ParticipantAvatar.vue'
 import ModerationPanel from '../components/ModerationPanel.vue'
+import LayoutContent from '../components/LayoutContent.vue'
+import QuestionTimer from '../components/QuestionTimer.vue'
+import WinnersPodium from '../components/WinnersPodium.vue'
+import { imageSrc } from '../api'
+import { scoreLabel, scoringHint } from '../podium'
+import { isLayoutType } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,6 +100,31 @@ const rankingRows = computed(() => {
     .sort((a, b) => b.points - a.points)
 })
 const resultsVisible = computed(() => state.value?.resultsVisible !== false)
+const isLayout = computed(() => !!slide.value && isLayoutType(slide.value.questionType))
+const hasQuiz = computed(() => !!state.value?.slides.some((s) => s.questionType === 'quiz'))
+const timer = computed(() => (slide.value?.questionType === 'quiz' ? (state.value?.timer ?? null) : null))
+const scoring = computed(() => state.value?.quizScoring)
+const showFinale = computed(() => !!state.value?.finale)
+
+// When the countdown reaches zero the presenter screen closes voting, which reveals the answer.
+// The server already refuses late answers, so this is only the reveal.
+function onTimerExpired() {
+  if (votingOpen.value && !busy.value) presenterAction({ type: 'voting:set', open: false }, 'voting')
+}
+
+// A quiz question without a time limit still needs a start time for speed scoring.
+// Do it once when the screen opens on such a question and nobody has answered yet.
+let autoStarted = false
+watch(
+  () => [state.value?.currentSlide, slide.value?.questionType] as const,
+  () => {
+    if (autoStarted || !state.value || !slide.value) return
+    autoStarted = true
+    const untimedQuiz = slide.value.questionType === 'quiz' && !slide.value.timeLimit
+    if (untimedQuiz && (slide.value.tally?.total ?? 0) === 0) presenterAction({ type: 'timer:start' }, 'timer')
+  },
+  { immediate: true },
+)
 
 const direction = ref<'next' | 'prev'>('next')
 function go(delta: number) {
@@ -193,7 +224,13 @@ function end() {
       <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
       <p v-else-if="!state" class="connecting">Connecting…</p>
       <template v-else-if="slide">
-        <div class="stage-controls">
+        <div v-if="!isLayout" class="stage-controls">
+          <button v-if="timer && timer.endsAt === null" class="button" :disabled="!!busy" :aria-busy="busy === 'timer'" data-testid="start-timer" @click="presenterAction({ type: 'timer:start' }, 'timer')">
+            <span v-if="busy === 'timer'" class="spinner" aria-hidden="true"></span>Start {{ timer.durationSec }}s timer
+          </button>
+          <button v-if="hasQuiz" class="button ghost" :class="{ 'is-on': showFinale }" :disabled="!!busy" :aria-busy="busy === 'finale'" data-testid="toggle-finale" @click="presenterAction({ type: 'finale:set', visible: !showFinale }, 'finale')">
+            <span v-if="busy === 'finale'" class="spinner" aria-hidden="true"></span>{{ showFinale ? 'Hide winners' : 'Show winners' }}
+          </button>
           <button class="button ghost" :class="{ 'is-on': !votingOpen }" :disabled="!!busy" :aria-busy="busy === 'voting'" @click="presenterAction({ type: 'voting:set', open: !votingOpen }, 'voting')">
             <span v-if="busy === 'voting'" class="spinner" aria-hidden="true"></span>{{ votingOpen ? 'Close voting' : 'Reopen voting' }}
           </button>
@@ -211,14 +248,20 @@ function end() {
         <p style="color:color-mix(in srgb, var(--t-ink) 72%, transparent); font-weight:600; margin:0 0 var(--space-2);">
           Slide {{ state.currentSlide + 1 }} of {{ state.slides.length }}
         </p>
+        <LayoutContent v-if="isLayout" :slide="slide" variant="stage" />
+        <template v-else>
         <div
           class="stage-question-row"
           :class="{ 'has-image': slide.design?.imageUrl, behind: (slide.design?.imageLayout ?? 'beside') === 'behind' }"
-          :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(8,8,10,0.62), rgba(8,8,10,0.62)), url(${slide.design.imageUrl})` } : {}"
+          :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(8,8,10,0.62), rgba(8,8,10,0.62)), url(${imageSrc(slide.design.imageUrl)})` } : {}"
         >
-          <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="slide.design.imageUrl" alt="" class="stage-image" />
+          <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="imageSrc(slide.design.imageUrl)" alt="" class="stage-image" />
           <h1 class="stage-question">{{ slide.question }}</h1>
         </div>
+
+        <QuestionTimer v-if="timer" class="stage-timer" :duration-sec="timer.durationSec" :ends-at="timer.endsAt" :offset-ms="live.clockOffsetMs" @expired="onTimerExpired" />
+
+        <WinnersPodium v-if="showFinale && live.state?.leaderboard?.length" class="stage-podium" variant="stage" :leaderboard="live.state.leaderboard" :scoring="scoring" :palette="pal" />
 
         <div v-if="!resultsVisible" class="results-hidden">
           <p style="font-size:1.2rem; font-weight:700; margin:0 0 6px;">Results hidden</p>
@@ -295,11 +338,12 @@ function end() {
           </div>
           <p v-if="!slide.responses.length" style="color:color-mix(in srgb, var(--t-ink) 72%, transparent);">Waiting for answers…</p>
         </template>
+        </template>
         </div>
         </Transition>
         </div>
 
-        <div v-if="live.state?.leaderboard?.length" class="leaderboard-stage" aria-live="polite">
+        <div v-if="live.state?.leaderboard?.length && !showFinale" class="leaderboard-stage" aria-live="polite">
           <div class="lb-head">
             <p class="eyebrow" style="margin:0;">Quiz leaderboard</p>
             <span class="lb-count">{{ live.state.leaderboard.length }} player{{ live.state.leaderboard.length === 1 ? '' : 's' }}</span>
@@ -309,9 +353,10 @@ function end() {
               <span class="lb-rank" :style="rankColor(entry.rank) ? { color: rankColor(entry.rank) } : {}">#{{ entry.rank }}</span>
               <ParticipantAvatar :name="entry.name" :size="36" />
               <span class="lb-name">{{ entry.name }}</span>
-              <span class="lb-pts" :class="{ zero: entry.score === 0 }">{{ entry.score }} pt{{ entry.score === 1 ? '' : 's' }}</span>
+              <span class="lb-pts" :class="{ zero: entry.score === 0 }">{{ scoreLabel(entry.score, scoring) }}</span>
             </li>
           </ol>
+          <p class="muted lb-hint">{{ scoringHint(scoring) }}</p>
           <button v-if="live.state.leaderboard.length > 5" class="button ghost" style="margin-top:10px;" @click="showFullBoard = !showFullBoard">
             {{ showFullBoard ? 'Show top 5' : `Show all ${live.state.leaderboard.length}` }}
           </button>
@@ -407,6 +452,9 @@ function end() {
   background-position: center;
   margin-bottom: var(--space-1);
 }
+.stage-timer { margin: var(--space-3) 0 var(--space-4); max-width: 640px; }
+.stage-podium { margin: var(--space-4) 0; }
+.lb-hint { margin: var(--space-2) 0 0; font-size: var(--fs-sm); }
 .stage-image {
   width: 140px;
   height: 140px;

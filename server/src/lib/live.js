@@ -3,6 +3,8 @@ import { findLiveByCode } from './liveTarget.js';
 import { isPublicResponse, castVote, addResponse, submitWord, castRating, submitRanking, toggleUpvote, tallySlide, resetSlide } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
 import { LiveError } from './audience.js';
+import { DEADLINE_GRACE_MS, normalizeScoring } from './scoring.js';
+import { isLayoutSlide } from '../models/presentation.js';
 
 export const liveActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('vote:cast'), slideIndex: z.number().int().min(0), optionIndex: z.number().int().min(0), participantId: z.string().min(6).max(64) }),
@@ -20,7 +22,27 @@ export const presenterActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('vote:reset'), slideIndex: z.number().int().min(0) }),
   z.object({ type: z.literal('voting:set'), open: z.boolean() }),
   z.object({ type: z.literal('results:set'), visible: z.boolean() }),
+  // Starts (or restarts) the countdown and the speed clock for the quiz question on screen.
+  z.object({ type: z.literal('timer:start') }),
+  // Shows or hides the winners' podium. Showing it closes voting and reveals the answers first.
+  z.object({ type: z.literal('finale:set'), visible: z.boolean() }),
 ]);
+
+/** Closing voting reveals the presented quiz questions (up to the current slide). Future questions
+ *  stay sealed: their answers never leave the server and their votes stay changeable on reopen. */
+function closeVoting(presentation) {
+  presentation.votingOpen = false;
+  for (let i = 0; i <= presentation.currentSlide && i < presentation.slides.length; i += 1) {
+    const slide = presentation.slides[i];
+    if (slide.questionType === 'quiz') slide.revealed = true;
+  }
+}
+
+/** When the timed question on screen stops accepting answers, in epoch ms. Null when it has no running timer. */
+export function timerEndsAt(presentation, slide) {
+  if (!slide || slide.questionType !== 'quiz' || !(slide.timeLimit > 0) || !presentation.questionStartedAt) return null;
+  return new Date(presentation.questionStartedAt).getTime() + slide.timeLimit * 1000;
+}
 
 const newResponseStatus = (presentation) => (presentation.moderationMode === 'approve' ? 'pending' : 'visible');
 
@@ -35,22 +57,38 @@ export function applyLiveAction(presentation, action) {
   if (mutatesAnswers && action.slideIndex !== presentation.currentSlide) {
     throw new LiveError('That question is no longer on screen', 'slide_not_active');
   }
+  if (action.type === 'vote:cast') {
+    // A timed question only takes answers while its countdown runs.
+    const active = presentation.slides[action.slideIndex];
+    if (active?.questionType === 'quiz' && active.timeLimit > 0) {
+      const endsAt = timerEndsAt(presentation, active);
+      if (endsAt === null) throw new LiveError('The timer has not started yet', 'timer_not_started');
+      if (Date.now() > endsAt + DEADLINE_GRACE_MS) throw new LiveError('Time is up for this question', 'time_up');
+    }
+  }
   switch (action.type) {
+    case 'timer:start': {
+      const active = presentation.slides[presentation.currentSlide];
+      if (active?.questionType !== 'quiz') throw new TypeError('Only quiz questions have a timer');
+      if (active.revealed) throw new TypeError('This question has already been revealed');
+      presentation.questionStartedAt = new Date();
+      presentation.votingOpen = true;
+      return;
+    }
+    case 'finale:set':
+      presentation.finale = action.visible;
+      if (action.visible) {
+        closeVoting(presentation);
+        presentation.resultsVisible = true; // the podium is the results
+      }
+      return;
     case 'vote:reset':
       if (action.slideIndex >= presentation.slides.length) throw new RangeError('Slide index out of range');
       resetSlide(presentation.slides[action.slideIndex]);
       return;
     case 'voting:set':
-      presentation.votingOpen = action.open;
-      if (!action.open) {
-        // Closing voting reveals the presented quiz questions (up to the current
-        // slide). Future questions stay sealed: their answers never leave the
-        // server and their votes stay changeable on reopen.
-        for (let i = 0; i <= presentation.currentSlide && i < presentation.slides.length; i += 1) {
-          const slide = presentation.slides[i];
-          if (slide.questionType === 'quiz') slide.revealed = true;
-        }
-      }
+      if (action.open) presentation.votingOpen = true;
+      else closeVoting(presentation);
       return;
     case 'results:set':
       presentation.resultsVisible = action.visible;
@@ -73,6 +111,9 @@ export function applyLiveAction(presentation, action) {
       // through their own `revealed` flag, so going back cannot change answers.
       if (action.slideIndex !== presentation.currentSlide) presentation.votingOpen = true;
       presentation.currentSlide = action.slideIndex;
+      // A new question starts its clock (timed questions count down from here); the podium goes away.
+      presentation.questionStartedAt = presentation.slides[action.slideIndex]?.questionType === 'quiz' ? new Date() : undefined;
+      presentation.finale = false;
       return;
     case 'vote:cast': {
       const slide = presentation.slides[action.slideIndex];
@@ -80,6 +121,7 @@ export function applyLiveAction(presentation, action) {
         throw new TypeError('This question has already been revealed');
       }
       castVote(presentation.slides[action.slideIndex], action.optionIndex, action.participantId);
+      if (slide?.questionType === 'quiz') recordAnswerTime(presentation, slide, action.participantId);
       return;
     }
     case 'response:add':
@@ -100,6 +142,15 @@ export function applyLiveAction(presentation, action) {
     default:
       throw new TypeError(`Unknown action type: ${action.type}`);
   }
+}
+
+/** Remembers how long this player took (their latest answer), for speed scoring. Never sent to clients. */
+function recordAnswerTime(presentation, slide, participantId) {
+  if (!presentation.questionStartedAt) return;
+  const ms = Math.max(0, Date.now() - new Date(presentation.questionStartedAt).getTime());
+  const entries = (slide.answerTimes ?? []).filter((entry) => entry.participantId !== participantId);
+  entries.push({ participantId, ms });
+  slide.answerTimes = entries;
 }
 
 /** Quiz tally that withholds the answer while voting is still open. */
@@ -135,6 +186,16 @@ export function publicState(presentation) {
     currentSlide: presentation.currentSlide,
     votingOpen: presentation.votingOpen !== false,
     resultsVisible,
+    quizScoring: normalizeScoring(presentation.quizScoring),
+    finale: presentation.finale === true,
+    // Countdown for the quiz question on screen. Times are epoch ms; serverNow lets a phone correct for its own clock.
+    timer: (() => {
+      const current = presentation.slides[presentation.currentSlide];
+      const endsAt = timerEndsAt(presentation, current);
+      return current?.questionType === 'quiz' && current.timeLimit > 0
+        ? { durationSec: current.timeLimit, endsAt, serverNow: Date.now() }
+        : null;
+    })(),
     // Lets the audience say "waiting for approval"; says nothing about any held response.
     moderation: presentation.moderationMode === 'approve' ? 'approve' : 'off',
     // Scores reveal with the answers: only once voting is closed and results are visible.
@@ -143,6 +204,13 @@ export function publicState(presentation) {
       id: slide.id,
       questionType: slide.questionType,
       question: slide.question,
+      ...(slide.questionType === 'quiz' && slide.timeLimit > 0 ? { timeLimit: slide.timeLimit } : {}),
+      ...(isLayoutSlide(slide)
+        ? {
+            ...(slide.body ? { body: slide.body } : {}),
+            ...(slide.columns?.length ? { columns: slide.columns.map(({ title, text }) => ({ title: title ?? '', text: text ?? '' })) } : {}),
+          }
+        : {}),
       ...(slide.design && (slide.design.accent || slide.design.imageUrl)
         ? {
             design: {
@@ -151,7 +219,9 @@ export function publicState(presentation) {
             },
           }
         : {}),
-      ...(slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'
+      ...(isLayoutSlide(slide)
+        ? {}
+        : slide.questionType === 'multiple-choice' || slide.questionType === 'quiz'
         ? {
             options: slide.options.map(({ text }) => text),
             // Stable ids parallel to options (additive; clients still vote by index).

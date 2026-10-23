@@ -1,5 +1,6 @@
 import { tallySlide, isPublicResponse } from './results.js';
 import { computeLeaderboard } from './leaderboard.js';
+import { isLayoutSlide } from '../models/presentation.js';
 
 /**
  * One CSV cell, safe for spreadsheets. Values that start with = + - @ (or tab / carriage return)
@@ -31,6 +32,7 @@ export function summaryCsv(presentation, now = new Date()) {
   const header = ['presentation', 'exported_at_utc', 'slide', 'type', 'question', 'item', 'measure', 'value', 'is_correct'];
   const rows = [];
   (presentation.slides ?? []).forEach((slide, i) => {
+    if (isLayoutSlide(slide)) return; // content slides have nothing to count
     const base = [presentation.title, iso(now), i + 1, slide.questionType, slide.question];
     const tally = tallySlide(slide);
     if (slide.questionType === 'multiple-choice' || slide.questionType === 'quiz') {

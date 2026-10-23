@@ -32,7 +32,7 @@ const sampleOptions = (has: boolean) => (has ? [{ text: '' }, { text: '' }, { te
       <aside ref="sheet" class="sheet" role="dialog" aria-modal="true" aria-label="Add a slide" tabindex="-1">
         <button type="button" class="sheet-close" aria-label="Close" @click="emit('close')">×</button>
         <h2 class="sheet-title">Add a slide</h2>
-        <p class="sheet-sub">Pick how the room answers. You can mix types in one presentation.</p>
+        <p class="sheet-sub">Pick how the room answers, or add a title, columns or image slide to present. You can mix types in one presentation.</p>
         <div class="type-list">
           <button
             v-for="t in SLIDE_TYPES"
@@ -42,7 +42,7 @@ const sampleOptions = (has: boolean) => (has ? [{ text: '' }, { text: '' }, { te
             @click="emit('pick', t.type)"
           >
             <span class="type-thumb">
-              <MiniStage :slide="{ questionType: t.type, question: '', options: sampleOptions(t.hasOptions) }" :theme-id="themeId" />
+              <MiniStage :slide="{ questionType: t.type, question: '', options: sampleOptions(t.hasOptions), ...(t.type === 'columns' ? { columns: [{ title: '', text: '' }, { title: '', text: '' }] } : {}) }" :theme-id="themeId" />
             </span>
             <span class="type-meta">
               <b>{{ t.label }}</b>

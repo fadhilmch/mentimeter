@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { firebaseEnabled, firebaseConnectSources, firebaseFrameSources, firebaseScriptSources } from './lib/firebase.js';
 import { authRouter } from './routes/auth.js';
 import { presentationsRouter } from './routes/presentations.js';
+import { mediaRouter } from './routes/media.js';
 import { liveRouter } from './routes/live.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
@@ -57,6 +58,7 @@ export function createApp() {
   app.use('/api/users', authRouter);
   app.use('/api/presentations', presentationsRouter);
   app.use('/api/live', liveRouter);
+  app.use('/api/media', mediaRouter);
   // Off unless explicitly enabled: see docs/live-sessions.md.
   if (process.env.SESSIONS_ENABLED === 'true') app.use('/api', sessionsRouter);
 

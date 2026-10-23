@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { SLIDE_TYPES, hasOptions, typeHint, typeLabel, typeShort } from '../editor/slideTypes'
+import { SLIDE_TYPES, hasOptions, isInteractive, typeHint, typeLabel, typeShort } from '../editor/slideTypes'
 
 describe('slide type metadata', () => {
-  it('covers all six question types exactly once', () => {
+  it('covers every question and layout type exactly once', () => {
     expect(SLIDE_TYPES.map((t) => t.type).sort()).toEqual(
-      ['multiple-choice', 'open-ended', 'quiz', 'ranking', 'rating', 'word-cloud'].sort(),
+      ['multiple-choice', 'open-ended', 'quiz', 'ranking', 'rating', 'word-cloud', 'title', 'columns', 'image'].sort(),
     )
     expect(new Set(SLIDE_TYPES.map((t) => t.label)).size).toBe(SLIDE_TYPES.length)
+  })
+
+  it('layout slides are content only: no options, nothing to answer', () => {
+    for (const type of ['title', 'columns', 'image'] as const) {
+      expect(isInteractive(type)).toBe(false)
+      expect(hasOptions(type)).toBe(false)
+    }
+    expect(isInteractive('quiz')).toBe(true)
   })
 
   it('every type has a label, a short label and a one-line hint for the sheet', () => {

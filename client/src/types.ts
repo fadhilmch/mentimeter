@@ -1,4 +1,13 @@
-export type SlideType = 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz';
+export type SlideType = 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz' | 'title' | 'columns' | 'image';
+
+/** Layout slides show content only: nothing to answer. */
+export const LAYOUT_TYPES: SlideType[] = ['title', 'columns', 'image'];
+export const isLayoutType = (type: SlideType): boolean => LAYOUT_TYPES.includes(type);
+
+export interface SlideColumn {
+  title: string;
+  text: string;
+}
 
 export interface SlideDesign {
   accent?: string;
@@ -33,6 +42,12 @@ export interface PublicSlide {
   question: string;
   options?: string[] | RankingOption[];
   design?: SlideDesign;
+  /** Quiz only: seconds to answer. */
+  timeLimit?: number;
+  /** Title slide subtitle. */
+  body?: string;
+  /** Columns slide text blocks. */
+  columns?: SlideColumn[];
   tally?: Tally | null;
   responses?: { id?: string; index: number; text: string; upvotes: number; createdAt: string }[];
 }
@@ -57,6 +72,12 @@ export interface PresentationState {
   resultsVisible: boolean;
   /** 'approve' when the presenter holds new responses until approved. */
   moderation?: 'off' | 'approve';
+  /** Quiz points: 1 per correct answer, or more for faster correct answers. */
+  quizScoring?: 'standard' | 'speed';
+  /** The presenter is showing the winners' podium. */
+  finale?: boolean;
+  /** Countdown for the timed quiz question on screen. Times are epoch ms; `endsAt` is null until it starts. */
+  timer?: { durationSec: number; endsAt: number | null; serverNow: number } | null;
   slides: PublicSlide[];
   // Quiz scores: only sent after voting closes and results are visible.
   leaderboard?: LeaderboardEntry[] | null;

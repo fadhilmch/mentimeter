@@ -2,10 +2,17 @@
 import { computed } from 'vue'
 import { getTheme, themeVars } from '../themes'
 import { useColorMode } from '../colorMode'
+import { imageSrc } from '../api'
+import LayoutContent from './LayoutContent.vue'
+import { isLayoutType } from '../types'
+import type { SlideColumn, SlideType } from '../types'
 
 export interface PreviewSlide {
   question: string
-  questionType: 'multiple-choice' | 'open-ended' | 'word-cloud' | 'rating' | 'ranking' | 'quiz'
+  questionType: SlideType
+  body?: string
+  columns?: SlideColumn[]
+  timeLimit?: number
   options: { text: string }[]
   correctOptionId?: string
   design?: { accent?: string; imageUrl?: string; imageLayout?: 'beside' | 'behind' }
@@ -18,17 +25,20 @@ const { mode } = useColorMode()
 const style = computed(() => themeVars(theme.value, mode.value))
 const pal = computed(() => theme.value.pal)
 const accent = computed(() => props.slide.design?.accent ?? themeVars(theme.value, mode.value)['--t-acc'])
+const isLayout = computed(() => isLayoutType(props.slide.questionType))
 const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].includes(props.slide.questionType))
 </script>
 
 <template>
   <div class="sp-stage" :style="style" aria-label="Stage preview">
+    <LayoutContent v-if="isLayout" :slide="slide" variant="preview" placeholders />
+    <template v-else>
     <div
       class="sp-head"
       :class="{ 'has-image': slide.design?.imageUrl, behind: (slide.design?.imageLayout ?? 'beside') === 'behind' }"
-      :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(8,8,10,0.62), rgba(8,8,10,0.62)), url(${slide.design.imageUrl})` } : {}"
+      :style="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'behind' ? { backgroundImage: `linear-gradient(rgba(8,8,10,0.62), rgba(8,8,10,0.62)), url(${imageSrc(slide.design.imageUrl)})` } : {}"
     >
-      <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="slide.design.imageUrl" alt="" class="sp-image" />
+      <img v-if="slide.design?.imageUrl && (slide.design?.imageLayout ?? 'beside') === 'beside'" :src="imageSrc(slide.design.imageUrl)" alt="" class="sp-image" />
       <p class="sp-question" :style="slide.design?.accent ? { borderLeft: `4px solid ${slide.design.accent}`, paddingLeft: '12px' } : {}">{{ slide.question.trim() || 'Your question appears here' }}</p>
     </div>
     <template v-if="hasOptions">
@@ -51,6 +61,8 @@ const hasOptions = computed(() => ['multiple-choice', 'quiz', 'ranking'].include
     </template>
     <template v-else>
       <p class="sp-foot">The audience types free-text answers here.</p>
+    </template>
+    <p v-if="slide.questionType === 'quiz' && slide.timeLimit" class="sp-foot">{{ slide.timeLimit }} second time limit</p>
     </template>
   </div>
 </template>

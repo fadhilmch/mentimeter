@@ -110,6 +110,25 @@ export const api = {
   joinByCode: (accessCode: string) => call<{ data: { title: string; accessCode: string } }>(`/api/presentations/code/${accessCode}`),
 };
 
+/** Uploaded slide images live on the API ("/api/media/<id>"). Links to other sites are used as they are. */
+export const imageSrc = (url: string | undefined): string | undefined =>
+  url && url.startsWith('/api/media/') ? `${base}${url}` : url;
+
+/** Uploads one already-resized image. Sent as raw bytes: the body is not JSON. */
+export async function uploadImage(token: string, image: Blob): Promise<string> {
+  const fresh = tokenRefresher ? ((await tokenRefresher().catch(() => undefined)) ?? token) : token;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/media`, { method: 'POST', headers: { authorization: `Bearer ${fresh}`, 'content-type': image.type }, body: image });
+  } catch {
+    throw new ApiError(0, { message: "Couldn't reach the server. Check your connection and try again." });
+  }
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) onUnauthorized?.();
+  if (!res.ok) throw new ApiError(res.status, body);
+  return (body as { data: { url: string } }).data.url;
+}
+
 export interface ModerationItem { slideId: string; slideIndex: number; question: string; id: string; status: 'pending' | 'hidden'; text: string; createdAt?: string }
 export interface ModerationQueue { mode: 'off' | 'approve'; items: ModerationItem[]; log: { action: string; at: string }[] }
 export type ModerationAction = 'approve' | 'hide' | 'restore' | 'delete';
