@@ -52,11 +52,30 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
       - run: npm ci
       - run: npm ci --prefix server
       - run: npm ci --prefix client
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      # Cache the browser binary across runs, keyed on the lockfile so a
+      # Playwright version bump invalidates it. OS libraries are not cached:
+      # on a cache hit, install only those (same source of deps as before).
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - run: npm run test:e2e
         timeout-minutes: 10
         env:
