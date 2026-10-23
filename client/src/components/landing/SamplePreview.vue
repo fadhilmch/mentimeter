@@ -1,15 +1,46 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { PREVIEW } from '../../landing/content'
 
-const total = computed(() => PREVIEW.options.reduce((sum, o) => sum + o.votes, 0))
+/** Live sample poll: votes tick up on a slow loop and the bars ease to the new values,
+    so the hero demos the product instead of describing it. Frozen for reduced motion. */
+const votes = ref(PREVIEW.options.map((o) => o.votes))
+const root = ref<HTMLElement | null>(null)
+
+const total = computed(() => votes.value.reduce((sum, v) => sum + v, 0))
 const rows = computed(() =>
-  PREVIEW.options.map((o) => ({ ...o, pct: Math.round((o.votes / total.value) * 100) })),
+  PREVIEW.options.map((o, i) => ({ ...o, votes: votes.value[i], pct: Math.round((votes.value[i] / total.value) * 100) })),
 )
+
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+let timer: number | undefined
+let visible = true
+let io: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (reduced.matches) return
+  // Only run the loop while the hero is on screen and the tab is visible.
+  if (typeof IntersectionObserver !== 'undefined' && root.value) {
+    io = new IntersectionObserver((entries) => {
+      visible = entries[0]?.isIntersecting ?? true
+    })
+    io.observe(root.value)
+  }
+  timer = window.setInterval(() => {
+    if (!visible || document.hidden) return
+    const i = Math.floor(Math.random() * votes.value.length)
+    votes.value[i] += 1
+  }, 2400)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(timer)
+  io?.disconnect()
+})
 </script>
 
 <template>
-  <div class="preview" role="img" :aria-label="`Sample poll: ${PREVIEW.question}`">
+  <div ref="root" class="preview" role="img" :aria-label="`Sample poll: ${PREVIEW.question}`">
     <div class="stage">
       <div class="top">
         <span class="live"><i></i>Live</span>
@@ -46,7 +77,11 @@ const rows = computed(() =>
 }
 .top { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 14px; font-size: 0.8rem; color: #9a9ca3; white-space: nowrap; }
 .live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #9a9ca3; }
-.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); animation: live-pulse 2s var(--ease) infinite; }
+@keyframes live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(233 61 130 / 0.45); }
+  55% { box-shadow: 0 0 0 7px rgb(233 61 130 / 0); }
+}
 .chip {
   padding: 5px var(--space-3); border-radius: var(--radius-sm); background: #2b2b36; color: #b8baf8;
   font-weight: 800; letter-spacing: 0.14em; white-space: nowrap;
@@ -55,7 +90,11 @@ const rows = computed(() =>
 .bar { margin-bottom: 14px; }
 .bar-label { display: flex; justify-content: space-between; gap: var(--space-2); margin-bottom: 6px; font-size: var(--fs-sm); color: #d6d7db; }
 .track { height: 14px; border-radius: 7px; background: rgb(255 255 255 / 0.13); overflow: hidden; }
-.fill { height: 100%; border-radius: 7px; transform-origin: left; animation: grow var(--dur-bars) var(--ease) both; }
+.fill {
+  height: 100%; border-radius: 7px; transform-origin: left;
+  animation: grow var(--dur-bars) var(--ease) both;
+  transition: width var(--dur-bars) var(--ease);
+}
 @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .phone {
   position: absolute; right: 0; bottom: 0; width: 190px; height: 340px; padding: 18px 14px;
@@ -81,6 +120,7 @@ const rows = computed(() =>
   .opt { gap: 5px; padding: 6px 7px; font-size: 0.64rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fill { animation: none; }
+  .fill { animation: none; transition: none; }
+  .live i { animation: none; }
 }
 </style>

@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { STEPS, QUESTION_TYPES, FEATURES } from '../landing/content'
 import JoinWithCode from '../components/landing/JoinWithCode.vue'
 import SamplePreview from '../components/landing/SamplePreview.vue'
+import { vReveal } from '../landing/reveal'
 
 const auth = useAuthStore()
 // Signed-in presenters go straight to their dashboard.
@@ -29,7 +30,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
       <SamplePreview class="visual" />
     </section>
 
-    <section class="band" aria-labelledby="steps-title">
+    <section v-reveal class="band" aria-labelledby="steps-title">
       <h2 id="steps-title">From question to results in three steps</h2>
       <p class="band-lead">No installs, no accounts for the audience.</p>
       <ol class="grid three">
@@ -41,7 +42,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
       </ol>
     </section>
 
-    <section class="band" aria-labelledby="types-title">
+    <section v-reveal class="band" aria-labelledby="types-title">
       <h2 id="types-title">Six ways to ask</h2>
       <p class="band-lead">Mix question types in one presentation.</p>
       <ul class="grid three">
@@ -55,7 +56,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
       </ul>
     </section>
 
-    <section class="band" aria-labelledby="features-title">
+    <section v-reveal class="band" aria-labelledby="features-title">
       <h2 id="features-title">Made for live rooms</h2>
       <p class="band-lead">Simple for the audience, in control for the presenter.</p>
       <ul class="grid two">
@@ -66,7 +67,7 @@ const createTarget = computed(() => (auth.isLoggedIn ? { name: 'dashboard' } : {
       </ul>
     </section>
 
-    <section class="final">
+    <section v-reveal class="final">
       <h2>Ready to ask your first question?</h2>
       <p>Create a presentation, or join one with a code.</p>
       <div class="final-actions">
@@ -116,6 +117,46 @@ h1 em {
 .final-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
 .ghost-light { background: transparent; color: var(--inverse-ink); border: 1px solid var(--inverse-line); }
 .ghost-light:hover { background: rgb(255 255 255 / 0.08); }
+
+/* Hero entrance: headline, subtext, buttons, then the preview. Never delays content
+   for reduced-motion users (guarded below). */
+.copy > *, .visual { animation: hero-rise 520ms var(--ease) both; }
+.copy > *:nth-child(2) { animation-delay: 70ms; }
+.copy > *:nth-child(3) { animation-delay: 140ms; }
+.copy > *:nth-child(4) { animation-delay: 210ms; }
+.visual { animation-delay: 260ms; }
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Scroll reveals: sections fade/rise in the first time they enter the viewport.
+   The pre-state only exists once the v-reveal directive adds .reveal, so no-JS
+   IntersectionObserver keeps everything visible. */
+.reveal > h2, .reveal > .band-lead, .reveal .grid > *, .reveal.final > * {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity 420ms var(--ease), transform 420ms var(--ease);
+}
+.reveal.revealed > h2, .reveal.revealed > .band-lead, .reveal.revealed .grid > *, .reveal.revealed.final > * {
+  opacity: 1; transform: none;
+}
+.reveal.revealed .grid > *:nth-child(2) { transition-delay: 80ms; }
+.reveal.revealed .grid > *:nth-child(3) { transition-delay: 160ms; }
+.reveal.revealed .grid > *:nth-child(4) { transition-delay: 240ms; }
+.reveal.revealed > .band-lead { transition-delay: 60ms; }
+
+/* Hover lift on the step cards and question-type tiles. */
+.grid .card, .type { transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+@media (hover: hover) {
+  .grid .card:hover, .type:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgb(28 32 36 / 0.10); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy > *, .visual { animation: none; }
+  .reveal > h2, .reveal > .band-lead, .reveal .grid > *, .reveal.final > * { opacity: 1; transform: none; transition: none; }
+  .grid .card, .type { transition: none; }
+  .grid .card:hover, .type:hover { transform: none; }
+}
 
 @media (max-width: 760px) {
   .landing { padding: 0 20px var(--space-6); }
