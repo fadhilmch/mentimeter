@@ -20,6 +20,16 @@ describe('slide type metadata', () => {
     }
   })
 
+  it('names the voting slide "Multiple choice" consistently - never "Poll"', () => {
+    const mc = SLIDE_TYPES.find((t) => t.type === 'multiple-choice')!
+    expect(mc.label).toBe('Multiple choice')
+    expect(mc.short).toBe('Choice')
+    for (const t of SLIDE_TYPES) {
+      expect(t.label).not.toMatch(/poll/i)
+      expect(t.short).not.toMatch(/poll/i)
+    }
+  })
+
   it('only option-based types take options', () => {
     expect(hasOptions('multiple-choice')).toBe(true)
     expect(hasOptions('quiz')).toBe(true)
