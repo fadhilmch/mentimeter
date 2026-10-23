@@ -14,6 +14,9 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
   const app = express();
+  // Vercel overwrites X-Forwarded-For with the real client IP (https://vercel.com/docs/headers/request-headers),
+  // so trusting that single proxy hop is safe there. Anywhere else the default stays off.
+  if (process.env.VERCEL) app.set('trust proxy', 1);
   // Helmet's default CSP, widened only for images: presenters can add an external
   // HTTPS image to a slide. Scripts, styles, frames and connections stay locked down.
   app.use(

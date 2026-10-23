@@ -115,6 +115,7 @@ email sent by Firebase). Nothing changes until you set them, and nothing here cr
 | --- | --- | --- |
 | client (build time) | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID` | Identify the project to the browser (not secrets) |
 | server | `FIREBASE_PROJECT_ID` | Turns Firebase on and verifies ID tokens |
+| server | `FIREBASE_API_KEY` | The same public web key. Without a service account, the server uses it to check that a sign-in token was not revoked (signed out everywhere, password reset, account disabled or deleted). Required for keyless profile, move and delete requests; not a secret |
 | server | `FIREBASE_SERVICE_ACCOUNT` | Service-account JSON, optional. Without it, the browser removes its own Firebase login after the server deletes the account data (no key to store). A secret: never commit it |
 
 How it fits the existing app:
