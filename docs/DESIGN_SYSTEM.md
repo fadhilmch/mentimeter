@@ -35,6 +35,36 @@ Existing exceptions, kept so the look does not drift: spacing values 5, 6, 10, 1
 4. Do not use `var(--token, #fallback)`: the token always exists, and a wrong fallback hides mistakes.
 5. Keep the supplied logo files unchanged.
 
+## UI standards for new features
+
+Tokens say what colours and sizes exist. These rules say how new screens are put together, so features share one look. They come from the project's components and from feedback the owner has given on this and other apps.
+
+**Layout and density**
+1. Compact beats tall, on phones most of all. Check every screen at 390px and 1280px, in light and dark mode, before showing it.
+2. Cards in one row have the same height and the same internal order. Images are cropped to one fixed ratio with `object-fit: cover`, never stretched.
+3. Secondary tools open in a dialog (`NewPresentationDialog.vue` and `ConfirmDialog.vue` are the patterns), not as a block that pushes the form down. Inline expansion is for one or two short fields.
+
+**Controls**
+4. One primary action per view, filled (`.button`). Secondary actions use `.button.secondary` or `.ghost`. A row of identical ghost buttons is a sign the hierarchy is missing.
+5. Repeated per-item actions (delete, use, move) are icon buttons with a visible label on hover and an accessible name, not full-width text buttons on every item.
+6. Raised, soft-3D surfaces: one subtle `--shadow`, a clear pressed state, no inner shadows, and a lighter shadow in dark mode. Neutral backgrounds.
+7. Destructive actions ask once in `ConfirmDialog` (focus starts on Cancel), say what is lost, and say whether anything else is kept. Never delete something that is still in use: disable the action and say why, or block it on the server.
+
+**Feedback**
+8. Errors show next to the action that caused them, as an obvious alert (`role="alert"`), not as small text elsewhere on the page. Say what happened and what to do next.
+9. Any button that talks to the server locks and shows a spinner (`.spinner`) until the answer arrives.
+10. Empty, loading, full and failed states are designed, not left blank. A limit message tells people how to get back under it.
+11. Motion is short and purposeful, and is off under `prefers-reduced-motion`.
+
+**Content**
+12. Plain words for non-technical users. Say who can see something when it is public (for example an uploaded image link).
+13. Names and numbers wrap or truncate without breaking the layout. Test a long name and a tie.
+
+**Proof**
+14. Every UI change ships with a Playwright flow and desktop plus 390px screenshots. When the design direction is open, mock two options and let the owner choose before building.
+
+Audit of the current Your uploads panel against these rules (not yet redesigned): it expands inline (rule 3), repeats text buttons on every card (rules 4 and 5), and shows file-level errors inside the panel (rule 8). These are the gaps to close in the next change.
+
 ## Checking a change
 
 Run the app (`npm run dev:memory` in `server/` with the client built), then compare the landing, dashboard, editor, presenter and audience views in both modes before and after your change.
