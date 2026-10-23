@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { mutateWithRetry } from '../lib/occ.js';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Presentation } from '../models/presentation.js';
@@ -375,14 +376,18 @@ presentationsRouter.put('/:id', authenticate, validate(updateSchema), async (req
 presentationsRouter.post('/:id/live-actions', authenticate, async (req, res, next) => {
   try {
     const action = presenterActionSchema.parse(req.body);
-    let presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
-    // With sessions on, the presenter screen addresses a run by the id in its state (a session id).
-    if (!presentation && process.env.SESSIONS_ENABLED === 'true' && mongoose.isValidObjectId(req.params.id)) {
-      presentation = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId, status: 'active' });
-    }
-    if (!presentation) return res.status(404).json({ message: 'Presentation not found' });
-    applyLiveAction(presentation, action);
-    const data = await presentation.save();
+    const load = async () => {
+      let presentation = await Presentation.findOne({ _id: req.params.id, owner: req.auth.userId });
+      // With sessions on, the presenter screen addresses a run by the id in its state (a session id).
+      if (!presentation && process.env.SESSIONS_ENABLED === 'true' && mongoose.isValidObjectId(req.params.id)) {
+        presentation = await LiveSession.findOne({ _id: req.params.id, owner: req.auth.userId, status: 'active' });
+      }
+      return presentation;
+    };
+    // Retries when an answer was saved in between, so a presenter control never fails or overwrites votes.
+    const outcome = await mutateWithRetry(load, (presentation) => applyLiveAction(presentation, action));
+    if (!outcome) return res.status(404).json({ message: 'Presentation not found' });
+    const data = outcome.doc;
     const state = publicState(data);
     await broadcastState(data.accessCode, state);
     return res.json({ ok: true, state });

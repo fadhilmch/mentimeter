@@ -49,12 +49,17 @@ mediaRouter.post(
 mediaRouter.get('/', authenticate, async (req, res, next) => {
   try {
     const owner = new mongoose.Types.ObjectId(req.auth.userId);
-    const items = await Media.find({ owner }).select('publicId contentType createdAt data').sort({ createdAt: -1 }).lean();
+    // Size is computed inside MongoDB ($binarySize), so the image bytes are never read into the app.
+    const items = await Media.aggregate([
+      { $match: { owner } },
+      { $sort: { createdAt: -1 } },
+      { $project: { publicId: 1, createdAt: 1, bytes: { $binarySize: '$data' } } },
+    ]);
     const decks = await Presentation.find({ owner, 'slides.design.imageUrl': { $regex: '^/api/media/' } }).select('title slides.design.imageUrl').lean();
     const data = items.map((item) => {
       const url = urlFor(item.publicId);
       const usedIn = decks.filter((d) => d.slides.some((s) => s.design?.imageUrl === url)).map((d) => ({ id: String(d._id), title: d.title }));
-      return { url, bytes: (item.data.buffer ?? item.data).length, createdAt: item.createdAt, usedIn };
+      return { url, bytes: item.bytes, createdAt: item.createdAt, usedIn };
     });
     res.set('Cache-Control', 'private, no-store');
     return res.json({ data, limit: MAX_IMAGES_PER_USER });
