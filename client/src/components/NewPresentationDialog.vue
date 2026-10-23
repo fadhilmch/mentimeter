@@ -1,0 +1,102 @@
+<script setup lang="ts">
+import { nextTick, ref, watch } from 'vue'
+import { CREATION_TEMPLATES, creationTemplate, type CreationKind } from '../editor/creationTemplates'
+
+const props = withDefaults(defineProps<{ open: boolean; busy?: boolean; error?: string }>(), { busy: false, error: '' })
+const emit = defineEmits<{ create: [kind: CreationKind, title: string]; close: [] }>()
+
+const kind = ref<CreationKind>('quiz')
+const title = ref('')
+const nameInput = ref<HTMLInputElement | null>(null)
+
+watch(
+  () => props.open,
+  async (open) => {
+    if (open) {
+      kind.value = 'quiz'
+      title.value = ''
+      await nextTick()
+      nameInput.value?.focus()
+    }
+  },
+)
+
+function close() {
+  if (!props.busy) emit('close')
+}
+
+function submit() {
+  const trimmed = title.value.trim()
+  if (!trimmed || props.busy) return
+  emit('create', kind.value, trimmed)
+}
+</script>
+
+<template>
+  <Teleport to="body">
+    <div v-if="open" class="np-overlay" role="dialog" aria-modal="true" aria-label="New presentation" @click.self="close" @keydown.esc="close">
+      <div class="np-sheet">
+        <h2 class="np-title">New presentation</h2>
+        <p class="np-sub">Choose how it starts. You can mix every slide type in the editor either way.</p>
+        <div class="np-choices" role="radiogroup" aria-label="Starting point">
+          <button
+            v-for="t in CREATION_TEMPLATES"
+            :key="t.kind"
+            type="button"
+            class="np-card"
+            :class="{ sel: kind === t.kind }"
+            role="radio"
+            :aria-checked="kind === t.kind"
+            @click="kind = t.kind"
+          >
+            <b>{{ t.name }}</b>
+            <span class="np-blurb">{{ t.blurb }}</span>
+          </button>
+        </div>
+        <label class="field">
+          <span>Name</span>
+          <input
+            ref="nameInput"
+            v-model="title"
+            maxlength="120"
+            :placeholder="creationTemplate(kind).namePlaceholder"
+            @keydown.enter.prevent="submit"
+          />
+        </label>
+        <p v-if="error" class="slide-error" role="alert">{{ error }}</p>
+        <div class="np-actions">
+          <button class="button ghost" type="button" :disabled="busy" @click="close">Cancel</button>
+          <button class="button big" type="button" :disabled="busy || !title.trim()" @click="submit">
+            <span v-if="busy" class="spinner" aria-hidden="true"></span>{{ busy ? 'Creating…' : 'Create' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<style scoped>
+.np-overlay {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: rgb(0 0 0 / 0.55); padding: var(--space-4);
+}
+.np-sheet {
+  width: min(560px, 100%); padding: var(--space-5);
+  background: var(--paper); color: var(--ink); border-radius: 20px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
+}
+.np-title { margin: 0 0 var(--space-2); font-size: 1.15rem; }
+.np-sub { margin: 0 0 var(--space-4); color: var(--ink-3); }
+.np-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
+.np-card {
+  display: flex; flex-direction: column; gap: var(--space-1); text-align: left;
+  padding: var(--space-3); border-radius: 14px; border: 2px solid var(--line);
+  background: transparent; color: var(--ink); cursor: pointer; font: inherit;
+}
+.np-card:hover { border-color: var(--ink-3); }
+.np-card.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.np-blurb { font-size: var(--fs-sm); color: var(--ink-3); line-height: 1.35; }
+.np-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
+@media (max-width: 560px) {
+  .np-choices { grid-template-columns: 1fr; }
+}
+</style>

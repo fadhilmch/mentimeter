@@ -24,13 +24,17 @@ function signOut() {
         <img class="brand-logo" :src="mode === 'dark' ? logoDark : logoLight" alt="CrowdFlow" />
       </RouterLink>
       <nav class="topnav">
-        <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
-        <button v-if="auth.isLoggedIn" class="link-button" @click="signOut">Sign out</button>
-        <template v-else>
-          <RouterLink to="/login">Log in</RouterLink>
-          <RouterLink v-if="route.name === 'home'" to="/signup" class="button nav-cta">
-            <span class="long">Create a presentation</span><span class="short">Create</span>
-          </RouterLink>
+        <!-- Audience surfaces (joining on a shared device) never show account links:
+             a presenter's "My presentations"/"Sign out" must not leak to their audience. -->
+        <template v-if="!route.meta.audience">
+          <RouterLink v-if="auth.isLoggedIn" to="/dashboard">My presentations</RouterLink>
+          <button v-if="auth.isLoggedIn" class="link-button" @click="signOut">Sign out</button>
+          <template v-else>
+            <RouterLink to="/login">Log in</RouterLink>
+            <RouterLink v-if="route.name === 'home'" to="/signup" class="button nav-cta">
+              <span class="long">Create a presentation</span><span class="short">Create</span>
+            </RouterLink>
+          </template>
         </template>
         <ColorModeToggle />
       </nav>

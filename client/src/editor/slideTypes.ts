@@ -15,7 +15,7 @@ export interface SlideTypeMeta {
 }
 
 export const SLIDE_TYPES: SlideTypeMeta[] = [
-  { type: 'multiple-choice', label: 'Multiple choice', short: 'Poll', hint: 'Options with live bars as votes come in.', hasOptions: true },
+  { type: 'multiple-choice', label: 'Multiple choice', short: 'Choice', hint: 'Options with live bars as votes come in.', hasOptions: true },
   { type: 'quiz', label: 'Quiz', short: 'Quiz', hint: 'Mark the correct answer. Scores and a leaderboard.', hasOptions: true },
   { type: 'word-cloud', label: 'Word cloud', short: 'Cloud', hint: 'One word per person; repeated words grow bigger.', hasOptions: false },
   { type: 'rating', label: 'Rating', short: 'Rating', hint: 'The audience rates 1-10; the stage shows the average.', hasOptions: false },

@@ -17,7 +17,7 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', name: 'home', component: LandingView, meta: { title: 'CrowdFlow - interactive real-time presentations' } },
-    { path: '/join', name: 'join', component: JoinView, meta: { title: 'Join a presentation' } },
+    { path: '/join', name: 'join', component: JoinView, meta: { title: 'Join a presentation', audience: true } },
     { path: '/login', name: 'login', component: LoginView, meta: { title: 'Log in' } },
     { path: '/signup', name: 'signup', component: SignupView, meta: { title: 'Sign up' } },
     { path: '/forgot-password', name: 'forgot-password', component: ForgotPasswordView, meta: { title: 'Reset your password' } },

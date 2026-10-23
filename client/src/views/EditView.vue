@@ -4,6 +4,7 @@ import { summarizeConflict } from '../conflictSummary'
 import { EditHistory } from '../editHistory'
 import { clearDraft, loadDraft, saveDraft } from '../draftStore'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { creationKindFromQuery, creationTemplate } from '../editor/creationTemplates'
 import { api, ApiError } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { THEMES } from '../themes'
@@ -61,6 +62,7 @@ interface DraftData {
 
 const route = useRoute()
 const router = useRouter()
+const startKind = creationKindFromQuery(route.query.start)
 const auth = useAuthStore()
 const id = String(route.params.id)
 
@@ -154,7 +156,11 @@ function applyLoaded(p: LoadedPresentation) {
     correctOptionId: s.correctOptionId,
     design: s.design ? { ...s.design } : {},
   }))
-  if (!slides.value.length) addSlide('multiple-choice')
+  if (!slides.value.length) {
+    // Fresh decks open with the starter for the chosen creation kind; Blank starts empty.
+    const starter = creationTemplate(startKind ?? 'presentation').starterSlide
+    if (starter) addSlide(starter)
+  }
   dirty.value = false
   restoring = true
   void nextTick(() => { restoring = false; history.reset(snapshot()); historyTick.value += 1 })
@@ -495,6 +501,7 @@ async function remove() {
       </div>
       <div class="editor-header">
         <div class="editor-join">
+          <span v-if="accessCode" class="join-label">Join code <span class="muted join-hint">- your audience enters this to watch and answer</span></span>
           <span v-if="accessCode" class="code-chip">{{ accessCode }}</span>
           <button v-if="accessCode" class="button ghost copy-link" :aria-label="copied ? 'Copied' : 'Copy join link'" @click="copyJoinLink">
             <svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
@@ -704,6 +711,15 @@ async function remove() {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+.join-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.join-hint {
+  font-weight: 400;
+  white-space: normal;
 }
 .code-chip {
   font-weight: 800;
@@ -920,6 +936,7 @@ async function remove() {
     margin-bottom: var(--space-3);
   }
   .editor-join, .editor-actions { display: contents; }
+  .join-label { display: none; }
   .editor-join > *, .editor-actions > * { order: 2; }
   .code-chip { order: 1; }
   .copy-link { order: 1; }

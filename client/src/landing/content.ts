@@ -25,7 +25,7 @@ export const STEPS: Step[] = [
 ]
 
 export const QUESTION_TYPES: QuestionType[] = [
-  { name: 'Poll', text: 'Multiple choice with live bars', glyph: '▮', color: '#5757db' },
+  { name: 'Multiple choice', text: 'Live bars as votes come in', glyph: '▮', color: '#5757db' },
   { name: 'Quiz', text: 'Correct answer and leaderboard', glyph: '?', color: '#f12f83' },
   { name: 'Word cloud', text: 'One word per person', glyph: 'Aa', color: '#ffb224' },
   { name: 'Rating', text: '1 to 10 with an average', glyph: '★', color: '#30a46c' },

@@ -5,6 +5,8 @@ import { api, downloadCsv } from '../api'
 import { getTheme } from '../themes'
 import logoUrl from '../assets/logo-mark.svg'
 import { useAuthStore } from '../stores/auth'
+import NewPresentationDialog from '../components/NewPresentationDialog.vue'
+import type { CreationKind } from '../editor/creationTemplates'
 
 interface PresentationSummary {
   theme?: string
@@ -126,14 +128,18 @@ async function duplicate(id: string) {
   }
 }
 
-async function createPresentation() {
+const createOpen = ref(false)
+const createError = ref('')
+
+async function createPresentation(kind: CreationKind, title: string) {
   creating.value = true
-  error.value = ''
+  createError.value = ''
   try {
-    const res = await api.createPresentation(auth.token, { title: 'Untitled presentation' })
-    router.push({ name: 'edit', params: { id: String(res.data._id) } })
+    // Deliberate choice + a real name: no more instant "Untitled presentation" rows.
+    const res = await api.createPresentation(auth.token, { title, slides: [] })
+    router.push({ name: 'edit', params: { id: String(res.data._id) }, query: { start: kind } })
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Could not create presentation.'
+    createError.value = err instanceof Error ? err.message : 'Could not create presentation.'
     creating.value = false
   }
 }
@@ -146,9 +152,7 @@ async function createPresentation() {
         <h1>Your presentations</h1>
         <p class="sub" style="margin:0;">Build slides, then present with a live join code.</p>
       </div>
-      <button class="button big" :disabled="creating" @click="createPresentation">
-        <span v-if="creating" class="spinner" aria-hidden="true"></span>{{ creating ? 'Creating…' : '+ New presentation' }}
-      </button>
+      <button class="button big" :disabled="creating" @click="createError = ''; createOpen = true">+ New presentation</button>
     </div>
 
     <section v-if="templateList.length" class="templates" aria-label="Start from a template">
@@ -226,6 +230,7 @@ async function createPresentation() {
       </form>
     </details>
   </div>
+  <NewPresentationDialog :open="createOpen" :busy="creating" :error="createError" @create="createPresentation" @close="createOpen = false" />
 </template>
 
 <style scoped>
