@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { isPresentationGone } from '../live/errors'
+import { isPresentationGone, isSessionEnded } from '../live/errors'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLiveStore } from '../stores/live'
@@ -29,9 +29,12 @@ const code = String(route.params.code)
 const error = ref('')
 // Set once the server says the presentation no longer exists; nothing can be sent after that.
 const gone = ref(false)
+// The server said this code belonged to a session that has ended, so say "ended" rather than "deleted".
+const endedSession = ref(false)
 const ended = computed(() => gone.value || live.state?.ended === true)
 watch(error, (message) => {
   if (isPresentationGone(message)) gone.value = true
+  if (isSessionEnded(message)) endedSession.value = true
 })
 // A reconnect proves the server is reachable again, so a leftover connection error no longer applies.
 watch(() => live.reconnects, () => {
@@ -267,13 +270,13 @@ async function sendRanking() {
   <div class="audience-page">
     <ConnectionBanner role="audience" />
     <section v-if="ended" class="card session-ended" role="status">
-      <h1>{{ gone ? 'Presentation unavailable' : 'Thanks for taking part!' }}</h1>
-      <p>{{ gone ? 'This presentation has ended or was deleted.' : 'The presenter has ended this presentation.' }} Answers can no longer be sent.</p>
+      <h1>{{ gone && !endedSession ? 'Presentation unavailable' : 'Thanks for taking part!' }}</h1>
+      <p>{{ gone && !endedSession ? 'This presentation has ended or was deleted.' : 'The presenter has ended this presentation.' }} Answers can no longer be sent.</p>
       <router-link class="button secondary" :to="{ name: 'join' }">Join another presentation</router-link>
     </section>
     <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
-    <p v-if="!state" class="connecting">Connecting…</p>
-    <template v-else>
+    <p v-if="!state && !ended" class="connecting">Connecting…</p>
+    <template v-else-if="state">
       <p class="audience-title"><span v-if="!ended" class="live-dot"></span>{{ state.title }}</p>
       <form v-if="askName" class="name-card" @submit.prevent="saveName">
         <label for="leaderboard-name">Choose your nickname</label>

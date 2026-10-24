@@ -19,6 +19,7 @@ import { LAYOUT_TYPES, SLIDE_TYPES } from '../models/presentation.js';
 import { TIME_LIMIT_MAX, TIME_LIMIT_MIN } from '../lib/scoring.js';
 import { broadcastState } from '../lib/broadcast.js';
 import { config } from '../config.js';
+import { sendCodeMissing } from '../lib/liveTarget.js';
 import { loadModerationQueue, setModerationMode, moderateResponse, moderationActionSchema, moderationModeSchema, ModerationError } from '../lib/moderation.js';
 
 // Options arrive either as legacy plain strings or as { id?, text } objects.
@@ -235,7 +236,7 @@ presentationsRouter.post('/', authenticate, validate(createSchema), async (req, 
 presentationsRouter.get('/code/:accessCode', async (req, res, next) => {
   try {
     const data = await Presentation.findOne({ accessCode: req.params.accessCode });
-    if (!data) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!data) return sendCodeMissing(res, req.params.accessCode);
     return res.json({ data: publicState(data) });
   } catch (err) {
     return next(err);
