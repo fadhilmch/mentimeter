@@ -76,7 +76,27 @@ test('ending a separate session pushes a terminal state before its code is relea
   expect(end.ok()).toBeTruthy()
   await expect(phone.getByRole('heading', { name: 'Thanks for taking part!' })).toBeVisible()
   await expect(phone.locator('.option-button').first()).toBeDisabled()
-  expect((await request.get(`/api/live/${run.code}/state`)).status()).toBe(404)
+  expect((await request.get(`/api/live/${run.code}/state`)).status()).toBe(410)
+})
+
+test('reopening or joining an ended session says it ended, not "no presentation"', async ({ browser, request }) => {
+  test.skip(process.env.E2E_SESSIONS !== 'true', 'needs session flag')
+  const deck = await createDeck(request, 'Ended reload', [poll('Pick', ['A', 'B'])])
+  const run = (await (await request.post(`/api/presentations/${deck.id}/sessions`, { headers: { authorization: `Bearer ${deck.token}` } })).json()).data
+  await request.post(`/api/sessions/${run.id}/end`, { headers: { authorization: `Bearer ${deck.token}` } })
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } })
+  const phone = await ctx.newPage()
+  await phone.goto(`/p/${run.code}`)
+  await expect(phone.getByRole('heading', { name: 'Thanks for taking part!' })).toBeVisible()
+  await expect(phone.getByText('The presenter has ended this presentation.')).toBeVisible()
+  await expect(phone.getByText('ended or was deleted')).toHaveCount(0)
+  await phone.screenshot({ path: '/tmp/ended-after-reload-390.png' })
+  await phone.goto('/join')
+  await phone.getByRole('textbox').first().fill(run.code)
+  await phone.keyboard.press('Enter')
+  await expect(phone.getByRole('alert')).toContainText('This session has ended')
+  await phone.screenshot({ path: '/tmp/ended-after-join-390.png' })
+  await ctx.close()
 })
 
 test('dark phone poll and ended state stay readable', async ({ browser, request }) => {

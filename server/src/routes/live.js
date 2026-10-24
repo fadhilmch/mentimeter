@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { findLiveByCode, liveExistsByCode } from '../lib/liveTarget.js';
+import { findLiveByCode, liveExistsByCode, sendCodeMissing } from '../lib/liveTarget.js';
 import { applyLiveActionByCode, liveActionSchema, publicState } from '../lib/live.js';
 import { answersFor } from '../lib/answers.js';
 import { guardAudienceAction, signParticipantToken, verifyParticipantToken, limitCredentialIssue } from '../lib/audience.js';
@@ -17,7 +17,7 @@ liveRouter.get('/:accessCode/token', async (req, res, next) => {
   try {
     if (!getAblyRest()) return res.status(501).json({ message: 'Ably transport is not configured' });
     const presentation = await liveExistsByCode(req.params.accessCode);
-    if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!presentation) return sendCodeMissing(res, req.params.accessCode);
     const tokenRequest = await createSubscriberToken(req.params.accessCode, req.query.clientId ?? 'anonymous');
     return res.json({ tokenRequest });
   } catch (err) {
@@ -29,7 +29,7 @@ liveRouter.get('/:accessCode/token', async (req, res, next) => {
 liveRouter.get('/:accessCode/state', async (req, res, next) => {
   try {
     const presentation = await findLiveByCode(req.params.accessCode);
-    if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!presentation) return sendCodeMissing(res, req.params.accessCode);
     return res.json({ data: publicState(presentation) });
   } catch (err) {
     return next(err);
@@ -48,7 +48,7 @@ liveRouter.post('/:accessCode/credential', async (req, res, next) => {
     limitCredentialIssue(req.ip);
     const { participantId, token } = credentialBody.parse(req.body ?? {});
     const exists = await liveExistsByCode(req.params.accessCode);
-    if (!exists) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!exists) return sendCodeMissing(res, req.params.accessCode);
     let id;
     if (token) {
       try {
@@ -78,7 +78,7 @@ liveRouter.get('/:accessCode/me', async (req, res, next) => {
       return res.status(400).json({ message: 'x-participant-id header is required' });
     }
     const presentation = await findLiveByCode(req.params.accessCode);
-    if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!presentation) return sendCodeMissing(res, req.params.accessCode);
     res.set("Cache-Control", "private, no-store");
     res.vary("x-participant-id");
     res.vary("x-participant-token");
@@ -93,7 +93,7 @@ liveRouter.post('/:accessCode/action', async (req, res, next) => {
     const action = liveActionSchema.parse(req.body);
     guardAudienceAction({ accessCode: req.params.accessCode, action, token: req.get('x-participant-token'), ip: req.ip });
     const presentation = await applyLiveActionByCode(req.params.accessCode, action);
-    if (!presentation) return res.status(404).json({ message: 'No presentation with that code' });
+    if (!presentation) return sendCodeMissing(res, req.params.accessCode);
     const state = publicState(presentation);
     await publishState(req.params.accessCode, state);
     return res.json({ ok: true, state });

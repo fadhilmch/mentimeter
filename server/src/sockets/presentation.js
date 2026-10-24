@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { findLiveByCode } from '../lib/liveTarget.js';
+import { findLiveByCode, endedByCode, SESSION_ENDED_MESSAGE } from '../lib/liveTarget.js';
 import { applyLiveActionByCode, liveActionSchema, publicState, liveChannel } from '../lib/live.js';
 import { guardAudienceAction } from '../lib/audience.js';
 import { publishState } from '../ably.js';
@@ -52,7 +52,9 @@ export function registerPresentationSockets(io) {
       try {
         const { accessCode } = joinSchema.parse(payload);
         const presentation = await findLiveByCode(accessCode);
-        if (!presentation) return ack({ ok: false, message: 'No presentation with that code' });
+        if (!presentation) {
+          return ack((await endedByCode(accessCode)) ? { ok: false, message: SESSION_ENDED_MESSAGE, code: 'session_ended' } : { ok: false, message: 'No presentation with that code' });
+        }
         const previous = joinedCode;
         if (previous) {
           await socket.leave(liveChannel(previous));
