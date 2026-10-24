@@ -275,8 +275,8 @@ async function sendRanking() {
       <router-link class="button secondary" :to="{ name: 'join' }">Join another presentation</router-link>
     </section>
     <p v-else-if="error" class="error-banner" role="alert">{{ error }}</p>
-    <p v-if="!state" class="connecting">Connecting…</p>
-    <template v-else>
+    <p v-if="!state && !ended" class="connecting">Connecting…</p>
+    <template v-else-if="state">
       <p class="audience-title"><span v-if="!ended" class="live-dot"></span>{{ state.title }}</p>
       <form v-if="askName" class="name-card" @submit.prevent="saveName">
         <label for="leaderboard-name">Choose your nickname</label>

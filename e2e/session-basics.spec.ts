@@ -90,6 +90,7 @@ test('reopening or joining an ended session says it ended, not "no presentation"
   await expect(phone.getByRole('heading', { name: 'Thanks for taking part!' })).toBeVisible()
   await expect(phone.getByText('The presenter has ended this presentation.')).toBeVisible()
   await expect(phone.getByText('ended or was deleted')).toHaveCount(0)
+  await expect(phone.getByText('Connecting…')).toHaveCount(0)
   await phone.screenshot({ path: '/tmp/ended-after-reload-390.png' })
   await phone.goto('/join')
   await phone.getByRole('textbox').first().fill(run.code)
